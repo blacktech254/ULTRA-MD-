@@ -897,4 +897,16 @@ async function buildThemedMenu(conText, Gifted) {
   return theme.render(data);
 }
 
-module.exports = { buildThemedMenu, THEMES, THEME_KEYS, buildMenuData };
+/**
+ * Returns category names sorted exactly as they appear in the menu
+ * (by command count descending, same as buildMenuData catLines).
+ * Use this in any handler that resolves a user's numeric reply to a category.
+ */
+function getMenuCategoryOrder(cmds) {
+  const catSummary = getCatSummary(cmds);
+  return Object.entries(catSummary)
+    .sort(([, a], [, b]) => b - a)
+    .map(([cat]) => cat);
+}
+
+module.exports = { buildThemedMenu, THEMES, THEME_KEYS, buildMenuData, getMenuCategoryOrder };

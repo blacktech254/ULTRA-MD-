@@ -590,29 +590,45 @@ gmd(
       const icon = CAT_ICONS[cat] || "⚡";
       const label = (cat.charAt(0).toUpperCase() + cat.slice(1)).toUpperCase();
 
-      const cmdLines = cmds.map(cmd => {
-        const prefix = cmd.isBody ? "" : botPrefix;
-        const pat = (prefix + cmd.pattern).padEnd(18, " ");
-        const desc = cmd.description
-          ? (cmd.description.length > 28 ? cmd.description.slice(0, 26) + "…" : cmd.description)
-          : "—";
-        return `> │◈ *${pat}* › _${desc}_`;
-      }).join("\n> │\n");
+      const PAGE_SIZE = 30;
+      const chunks = [];
+      for (let i = 0; i < cmds.length; i += PAGE_SIZE) {
+        chunks.push(cmds.slice(i, i + PAGE_SIZE));
+      }
+      const totalPages = chunks.length;
 
-      const card =
-`╭───〔 *${icon} ${label} COMMANDS* 〕──────┈⊷𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭
+      for (let p = 0; p < chunks.length; p++) {
+        const chunk = chunks[p];
+        const cmdLines = chunk.map(cmd => {
+          const prefix = cmd.isBody ? "" : botPrefix;
+          const pat = (prefix + cmd.pattern).padEnd(18, " ");
+          const desc = cmd.description
+            ? (cmd.description.length > 28 ? cmd.description.slice(0, 26) + "…" : cmd.description)
+            : "—";
+          return `> │◈ *${pat}* › _${desc}_`;
+        }).join("\n> │\n");
+
+        const pageLabel = totalPages > 1 ? ` — Page ${p + 1}/${totalPages}` : "";
+        const footer = p === totalPages - 1
+          ? `  💬 _Reply_ *0* _to go back to menu_\n> ✨ _${botFooter}_`
+          : `  ➡️ _Continued in next message..._`;
+
+        const card =
+`╭───〔 *${icon} ${label} COMMANDS${pageLabel}* 〕──────┈⊷𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭
 ├──────────────────────
-│✵│▸ 📊 *TOTAL:* ${cmds.length} commands
+│✵│▸ 📊 *TOTAL:* ${cmds.length} commands  │  *Showing:* ${p * PAGE_SIZE + 1}–${Math.min((p + 1) * PAGE_SIZE, cmds.length)}
 │✵│▸ ⚡ *PREFIX:* ${botPrefix}
 ├──────────────────────
 │
 ${cmdLines}
 │
 ╰─────────────────────┈⊷
-  💬 _Reply_ *0* _to go back to menu_
-> ✨ _${botFooter}_`;
+${footer}`;
 
-      await Gifted.sendMessage(from, { text: card.trim() }, { quoted: mek });
+        await Gifted.sendMessage(from, { text: card.trim() }, { quoted: mek });
+        if (p < chunks.length - 1) await new Promise(r => setTimeout(r, 800));
+      }
+
       await react("✅");
     } catch (e) {
       console.error(e);

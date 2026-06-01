@@ -510,7 +510,11 @@ gmd(
       if (isNaN(num) || num < 0) return;
 
       const categorized = buildCategorizedMenu(commands);
-      const sortedCats = getSortedCats(categorized);
+      // MUST match the sort order used in design.js buildMenuData (count desc)
+      // so the numbers the user sees in the menu map to the same categories here
+      const sortedCats = Object.entries(categorized)
+        .sort(([, a], [, b]) => b.length - a.length)
+        .map(([cat]) => cat);
 
       // 0 = go back to main menu
       if (num === 0) {

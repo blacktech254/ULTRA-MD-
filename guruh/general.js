@@ -510,11 +510,12 @@ gmd(
       if (isNaN(num) || num < 0) return;
 
       const categorized = buildCategorizedMenu(commands);
-      // MUST match the sort order used in design.js buildMenuData (count desc)
-      // so the numbers the user sees in the menu map to the same categories here
-      const sortedCats = Object.entries(categorized)
-        .sort(([, a], [, b]) => b.length - a.length)
-        .map(([cat]) => cat);
+      // Use the SAME sort function that design.js uses to number the menu lines
+      // so "reply with 3" always maps to exactly the 3rd category the user sees
+      const { getMenuCategoryOrder } = require("./design");
+      const sortedCats = getMenuCategoryOrder(commands)
+        .map(cat => cat.toLowerCase())
+        .filter(cat => categorized[cat]);
 
       // 0 = go back to main menu
       if (num === 0) {

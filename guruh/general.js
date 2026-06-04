@@ -1,1196 +1,820 @@
-const { gmd, commands, monospace, formatBytes } = require("../guru"),
-  fs = require("fs"),
-  axios = require("axios"),
-  BOT_START_TIME = Date.now(),
-  { totalmem: totalMemoryBytes, freemem: freeMemoryBytes } = require("os"),
-  moment = require("moment-timezone"),
-  more = String.fromCharCode(8206),
-  readmore = more.repeat(4001),
-  ram = `${formatBytes(freeMemoryBytes)} / ${formatBytes(totalMemoryBytes)}`;
-const { sendButtons } = require("gifted-btns");
+/**
+ * design.js — Bot Design & Menu Theme System
+ * Commands: .setmenu, .previewmenu, .setbotpic, .setmenupic,
+ *           .setfooter, .setcaption, .setbotname, .designinfo, .resetdesign
+ */
 
-gmd(
-  {
-    pattern: "ping",
-    aliases: ["pi", "p"],
-    react: "⚡",
-    category: "general",
-    description: "Check bot response speed",
-  },
-  async (from, Gifted, conText) => {
-    const {
-      mek,
-      react,
-      newsletterJid,
-      newsletterUrl,
-      botFooter,
-      botName,
-      botPrefix,
-    } = conText;
-    const startTime = process.hrtime();
+"use strict";
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, Math.floor(80 + Math.random() * 420)),
-    );
+const { gmd, commands }                          = require("../guru");
+const { getSetting, setSetting, resetSetting }   = require("../guru/database/settings");
+const { Jimp }                                   = require("jimp");
+const { S_WHATSAPP_NET }                         = require("@whiskeysockets/baileys");
+const fs   = require("fs").promises;
+const path = require("path");
 
-    const elapsed = process.hrtime(startTime);
-    const responseTime = Math.floor(elapsed[0] * 1000 + elapsed[1] / 1000000);
+// ─── helpers ──────────────────────────────────────────────────────────────────
 
-    const quality = responseTime < 100 ? "🟢 Excellent" : responseTime < 300 ? "🟡 Good" : "🔴 Slow";
-    const totalBars = 10;
-    const filled = Math.max(1, Math.round((1 - Math.min(responseTime, 1000) / 1000) * totalBars));
-    const bar = "▓".repeat(filled) + "░".repeat(totalBars - filled);
-    const pct = Math.round((1 - Math.min(responseTime, 1000) / 1000) * 100);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-    await sendButtons(Gifted, from, {
-      title: "",
-      text:
-`꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
-  ⚡ *${(botName || "ULTRA GURU MD").toUpperCase()}* ⚡
-       _Ping & Response Check_
-꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
-
-  🏓 *Response* ›  ${monospace(responseTime + "ms")}
-  📶 *Signal*   ›  ${bar} ${pct}%
-  ${quality} *Network Quality*
-  🔰 *Status*   ›  Online & Ready`,
-      footer: `> ✨ _${botFooter}_`,
-      buttons: [
-        { id: `${botPrefix}uptime`, text: "⏱️ Uptime" },
-        {
-          name: "cta_url",
-          buttonParamsJson: JSON.stringify({
-            display_text: "WaChannel",
-            url: newsletterUrl,
-          }),
-        },
-      ],
-    });
-
-    await react("✅");
-  },
-);
-
-gmd(
-  {
-    pattern: "report",
-    aliases: ["request"],
-    react: "💫",
-    description: "Request New Features.",
-    category: "owner",
-  },
-  async (from, Gifted, conText) => {
-    const { mek, q, sender, react, pushName, botPrefix, isSuperUser, reply } =
-      conText;
-    const reportedMessages = {};
-    const devlopernumber = "254799916673";
-    try {
-      if (!isSuperUser) return reply("*Owner Only Command*");
-      if (!q)
-        return reply(
-          `Example: ${botPrefix}request hi dev downloader commands are not working`,
-        );
-      const messageId = mek.key.id;
-      if (reportedMessages[messageId]) {
-        return reply(
-          "This report has already been forwarded to the owner. Please wait for a response.",
-        );
-      }
-      reportedMessages[messageId] = true;
-      const textt = `*| REQUEST/REPORT |*`;
-      const teks1 = `\n\n*User*: @${sender.split("@")[0]}\n*Request:* ${q}`;
-      Gifted.sendMessage(
-        devlopernumber + "@s.whatsapp.net",
-        {
-          text: textt + teks1,
-          mentions: [sender],
-        },
-        {
-          quoted: mek,
-        },
-      );
-      reply(
-        "Tʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ʏᴏᴜʀ ʀᴇᴘᴏʀᴛ. Iᴛ ʜᴀs ʙᴇᴇɴ ꜰᴏʀᴡᴀʀᴅᴇᴅ ᴛᴏ ᴛʜᴇ ᴏᴡɴᴇʀ. Pʟᴇᴀsᴇ ᴡᴀɪᴛ ꜰᴏʀ ᴀ ʀᴇsᴘᴏɴsᴇ.",
-      );
-      await react("✅");
-    } catch (e) {
-      reply(e);
-      console.log(e);
-    }
-  },
-);
-
-gmd(
-  {
-    pattern: "menus",
-    aliases: ["mainmenu", "mainmens"],
-    description: "Display Bot's Uptime, Date, Time, and Other Stats",
-    react: "📜",
-    category: "general",
-  },
-  async (from, Gifted, conText) => {
-    const {
-      mek,
-      sender,
-      react,
-      pushName,
-      botPic,
-      botMode,
-      botVersion,
-      botName,
-      botFooter,
-      timeZone,
-      botPrefix,
-      newsletterJid,
-      reply,
-      ownerNumber,
-    } = conText;
-    try {
-      const { getSetting } = require("../guru/database/settings");
-
-      function formatUptime(seconds) {
-        const days = Math.floor(seconds / (24 * 60 * 60));
-        seconds %= 24 * 60 * 60;
-        const hours = Math.floor(seconds / (60 * 60));
-        seconds %= 60 * 60;
-        const minutes = Math.floor(seconds / 60);
-        seconds = Math.floor(seconds % 60);
-        return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-      }
-
-      const now = new Date();
-      const date = new Intl.DateTimeFormat("en-GB", {
-        timeZone: timeZone,
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }).format(now);
-
-      const time = new Intl.DateTimeFormat("en-GB", {
-        timeZone: timeZone,
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      }).format(now);
-
-      const uptime = formatUptime(process.uptime());
-      const totalCommands = commands.filter(
-        (command) => command.pattern && !command.dontAddCommandList,
-      ).length;
-
-      let expiryBannerMenus = "  ♾️  *LIFETIME LICENSE*\n  ✅  _No expiry set · Always active_";
-      try {
-        const expiryDate = await getSetting("BOT_EXPIRY_DATE");
-        if (expiryDate) {
-          const exp = new Date(expiryDate);
-          const daysLeft = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
-          if (daysLeft <= 0) {
-            expiryBannerMenus = `  🔴  *EXPIRED*\n  ❌  _License ended · ${exp.toDateString()}_`;
-          } else if (daysLeft <= 7) {
-            expiryBannerMenus = `  🟡  *EXPIRY SOON* · _${daysLeft} day(s) left!_\n  ⚠️  _Expires: ${exp.toDateString()}_`;
-          } else {
-            expiryBannerMenus = `  🟢  *ACTIVE* · _${daysLeft} days remaining_\n  📅  _Expires: ${exp.toDateString()}_`;
-          }
-        }
-      } catch {}
-
-      const catIcons = {
-        general: "🌐", owner: "👑", group: "👥", ai: "🤖",
-        downloader: "📥", tools: "🔧", search: "🔍", games: "🎮",
-        fun: "🎉", religion: "🕌", sticker: "🖼️", converter: "🔄",
-        settings: "⚙️", media: "📸",
-      };
-      const categorized = commands.reduce((acc, cmd) => {
-        if (cmd.pattern && !cmd.dontAddCommandList) {
-          const cat = cmd.category || "general";
-          if (!acc[cat]) acc[cat] = 0;
-          acc[cat]++;
-        }
-        return acc;
-      }, {});
-
-      let categoryLines = Object.entries(categorized)
-        .sort(([, a], [, b]) => b - a)
-        .map(([cat, count]) => {
-          const icon = catIcons[cat.toLowerCase()] || "⚡";
-          return `  ✦ ${icon} ${cat.charAt(0).toUpperCase() + cat.slice(1)}  ·  ${count} cmds`;
-        })
-        .join("\n");
-
-      let menus =
-`꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
-  ⚡ _The Ultimate WhatsApp Bot_ ⚡
-  🤖 *${(botName || "ULTRA GURU MD").toUpperCase()}* 🤖
-꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
-  🔰 *GᴜʀᴜTᴇᴄʜ Lᴀʙ*  ·  _Official Build_
-━━━━━━ 🔑 *LICENSE STATUS* ━━━━━━
-${expiryBannerMenus}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  📦 *Version* ›  v${botVersion || "5.0.0"}
-  ⏱️ *Uptime*  ›  ${uptime}
-  ⚡ *Prefix*  ›  ${monospace(botPrefix)}
-  👤 *User*    ›  ${pushName}
-  ⚙️ *Mode*    ›  ${botMode?.toUpperCase() || "PUBLIC"}
-  📊 *Cmds*    ›  ${totalCommands} loaded
-  🕒 *Time*    ›  ${time}
-  📅 *Date*    ›  ${date}
-  🌍 *Zone*    ›  ${timeZone}
-
-▬▬▬▬▬▬ ❯ *COMMAND CATEGORIES* ❮ ▬▬▬▬▬
-
-${categoryLines}
-
-▬▬▬▬▬▬▬ ❯ *QUICK ACCESS* ❮ ▬▬▬▬▬▬▬▬
-
-  ⚡ ${monospace(botPrefix + "menu")}   ›  Full command list
-  📋 ${monospace(botPrefix + "list")}   ›  All commands
-  🏓 ${monospace(botPrefix + "ping")}   ›  Bot response speed
-  ⏱️ ${monospace(botPrefix + "uptime")} ›  Bot uptime
-  🗂️ ${monospace(botPrefix + "repo")}   ›  Source code
-  ❓ ${monospace(botPrefix + "help")}   ›  Usage guide
-
-> ✨ _${botFooter}_`;
-
-      const giftedMess = {
-        image: { url: botPic },
-        caption: menus.trim(),
-        contextInfo: {
-          mentionedJid: [sender],
-          forwardingScore: 5,
-          isForwarded: true,
-          forwardedNewsletterMessageInfo: {
-            newsletterJid: newsletterJid,
-            newsletterName: botName,
-            serverMessageId: 0,
-          },
-        },
-      };
-      try {
-        await Gifted.sendMessage(from, giftedMess, { quoted: mek });
-      } catch (_) {
-        await Gifted.sendMessage(from, { text: menus.trim() }, { quoted: mek });
-      }
-      await react("✅");
-    } catch (e) {
-      console.error(e);
-      reply(`${e}`);
-    }
-  },
-);
-
-gmd(
-  {
-    pattern: "list",
-    aliases: ["listmenu", "listmen"],
-    description: "Show All Commands and their Usage",
-    react: "📜",
-    category: "general",
-  },
-  async (from, Gifted, conText) => {
-    const {
-      mek,
-      sender,
-      react,
-      pushName,
-      botPic,
-      botMode,
-      botVersion,
-      botName,
-      botFooter,
-      timeZone,
-      botPrefix,
-      newsletterJid,
-      reply,
-    } = conText;
-    try {
-      function formatUptime(seconds) {
-        const days = Math.floor(seconds / (24 * 60 * 60));
-        seconds %= 24 * 60 * 60;
-        const hours = Math.floor(seconds / (60 * 60));
-        seconds %= 60 * 60;
-        const minutes = Math.floor(seconds / 60);
-        seconds = Math.floor(seconds % 60);
-        return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-      }
-
-      const now = new Date();
-      const date = new Intl.DateTimeFormat("en-GB", {
-        timeZone: timeZone,
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }).format(now);
-
-      const time = new Intl.DateTimeFormat("en-GB", {
-        timeZone: timeZone,
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      }).format(now);
-
-      const uptime = formatUptime(process.uptime());
-      const totalCommands = commands.filter(
-        (command) => command.pattern && !command.dontAddCommandList,
-      ).length;
-
-      let expiryBannerList = "  ♾️  *LIFETIME LICENSE*\n  ✅  _No expiry set · Always active_";
-      try {
-        const { getSetting: getSettingList } = require("../guru/database/settings");
-        const expiryRawList = await getSettingList("BOT_EXPIRY_DATE");
-        if (expiryRawList) {
-          const expL = new Date(expiryRawList);
-          const dL = Math.ceil((expL - now) / (1000 * 60 * 60 * 24));
-          if (dL <= 0) expiryBannerList = `  🔴  *EXPIRED*\n  ❌  _License ended · ${expL.toDateString()}_`;
-          else if (dL <= 7) expiryBannerList = `  🟡  *EXPIRY SOON* · _${dL} day(s) left!_\n  ⚠️  _Expires: ${expL.toDateString()}_`;
-          else expiryBannerList = `  🟢  *ACTIVE* · _${dL} days remaining_\n  📅  _Expires: ${expL.toDateString()}_`;
-        }
-      } catch {}
-
-      let list =
-`꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
-  ⚡ _The Ultimate WhatsApp Bot_ ⚡
-  🤖 *${(botName || "ULTRA GURU MD").toUpperCase()}* 🤖
-꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
-  🔰 *GᴜʀᴜTᴇᴄʜ Lᴀʙ*  ·  _Official Build_
-━━━━━━ 🔑 *LICENSE STATUS* ━━━━━━
-${expiryBannerList}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-         📋 _Full Command Index_
-
-  ✦ 📦 *Version* ›  ${monospace("v" + (botVersion || "5.0.0"))}
-  ✦ ⏱️ *Uptime*  ›  ${monospace(uptime)}
-  ✦ ⚡ *Prefix*  ›  ${monospace(botPrefix)}
-  ✦ 👤 *User*    ›  ${monospace(pushName)}
-  ✦ ⚙️ *Mode*    ›  ${monospace((botMode || "public").toUpperCase())}
-  ✦ 📊 *Cmds*    ›  ${monospace(totalCommands.toString())} loaded
-  ✦ 🕒 *Time*    ›  ${monospace(time)}
-  ✦ 📅 *Date*    ›  ${monospace(date)}
-  ✦ 🌍 *Zone*    ›  ${monospace(timeZone)}
-  ✦ 💾 *RAM*     ›  ${monospace(ram)}
-
-▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬${readmore}\n\n`;
-
-      const sortedCmds = commands
-        .filter((gmd) => gmd.pattern && gmd.description)
-        .sort((a, b) => b.pattern.length - a.pattern.length);
-      sortedCmds.forEach((gmd, index) => {
-        list += `*${index + 1}.* ${monospace(gmd.pattern)}\n   ↳ ${gmd.description}\n\n`;
-      });
-
-      const giftedMess = {
-        image: { url: botPic },
-        caption: list.trim(),
-        contextInfo: {
-          mentionedJid: [sender],
-          forwardingScore: 5,
-          isForwarded: true,
-          forwardedNewsletterMessageInfo: {
-            newsletterJid: newsletterJid,
-            newsletterName: botName,
-            serverMessageId: 0,
-          },
-        },
-      };
-      try {
-        await Gifted.sendMessage(from, giftedMess, { quoted: mek });
-      } catch (_) {
-        await Gifted.sendMessage(from, { text: list.trim() }, { quoted: mek });
-      }
-      await react("✅");
-    } catch (e) {
-      console.error(e);
-      reply(`${e}`);
-    }
-  },
-);
+function formatUptime(seconds) {
+    const d = Math.floor(seconds / 86400); seconds %= 86400;
+    const h = Math.floor(seconds / 3600);  seconds %= 3600;
+    const m = Math.floor(seconds / 60);
+    return `${d}d ${h}h ${m}m`;
+}
 
 const CAT_ICONS = {
-  general: "🌐", owner: "👑", group: "👥", ai: "🤖",
-  downloader: "📥", tools: "🔧", search: "🔍", games: "🎮",
-  fun: "🎉", religion: "🕌", sticker: "🖼️", converter: "🔄",
-  settings: "⚙️", media: "📸", notes: "📝", channels: "📢",
-  sports: "⚽", extras: "✨", texttools: "🔡", restrictions: "🚫",
+    general: "🌐", owner: "👑", group: "👥", ai: "🤖",
+    downloader: "📥", tools: "🔧", search: "🔍", games: "🎮",
+    fun: "🎉", religion: "🕌", sticker: "🖼️", converter: "🔄",
+    settings: "⚙️", media: "📸", notes: "📝", channels: "📢",
+    sports: "⚽", extras: "✨", texttools: "🔡", restrictions: "🚫",
 };
 
-const CAT_ORDER = ["general","ai","downloader","tools","search","games","group","owner","settings","fun","converter","religion","texttools","notes","channels","sports","extras","restrictions","sticker","media"];
+// Must match CAT_ORDER in general.js so category numbers stay in sync
+const CAT_ORDER = [
+    "general","ai","downloader","tools","search","games","group","owner",
+    "settings","fun","converter","religion","texttools","notes","channels",
+    "sports","extras","restrictions","sticker","media",
+];
 
-function buildCategorizedMenu(commands) {
-  const categorized = {};
-  for (const cmd of commands) {
-    if (!cmd.pattern || cmd.dontAddCommandList) continue;
-    const cat = (cmd.category || "general").toLowerCase();
-    if (!categorized[cat]) categorized[cat] = [];
-    categorized[cat].push({
-      pattern: cmd.pattern,
-      description: cmd.description || "",
-      isBody: cmd.on === "body",
+// ─── menu data builder ────────────────────────────────────────────────────────
+
+async function buildMenuData(conText) {
+    const {
+        sender, pushName, botName, botPrefix, botVersion,
+        botMode, botFooter, botCaption, newsletterJid,
+    } = conText;
+
+    const uptime   = formatUptime(Math.floor(process.uptime()));
+    const totalCmds = commands.filter(c => c.pattern && !c.dontAddCommandList).length;
+
+    // expiry
+    let expiryLine   = "♾️ LIFETIME";
+    let expiryDetail = "No expiry · Always active";
+    try {
+        const expiryRaw = await getSetting("BOT_EXPIRY_DATE");
+        if (expiryRaw) {
+            const exp   = new Date(expiryRaw);
+            const dLeft = Math.ceil((exp - Date.now()) / 86400000);
+            if      (dLeft <= 0) { expiryLine = "🔴 EXPIRED";       expiryDetail = `Ended ${exp.toDateString()}`; }
+            else if (dLeft <= 7) { expiryLine = "🟡 EXPIRY SOON";   expiryDetail = `${dLeft}d left`; }
+            else                 { expiryLine = "🟢 ACTIVE";        expiryDetail = `${exp.toLocaleDateString("en-GB")} (${dLeft}d left)`; }
+        }
+    } catch {}
+
+    // category summary
+    // ── categories sorted by CAT_ORDER (must match general.js body handler) ──
+    const catSummary = commands.reduce((acc, cmd) => {
+        if (cmd.pattern && !cmd.dontAddCommandList) {
+            const cat = (cmd.category || "general").toLowerCase();
+            if (!acc[cat]) acc[cat] = [];
+            acc[cat].push(cmd);
+        }
+        return acc;
+    }, {});
+
+    // Same sort as getSortedCats() in general.js
+    const sortedCats = Object.keys(catSummary).sort((a, b) => {
+        const ai = CAT_ORDER.indexOf(a), bi = CAT_ORDER.indexOf(b);
+        if (ai === -1 && bi === -1) return a.localeCompare(b);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
     });
-  }
-  for (const cat of Object.keys(categorized)) {
-    categorized[cat].sort((a, b) => a.pattern.localeCompare(b.pattern));
-  }
-  return categorized;
+
+    const catLines = sortedCats.map((cat, i) => {
+        const icon  = CAT_ICONS[cat] || "⚡";
+        const count = catSummary[cat].length;
+        const label = (cat[0].toUpperCase() + cat.slice(1)).toUpperCase();
+        return `> │◦➛ ${i + 1}. ${icon} ${label}  _(${count} cmds)_`;
+    }).join("\n");
+
+    return {
+        sender,
+        pushName: pushName || "User",
+        botName:    botName    || "ULTRA GURU",
+        botPrefix:  botPrefix  || ".",
+        botVersion: botVersion || "5.0.0",
+        botMode:    botMode    || "public",
+        botFooter:  botFooter  || "Powered by GURUTECH",
+        botCaption: botCaption || "",
+        newsletterJid,
+        uptime, totalCmds, catLines,
+        expiryLine, expiryDetail,
+    };
 }
 
-function getSortedCats(categorized) {
-  return Object.keys(categorized).sort((a, b) => {
-    const ai = CAT_ORDER.indexOf(a), bi = CAT_ORDER.indexOf(b);
-    if (ai === -1 && bi === -1) return a.localeCompare(b);
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
-  });
-}
+// ─── THEMES ───────────────────────────────────────────────────────────────────
 
-gmd(
-  {
-    pattern: "menu",
-    aliases: ["help", "men", "allmenu"],
-    react: "📜",
-    category: "general",
-    description: "Browse commands by category — reply with a number",
-  },
-  async (from, Gifted, conText) => {
-    const {
-      mek, sender, react, botPic, botName, botFooter, newsletterJid, reply,
-    } = conText;
-    try {
-      // ── themed menu (design.js) ──────────────────────────────────────────
-      const { buildThemedMenu } = require("./design");
-      const { getSetting: _gs } = require("../guru/database/settings");
-      const menuText = await buildThemedMenu(conText, Gifted);
-      const picUrl   = (await _gs("BOT_PIC")) || botPic;
+const THEMES = {
 
-      const giftedMess = {
-        image: { url: picUrl },
-        caption: menuText.trim(),
-        contextInfo: {
-          mentionedJid: [sender],
-          forwardingScore: 5,
-          isForwarded: true,
-          forwardedNewsletterMessageInfo: {
-            newsletterJid: newsletterJid,
-            newsletterName: botName,
-            serverMessageId: 0,
-          },
-        },
-      };
-      try {
-        await Gifted.sendMessage(from, giftedMess, { quoted: mek });
-      } catch (_) {
-        await Gifted.sendMessage(from, { text: menuText.trim() }, { quoted: mek });
-      }
-      await react("✅");
-    } catch (e) {
-      console.error(e);
-      reply(`${e}`);
-    }
-  },
-);
-
-gmd(
-  {
-    on: "body",
-    pattern: /^\d{1,2}$/,
-    dontAddCommandList: true,
-    category: "general",
-  },
-  async (from, Gifted, conText) => {
-    const {
-      mek, sender, react, pushName, botPic, botMode, botVersion,
-      botName, botFooter, botPrefix, newsletterJid, reply, body,
-    } = conText;
-    try {
-      const rawBody = (body || "").trim();
-      if (!/^\d{1,2}$/.test(rawBody)) return;
-      const num = parseInt(rawBody, 10);
-      if (isNaN(num) || num < 0) return;
-
-      const categorized = buildCategorizedMenu(commands);
-      const sortedCats = getSortedCats(categorized);
-
-      // 0 = go back to main menu
-      if (num === 0) {
-        function formatUptime(s) {
-          const d = Math.floor(s / 86400); s %= 86400;
-          const h = Math.floor(s / 3600); s %= 3600;
-          const m = Math.floor(s / 60);
-          return `${d}d ${h}h ${m}m`;
-        }
-        const uptime = formatUptime(Math.floor(process.uptime()));
-        const totalCmds = commands.filter(c => c.pattern && !c.dontAddCommandList).length;
-
-        const { getSetting: getSettingMenu } = require("../guru/database/settings");
-        let expiryLine = "♾️  LIFETIME LICENSE";
-        let expiryDetail = "No expiry set · Always active";
-        try {
-          const now = new Date();
-          const expiryRaw = await getSettingMenu("BOT_EXPIRY_DATE");
-          if (expiryRaw) {
-            const exp = new Date(expiryRaw);
-            const dLeft = Math.ceil((exp - now) / 86400000);
-            const hLeft = Math.floor(((exp - now) % 86400000) / 3600000);
-            const mLeft = Math.floor(((exp - now) % 3600000) / 60000);
-            if (dLeft <= 0) {
-              expiryLine = "🔴  EXPIRED";
-              expiryDetail = `License ended · ${exp.toDateString()}`;
-            } else if (dLeft <= 7) {
-              expiryLine = "🟡  EXPIRY SOON";
-              expiryDetail = `${dLeft}d ${hLeft}h ${mLeft}m left`;
-            } else {
-              expiryLine = "🟢  ACTIVE LICENSE";
-              expiryDetail = `${exp.toLocaleDateString("en-GB")}, (${dLeft}d ${hLeft}h ${mLeft}m left)`;
-            }
-          }
-        } catch {}
-
-        const catLines = sortedCats.map((cat, i) => {
-          const icon = CAT_ICONS[cat] || "⚡";
-          const count = categorized[cat].length;
-          const label = (cat.charAt(0).toUpperCase() + cat.slice(1)).toUpperCase();
-          return `> │◦➛ ${i + 1}. ${icon} ${label}  _(${count} cmds)_`;
-        }).join("\n");
-
-        // ── themed menu (design.js) ────────────────────────────────────────
-        const { buildThemedMenu } = require("./design");
-        const { getSetting: _gs0 } = require("../guru/database/settings");
-        const menuText = await buildThemedMenu(conText, Gifted);
-        const picUrl0  = (await _gs0("BOT_PIC")) || botPic;
-
-        const giftedMess = {
-          image: { url: picUrl0 },
-          caption: menuText.trim(),
-          contextInfo: {
-            mentionedJid: [sender],
-            forwardingScore: 5,
-            isForwarded: true,
-            forwardedNewsletterMessageInfo: {
-              newsletterJid: newsletterJid,
-              newsletterName: botName,
-              serverMessageId: 0,
-            },
-          },
-        };
-        try {
-          await Gifted.sendMessage(from, giftedMess, { quoted: mek });
-        } catch (_) {
-          await Gifted.sendMessage(from, { text: menuText.trim() }, { quoted: mek });
-        }
-        return await react("✅");
-      }
-
-      // 1–N = show category card
-      if (num > sortedCats.length) return;
-
-      const cat = sortedCats[num - 1];
-      const cmds = categorized[cat];
-      const icon = CAT_ICONS[cat] || "⚡";
-      const label = (cat.charAt(0).toUpperCase() + cat.slice(1)).toUpperCase();
-
-      const cmdLines = cmds.map(cmd => {
-        const prefix = cmd.isBody ? "" : botPrefix;
-        const pat = (prefix + cmd.pattern).padEnd(18, " ");
-        const desc = cmd.description
-          ? (cmd.description.length > 28 ? cmd.description.slice(0, 26) + "…" : cmd.description)
-          : "—";
-        return `> │◈ *${pat}* › _${desc}_`;
-      }).join("\n> │\n");
-
-      const card =
-`╭───〔 *${icon} ${label} COMMANDS* 〕──────┈⊷𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭
+    ultra: {
+        name: "🔷 ULTRA",
+        description: "Classic ULTRA GURU bordered style",
+        render({ botName, botPrefix, botVersion, botMode, botFooter,
+                  uptime, totalCmds, catLines, expiryLine, expiryDetail, sender }) {
+            return (
+`╰► Hey, @${sender.split("@")[0]}
+╭───〔  *${botName.toUpperCase()}*  〕──────┈⊷𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭
 ├──────────────────────
-│✵│▸ 📊 *TOTAL:* ${cmds.length} commands
+│✵│▸ 📊 *TOTAL COMMANDS:* ${totalCmds}
+│✵│▸ ⏱️ *UPTIME:* ${uptime}
 │✵│▸ ⚡ *PREFIX:* ${botPrefix}
-├──────────────────────
-│
-${cmdLines}
-│
+│✵│▸ ⚙️ *MODE:* ${botMode.toUpperCase()}
+│✵│▸ 📦 *VERSION:* v${botVersion}
+│✵│▸ 🔑 *LICENSE:* ${expiryLine}
+│✵│▸ 📅 *EXPIRY:* ${expiryDetail}
+╰──────────────────────────────⊷
+
+╭───◇ *𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦* ◇──────┈⊷
+│「 Reply with a number below 」
+${catLines}
 ╰─────────────────────┈⊷
-  💬 _Reply_ *0* _to go back to menu_
-> ✨ _${botFooter}_`;
+> ✨ _${botFooter}_`
+            );
+        },
+    },
 
-      await Gifted.sendMessage(from, { text: card.trim() }, { quoted: mek });
-      await react("✅");
-    } catch (e) {
-      console.error(e);
+    neon: {
+        name: "⚡ NEON",
+        description: "Cyberpunk electric borders",
+        render({ botName, botPrefix, botVersion, botMode, botFooter,
+                  uptime, totalCmds, catLines, expiryLine, sender }) {
+            return (
+`▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+⚡  *${botName.toUpperCase()}*  ⚡
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+👤 Hey *${sender.split("@")[0]}*
+▸▸ 📊 CMDS   ⟩  ${totalCmds}
+▸▸ ⏱️ UPTIME ⟩  ${uptime}
+▸▸ ⚡ PREFIX ⟩  ${botPrefix}
+▸▸ ⚙️ MODE   ⟩  ${botMode.toUpperCase()}
+▸▸ 📦 VER    ⟩  v${botVersion}
+▸▸ 🔑 LIC    ⟩  ${expiryLine}
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+⚡  *CATEGORIES* — reply a number
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+${catLines}
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+> ✨ _${botFooter}_`
+            );
+        },
+    },
+
+    minimal: {
+        name: "🪶 MINIMAL",
+        description: "Clean & simple — no decorations",
+        render({ botName, botPrefix, botVersion, botMode, botFooter,
+                  uptime, totalCmds, catLines, expiryLine, sender }) {
+            return (
+`*${botName.toUpperCase()}*
+────────────────
+Hi @${sender.split("@")[0]} 👋
+Commands: ${totalCmds}  |  Uptime: ${uptime}
+Prefix: ${botPrefix}  |  Mode: ${botMode}
+Version: v${botVersion}  |  License: ${expiryLine}
+────────────────
+*Categories* — reply a number:
+${catLines}
+────────────────
+_${botFooter}_`
+            );
+        },
+    },
+
+    royal: {
+        name: "👑 ROYAL",
+        description: "Elegant gold-crown themed menu",
+        render({ botName, botPrefix, botVersion, botMode, botFooter,
+                  uptime, totalCmds, catLines, expiryLine, expiryDetail, pushName }) {
+            return (
+`꧁༺ *${botName.toUpperCase()}* ༻꧂
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    👑 *Welcome, ${pushName}*  👑
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✦ Total Commands › *${totalCmds}*
+  ✦ Uptime         › *${uptime}*
+  ✦ Prefix         › *${botPrefix}*
+  ✦ Mode           › *${botMode.toUpperCase()}*
+  ✦ Version        › *v${botVersion}*
+  ✦ License        › *${expiryLine}*
+  ✦ Expiry         › _${expiryDetail}_
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 👑 *COMMAND CATEGORIES* 👑
+  Reply a number to explore
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${catLines}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+> ✨ _${botFooter}_`
+            );
+        },
+    },
+
+    galaxy: {
+        name: "🌌 GALAXY",
+        description: "Space & stars themed menu",
+        render({ botName, botPrefix, botVersion, botMode, botFooter,
+                  uptime, totalCmds, catLines, expiryLine, pushName }) {
+            return (
+`🌌✨━━━━━━━━━━━━━━━━━━━━━━━━✨🌌
+   🚀 *${botName.toUpperCase()}*
+🌌✨━━━━━━━━━━━━━━━━━━━━━━━━✨🌌
+   🌟 Greetings, *${pushName}* 🌟
+🌠 *Bot Stats*
+  🪐 Commands ·· ${totalCmds}
+  ⏳ Uptime   ·· ${uptime}
+  🔭 Prefix   ·· ${botPrefix}
+  🛸 Mode     ·· ${botMode.toUpperCase()}
+  🌍 Version  ·· v${botVersion}
+  🔑 License  ·· ${expiryLine}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌌 *WARP TO A CATEGORY*
+   ↳ Reply with a number below
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${catLines}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+> 🌙 _${botFooter}_`
+            );
+        },
+    },
+
+    dark: {
+        name: "🖤 DARK",
+        description: "Dark gothic shadowed menu",
+        render({ botName, botPrefix, botVersion, botMode, botFooter,
+                  uptime, totalCmds, catLines, expiryLine, pushName }) {
+            return (
+`◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢
+   🖤 *${botName.toUpperCase()}* 🖤
+◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢
+ ☠️  *${pushName}* has entered the shadows
+▓ Commands  › ${totalCmds}
+▓ Uptime    › ${uptime}
+▓ Prefix    › ${botPrefix}
+▓ Mode      › ${botMode.toUpperCase()}
+▓ Version   › v${botVersion}
+▓ License   › ${expiryLine}
+◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢
+ 🕷️ *COMMAND CATEGORIES*
+ ↳ Choose your path…
+◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢
+${catLines}
+◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢
+> 🖤 _${botFooter}_`
+            );
+        },
+    },
+
+    flower: {
+        name: "🌸 FLOWER",
+        description: "Cute floral pastel theme",
+        render({ botName, botPrefix, botVersion, botMode, botFooter,
+                  uptime, totalCmds, catLines, expiryLine, pushName }) {
+            return (
+`🌸🌺🌸🌺🌸🌺🌸🌺🌸🌺🌸🌺🌸
+   🌷 *${botName.toUpperCase()}* 🌷
+🌸🌺🌸🌺🌸🌺🌸🌺🌸🌺🌸🌺🌸
+   Hi *${pushName}* ╰(✿◕‿◕✿)╯
+🌻 Cmds    » ${totalCmds}
+🌻 Uptime  » ${uptime}
+🌻 Prefix  » ${botPrefix}
+🌻 Mode    » ${botMode.toUpperCase()}
+🌻 Version » v${botVersion}
+🌻 License » ${expiryLine}
+🌸🌺🌸🌺🌸🌺🌸🌺🌸🌺🌸🌺🌸
+   🌷 *CATEGORIES* 🌷
+   ~ Reply a number below ~
+🌸🌺🌸🌺🌸🌺🌸🌺🌸🌺🌸🌺🌸
+${catLines}
+🌸🌺🌸🌺🌸🌺🌸🌺🌸🌺🌸🌺🌸
+> 🌸 _${botFooter}_`
+            );
+        },
+    },
+
+    fire: {
+        name: "🔥 FIRE",
+        description: "Blazing hot energy theme",
+        render({ botName, botPrefix, botVersion, botMode, botFooter,
+                  uptime, totalCmds, catLines, expiryLine, pushName }) {
+            return (
+`🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+ 🔥 *${botName.toUpperCase()}* 🔥
+🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+ 💥 *${pushName}*, you're on fire!
+🌋 Cmds    ⟩ ${totalCmds}
+🌋 Uptime  ⟩ ${uptime}
+🌋 Prefix  ⟩ ${botPrefix}
+🌋 Mode    ⟩ ${botMode.toUpperCase()}
+🌋 Version ⟩ v${botVersion}
+🌋 License ⟩ ${expiryLine}
+🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+ 🔥 *COMMAND CATEGORIES*
+ 🌶️ Reply a number to ignite!
+🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+${catLines}
+🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+> 🔥 _${botFooter}_`
+            );
+        },
+    },
+
+    wave: {
+        name: "🌊 WAVE",
+        description: "Calm ocean wave theme",
+        render({ botName, botPrefix, botVersion, botMode, botFooter,
+                  uptime, totalCmds, catLines, expiryLine, pushName }) {
+            return (
+`〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️
+   🌊 *${botName.toUpperCase()}* 🌊
+〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️
+  🐚 Riding the wave, *${pushName}*
+🐠 Commands › ${totalCmds}
+🐠 Uptime   › ${uptime}
+🐠 Prefix   › ${botPrefix}
+🐠 Mode     › ${botMode.toUpperCase()}
+🐠 Version  › v${botVersion}
+🐠 License  › ${expiryLine}
+〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️
+   🌊 *COMMAND CATEGORIES* 🌊
+    ↯ Reply a number below ↯
+〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️
+${catLines}
+〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️
+> 🌊 _${botFooter}_`
+            );
+        },
+    },
+
+    matrix: {
+        name: "💻 MATRIX",
+        description: "Hacker terminal matrix style",
+        render({ botName, botPrefix, botVersion, botMode, botFooter,
+                  uptime, totalCmds, catLines, expiryLine, sender }) {
+            return (
+`╔══════════════════════════════╗
+║  💻 *${botName.toUpperCase()}*
+╚══════════════════════════════╝
+> INIT_USER :: ${sender.split("@")[0]}
+> SYS_BOOT  :: COMPLETE ✅
+╔══════════════════════════════╗
+║ 📊 CMDS    :: ${totalCmds}
+║ ⏱️ UPTIME  :: ${uptime}
+║ ⌨️ PREFIX  :: ${botPrefix}
+║ ⚙️ MODE    :: ${botMode.toUpperCase()}
+║ 📦 VERSION :: v${botVersion}
+║ 🔑 LICENSE :: ${expiryLine}
+╚══════════════════════════════╝
+> SELECT_MODULE :: [ reply num ]
+╔══════════════════════════════╗
+${catLines}
+╚══════════════════════════════╝
+> SYS :: _${botFooter}_`
+            );
+        },
+    },
+
+};
+
+const THEME_KEYS = Object.keys(THEMES);
+
+// ─── shared send helper ───────────────────────────────────────────────────────
+
+async function sendMenuMsg(Gifted, from, text, conText) {
+    const { mek, botName, newsletterJid, sender } = conText;
+    const picUrl = (await getSetting("BOT_PIC")) || conText.botPic;
+    try {
+        await Gifted.sendMessage(from, {
+            image: { url: picUrl },
+            caption: text.trim(),
+            contextInfo: {
+                mentionedJid: [sender],
+                forwardingScore: 5,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: newsletterJid || "120363406649804510@newsletter",
+                    newsletterName: botName || "ULTRA GURU",
+                    serverMessageId: 0,
+                },
+            },
+        }, { quoted: mek });
+    } catch {
+        // fallback to text-only if image fails
+        await Gifted.sendMessage(from, { text: text.trim() }, { quoted: mek });
     }
-  },
-);
+}
+
+// ─── 1. SETMENU ───────────────────────────────────────────────────────────────
 
 gmd(
-  {
-    pattern: "return",
-    aliases: ["details", "det", "ret"],
-    react: "⚡",
-    category: "owner",
-    description:
-      "Displays the full raw quoted message using Baileys structure.",
-  },
-  async (from, Gifted, conText) => {
-    const {
-      mek,
-      reply,
-      react,
-      quotedMsg,
-      isSuperUser,
-      botName,
-      botFooter,
-      newsletterJid,
-      newsletterUrl,
-    } = conText;
+    {
+        pattern: "setmenu",
+        aliases: ["menutheme", "menudesign", "themenu"],
+        react: "🎨",
+        category: "owner",
+        description: "Change the bot menu design. Usage: .setmenu [1-10] or .setmenu to list",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, isSuperUser, args, botFooter } = conText;
 
-    if (!isSuperUser) {
-      return reply(`Owner Only Command!`);
+        if (!isSuperUser) { await react("❌"); return reply("❌ Owner Only Command!"); }
+
+        const current = (await getSetting("MENU_THEME")) || "ultra";
+
+        // No arg → list all themes
+        if (!args[0]) {
+            const list = THEME_KEYS.map((key, i) => {
+                const t   = THEMES[key];
+                const cur = key === current ? " ✅ *[ACTIVE]*" : "";
+                return `*${i + 1}.* ${t.name}${cur}\n   _${t.description}_`;
+            }).join("\n\n");
+
+            return reply(
+`╭──〔 🎨 *MENU THEMES* 〕──────┈⊷
+│ *${THEME_KEYS.length}* themes available
+│ Current: *${THEMES[current]?.name || current}*
+│
+│ *.setmenu <number>* — switch theme
+│ *.previewmenu <number>* — preview first
+╰────────────────────────────⊷
+
+${list}
+
+> _${botFooter}_`
+            );
+        }
+
+        const n = parseInt(args[0], 10);
+        if (isNaN(n) || n < 1 || n > THEME_KEYS.length) {
+            await react("❌");
+            return reply(`❌ Enter a number between 1 and ${THEME_KEYS.length}.\nSend *.setmenu* to see all themes.`);
+        }
+
+        const key = THEME_KEYS[n - 1];
+        await setSetting("MENU_THEME", key);
+        await react("⏳");
+
+        const data = await buildMenuData(conText);
+        const text = `✅ *Theme switched to ${THEMES[key].name}!*\n\nHere's a preview:\n\n${THEMES[key].render(data)}`;
+        await sendMenuMsg(Gifted, from, text, conText);
+        await react("✅");
     }
+);
 
-    if (!quotedMsg) {
-      return reply(`Please reply to/quote a message`);
+// ─── 2. PREVIEWMENU ───────────────────────────────────────────────────────────
+
+gmd(
+    {
+        pattern: "previewmenu",
+        aliases: ["menupreview", "prevmenu"],
+        react: "👁️",
+        category: "owner",
+        description: "Preview a menu theme without switching. Usage: .previewmenu <1-10>",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, isSuperUser, args } = conText;
+
+        if (!isSuperUser) { await react("❌"); return reply("❌ Owner Only Command!"); }
+
+        const n = parseInt(args[0], 10);
+        if (isNaN(n) || n < 1 || n > THEME_KEYS.length) {
+            await react("❌");
+            return reply(`❌ Usage: .previewmenu <1-${THEME_KEYS.length}>\nSend *.setmenu* to see the list.`);
+        }
+
+        const key  = THEME_KEYS[n - 1];
+        const data = await buildMenuData(conText);
+        const text = `👁️ *Preview — ${THEMES[key].name}*\n_(Not applied. Send .setmenu ${n} to apply.)_\n\n${THEMES[key].render(data)}`;
+        await sendMenuMsg(Gifted, from, text, conText);
+        await react("✅");
     }
+);
 
-    try {
-      const jsonString = JSON.stringify(quotedMsg, null, 2);
-      const chunks = jsonString.match(/[\s\S]{1,100000}/g) || [];
+// ─── 3. SETBOTPIC ─────────────────────────────────────────────────────────────
 
-      for (const chunk of chunks) {
-        const formattedMessage = `\`\`\`\n${chunk}\n\`\`\``;
+gmd(
+    {
+        pattern: "setbotpic",
+        aliases: ["botpic", "changebotpic", "botimage"],
+        react: "🖼️",
+        category: "owner",
+        description: "Change the bot WhatsApp profile picture. Quote an image or send a URL.",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, isSuperUser, quoted, quotedMsg, q } = conText;
 
-        await sendButtons(Gifted, from, {
-          title: "",
-          text: formattedMessage,
-          footer: `> *${botFooter}*`,
-          buttons: [
-            {
-              name: "cta_copy",
-              buttonParamsJson: JSON.stringify({
-                display_text: "Copy",
-                copy_code: formattedMessage,
-              }),
-            },
-            {
-              name: "cta_url",
-              buttonParamsJson: JSON.stringify({
-                display_text: "WaChannel",
-                url: newsletterUrl,
-              }),
-            },
-          ],
-        });
+        if (!isSuperUser) { await react("❌"); return reply("❌ Owner Only Command!"); }
+
+        // resolve quoted image — quotedMsg is the raw message object from serializer
+        const quotedImg = quotedMsg?.imageMessage
+            || quoted?.imageMessage
+            || quoted?.message?.imageMessage
+            || null;
+
+        const hasUrl = q && q.trim().startsWith("http");
+
+        if (!quotedImg && !hasUrl) {
+            await react("❌");
+            return reply(
+                "❌ Please quote an image *or* provide a URL!\n\n" +
+                "Examples:\n" +
+                "• Quote an image → send *.setbotpic*\n" +
+                "• *.setbotpic https://example.com/photo.jpg*"
+            );
+        }
+
+        await react("⏳");
+        let tempPath = null;
+
+        try {
+            let imageBuffer;
+
+            if (quotedImg) {
+                tempPath = await Gifted.downloadAndSaveMediaMessage(quotedImg, "temp_botpic");
+                const img = await Jimp.read(tempPath);
+                img.scaleToFit({ w: 720, h: 720 });
+                imageBuffer = await img.getBuffer("image/jpeg");
+            } else {
+                const img = await Jimp.read(q.trim());
+                img.scaleToFit({ w: 720, h: 720 });
+                imageBuffer = await img.getBuffer("image/jpeg");
+            }
+
+            // Update WhatsApp profile picture
+            await Gifted.query({
+                tag: "iq",
+                attrs: { to: S_WHATSAPP_NET, type: "set", xmlns: "w:profile:picture" },
+                content: [{ tag: "picture", attrs: { type: "image" }, content: imageBuffer }],
+            });
+
+            // Save URL to BOT_PIC so menu image updates too
+            if (hasUrl) await setSetting("BOT_PIC", q.trim());
+
+            await react("✅");
+            await reply("✅ Bot profile picture updated!\nThe menu image has also been updated.");
+        } catch (error) {
+            await react("❌");
+            await reply(`❌ Failed to update picture: ${error.message}`);
+        } finally {
+            if (tempPath) await fs.unlink(tempPath).catch(() => {});
+        }
+    }
+);
+
+// ─── 4. SETMENUPIC ────────────────────────────────────────────────────────────
+
+gmd(
+    {
+        pattern: "setmenupic",
+        aliases: ["menupic", "menuimage", "setmenuimg"],
+        react: "🖼️",
+        category: "owner",
+        description: "Set the image shown in .menu. Usage: .setmenupic <URL> or quote an image.",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, isSuperUser, quoted, quotedMsg, q } = conText;
+
+        if (!isSuperUser) { await react("❌"); return reply("❌ Owner Only Command!"); }
+
+        const quotedImg = quotedMsg?.imageMessage
+            || quoted?.imageMessage
+            || quoted?.message?.imageMessage
+            || null;
+
+        const hasUrl = q && q.trim().startsWith("http");
+
+        if (!quotedImg && !hasUrl) {
+            await react("❌");
+            return reply(
+                "❌ Please quote an image *or* provide a URL!\n\n" +
+                "Examples:\n" +
+                "• Quote an image → send *.setmenupic*\n" +
+                "• *.setmenupic https://example.com/banner.jpg*"
+            );
+        }
+
+        await react("⏳");
+        let tempPath = null;
+
+        try {
+            let finalUrl;
+
+            if (hasUrl) {
+                finalUrl = q.trim();
+            } else {
+                // Download, re-upload to catbox
+                const { uploadToCatbox } = require("../guru");
+                tempPath = await Gifted.downloadAndSaveMediaMessage(quotedImg, "temp_menupic");
+                finalUrl = await uploadToCatbox(tempPath);
+                if (!finalUrl) throw new Error("Upload to catbox failed — try a URL instead.");
+            }
+
+            await setSetting("BOT_PIC", finalUrl);
+            await react("✅");
+            await reply(`✅ Menu image updated!\n\nURL: ${finalUrl}\n\nSend *.menu* to see the result.`);
+        } catch (error) {
+            await react("❌");
+            await reply(`❌ Failed: ${error.message}`);
+        } finally {
+            if (tempPath) await fs.unlink(tempPath).catch(() => {});
+        }
+    }
+);
+
+// ─── 5. SETFOOTER ─────────────────────────────────────────────────────────────
+
+gmd(
+    {
+        pattern: "setfooter",
+        aliases: ["footer", "botfooter", "changefooter"],
+        react: "✏️",
+        category: "owner",
+        description: "Change the bot footer shown in menus. Usage: .setfooter <text>",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, isSuperUser, q } = conText;
+
+        if (!isSuperUser) { await react("❌"); return reply("❌ Owner Only Command!"); }
+
+        if (!q || !q.trim()) {
+            await react("❌");
+            const cur = (await getSetting("FOOTER")) || "Not set";
+            return reply(`❌ Provide footer text!\n\nCurrent: _${cur}_\n\nExample: *.setfooter Powered by ULTRA-GURU 🔥*`);
+        }
+
+        await setSetting("FOOTER", q.trim());
+        await react("✅");
+        return reply(`✅ Footer updated to:\n\n_${q.trim()}_`);
+    }
+);
+
+// ─── 6. SETCAPTION ────────────────────────────────────────────────────────────
+
+gmd(
+    {
+        pattern: "setcaption",
+        aliases: ["caption", "botcaption", "changecaption"],
+        react: "✏️",
+        category: "owner",
+        description: "Change the bot caption/tagline. Usage: .setcaption <text>",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, isSuperUser, q } = conText;
+
+        if (!isSuperUser) { await react("❌"); return reply("❌ Owner Only Command!"); }
+
+        if (!q || !q.trim()) {
+            await react("❌");
+            const cur = (await getSetting("CAPTION")) || "Not set";
+            return reply(`❌ Provide a caption!\n\nCurrent: _${cur}_\n\nExample: *.setcaption ⚡ ULTRA GURU | Ultra Fast*`);
+        }
+
+        await setSetting("CAPTION", q.trim());
+        await react("✅");
+        return reply(`✅ Caption updated to:\n\n_${q.trim()}_`);
+    }
+);
+
+// ─── 7. SETBOTNAME ────────────────────────────────────────────────────────────
+
+gmd(
+    {
+        pattern: "setbotname",
+        aliases: ["botname", "namebot", "changename", "renamebot"],
+        react: "✏️",
+        category: "owner",
+        description: "Change the bot display name in menus. Usage: .setbotname <name>",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, isSuperUser, q } = conText;
+
+        if (!isSuperUser) { await react("❌"); return reply("❌ Owner Only Command!"); }
+
+        if (!q || !q.trim()) {
+            await react("❌");
+            const cur = (await getSetting("BOT_NAME")) || "ULTRA GURU";
+            return reply(`❌ Provide a name!\n\nCurrent: *${cur}*\n\nExample: *.setbotname MY GURU BOT*`);
+        }
+
+        await setSetting("BOT_NAME", q.trim());
+
+        // Also try to update WhatsApp profile name
+        try { await Gifted.updateProfileName(q.trim()); } catch {}
 
         await react("✅");
-      }
-    } catch (error) {
-      console.error("Error processing quoted message:", error);
-      await reply(`❌ An error occurred while processing the message.`);
+        return reply(`✅ Bot name set to: *${q.trim()}*\n_(WhatsApp profile name also updated)_`);
     }
-  },
 );
 
-gmd(
-  {
-    pattern: "uptime",
-    aliases: ["up"],
-    react: "⏳",
-    category: "general",
-    description: "check bot uptime status.",
-  },
-  async (from, Gifted, conText) => {
-    const {
-      mek,
-      react,
-      newsletterJid,
-      newsletterUrl,
-      botFooter,
-      botName,
-      botPrefix,
-    } = conText;
-
-    const uptimeMs = Date.now() - BOT_START_TIME;
-
-    const seconds = Math.floor((uptimeMs / 1000) % 60);
-    const minutes = Math.floor((uptimeMs / (1000 * 60)) % 60);
-    const hours = Math.floor((uptimeMs / (1000 * 60 * 60)) % 24);
-    const days = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
-
-    await sendButtons(Gifted, from, {
-      title: "",
-      text:
-`꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
-  ⏱️ *${(botName || "ULTRA GURU MD").toUpperCase()}* ⏱️
-      _Uptime & Status Check_
-꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
-
-  ⏳ *Runtime* ›  ${monospace(`${days}d ${hours}h ${minutes}m ${seconds}s`)}
-  🟢 *Status*  ›  Running Smoothly
-  💡 *Session* ›  Active & Stable`,
-      footer: `> ✨ _${botFooter}_`,
-      buttons: [
-        { id: `${botPrefix}ping`, text: "⚡ Ping" },
-        {
-          name: "cta_url",
-          buttonParamsJson: JSON.stringify({
-            display_text: "WaChannel",
-            url: newsletterUrl,
-          }),
-        },
-      ],
-    });
-    await react("✅");
-  },
-);
+// ─── 8. DESIGNINFO ────────────────────────────────────────────────────────────
 
 gmd(
-  {
-    pattern: "help",
-    aliases: ["h", "guide", "start"],
-    react: "📖",
-    category: "general",
-    description: "Usage guide and quick help for the bot.",
-  },
-  async (from, Gifted, conText) => {
-    const {
-      mek,
-      react,
-      sender,
-      pushName,
-      botPic,
-      botName,
-      botFooter,
-      botPrefix,
-      botVersion,
-      newsletterUrl,
-      newsletterJid,
-    } = conText;
+    {
+        pattern: "designinfo",
+        aliases: ["mydesign", "designstatus", "currentdesign"],
+        react: "🎨",
+        category: "owner",
+        description: "Show current bot design settings.",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, isSuperUser } = conText;
 
-    const helpText =
-`꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
-  📖 *${(botName || "ULTRA GURU MD").toUpperCase()}* 📖
-        _Quick Usage Guide_
-꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
-  🔰 *GᴜʀᴜTᴇᴄʜ Lᴀʙ*  ·  _Official Build_
-▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
+        if (!isSuperUser) { await react("❌"); return reply("❌ Owner Only Command!"); }
 
-👋 Welcome *${pushName}!*
-_Here's everything you need to get started._
+        const [theme, pic, footer, caption, name] = await Promise.all([
+            getSetting("MENU_THEME"),
+            getSetting("BOT_PIC"),
+            getSetting("FOOTER"),
+            getSetting("CAPTION"),
+            getSetting("BOT_NAME"),
+        ]);
 
-▬▬▬▬▬ ❯ *HOW TO USE* ❮ ▬▬▬▬▬▬
+        const themeKey  = theme || "ultra";
+        const themeName = THEMES[themeKey]?.name || themeKey;
+        const themeNum  = THEME_KEYS.indexOf(themeKey) + 1;
+        const picShort  = (pic || "Not set").length > 55
+            ? (pic || "").slice(0, 52) + "..."
+            : (pic || "Not set");
 
-  ⚡ *Prefix*  ›  ${monospace(botPrefix)}
-  📌 *Format*  ›  ${monospace(botPrefix + "command")}
-  📦 *Version* ›  v${botVersion || "5.0.0"}
-
-▬▬▬▬ ❯ *KEY COMMANDS* ❮ ▬▬▬▬▬▬
-
-  ${monospace(botPrefix + "menu")}    ›  Full categorized menu
-  ${monospace(botPrefix + "list")}    ›  All commands + descriptions
-  ${monospace(botPrefix + "ping")}    ›  Check bot response speed
-  ${monospace(botPrefix + "uptime")}  ›  How long bot has been online
-  ${monospace(botPrefix + "repo")}    ›  Get the source code
-  ${monospace(botPrefix + "ai")}      ›  Talk to the AI assistant
-  ${monospace(botPrefix + "sticker")} ›  Create stickers from media
-  ${monospace(botPrefix + "tiktok")}  ›  Download TikTok videos
-  ${monospace(botPrefix + "spotify")} ›  Download Spotify tracks
-
-▬▬▬▬ ❯ *TIPS & NOTES* ❮ ▬▬▬▬▬▬
-
-  ✦ Reply to media with a command
-  ✦ All commands need the prefix: ${monospace(botPrefix)}
-  ✦ Use ${monospace(botPrefix + "list")} to see every command
-  ✦ Owner commands need permission
-
-▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
-> ✨ _${botFooter}_`;
-
-    const giftedMess = {
-      image: { url: botPic },
-      caption: helpText,
-      contextInfo: {
-        mentionedJid: [sender],
-        forwardingScore: 5,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-          newsletterJid: newsletterJid,
-          newsletterName: botName,
-          serverMessageId: 200,
-        },
-      },
-    };
-
-    try {
-      await Gifted.sendMessage(from, giftedMess, { quoted: mek });
-    } catch (_) {
-      await Gifted.sendMessage(from, { text: helpText }, { quoted: mek });
-    }
-    await react("✅");
-  },
-);
-
-gmd(
-  {
-    pattern: "repo",
-    aliases: ["sc", "rep", "script"],
-    react: "💜",
-    category: "general",
-    description: "Fetch bot script.",
-  },
-  async (from, Gifted, conText) => {
-    const {
-      mek,
-      sender,
-      react,
-      pushName,
-      botPic,
-      botName,
-      botFooter,
-      newsletterUrl,
-      ownerName,
-      newsletterJid,
-      giftedRepo,
-    } = conText;
-
-    const response = await axios.get(
-      `https://api.github.com/repos/${giftedRepo}`,
-    );
-    const repoData = response.data;
-    const {
-      full_name,
-      name,
-      forks_count,
-      stargazers_count,
-      created_at,
-      updated_at,
-      owner,
-    } = repoData;
-    const messageText =
-`꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
-  🗂️ *${(botName || "ULTRA GURU MD").toUpperCase()} REPO* 🗂️
-     ⚡ _Open Source · Free Forever_ ⚡
-꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
-  🔰 *GᴜʀᴜTᴇᴄʜ Lᴀʙ*  ·  _Official Build_
-▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
-
-👋 Hey *${pushName}!*
-_${botName || "ULTRA GURU MD"} is a powerful multi-device WhatsApp bot built by *${ownerName}*, packed with amazing features to enhance your experience._
-
-▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
-  📦 *Name*     ›  ${monospace(name)}
-  ⭐ *Stars*    ›  ${monospace(String(stargazers_count))}
-  🍴 *Forks*    ›  ${monospace(String(forks_count))}
-  🗓️ *Created*  ›  ${monospace(new Date(created_at).toLocaleDateString())}
-  🔄 *Updated*  ›  ${monospace(new Date(updated_at).toLocaleDateString())}
-▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
-
-> ✨ _${botFooter}_`;
-
-    const dateNow = Date.now();
-    await sendButtons(Gifted, from, {
-      title: "",
-      text: messageText,
-      footer: `> *${botFooter}*`,
-      image: { url: botPic },
-      buttons: [
-        {
-          name: "cta_copy",
-          buttonParamsJson: JSON.stringify({
-            display_text: "Copy Link",
-            copy_code: `https://github.com/${giftedRepo}`,
-          }),
-        },
-        {
-          name: "cta_url",
-          buttonParamsJson: JSON.stringify({
-            display_text: "Visit Repo",
-            url: `https://github.com/${giftedRepo}`,
-          }),
-        },
-        {
-          id: `repo_dl_${dateNow}`,
-          text: "📥 Download Zip",
-        },
-      ],
-    });
-
-    const handleResponse = async (event) => {
-      const messageData = event.messages[0];
-      if (!messageData?.message) return;
-
-      const templateButtonReply =
-        messageData.message?.templateButtonReplyMessage;
-      if (!templateButtonReply) return;
-
-      const selectedButtonId = templateButtonReply.selectedId;
-      if (!selectedButtonId?.includes(`repo_dl_${dateNow}`)) return;
-
-      const isFromSameChat = messageData.key?.remoteJid === from;
-      if (!isFromSameChat) return;
-
-      try {
-        const zipUrl = `https://github.com/${giftedRepo}/archive/refs/heads/main.zip`;
-        await Gifted.sendMessage(
-          from,
-          {
-            document: { url: zipUrl },
-            fileName: `${name}.zip`,
-            mimetype: "application/zip",
-          },
-          { quoted: messageData },
-        );
         await react("✅");
-      } catch (dlErr) {
-        await Gifted.sendMessage(from, { text: "Failed to download repo zip: " + dlErr.message }, { quoted: messageData });
-      }
-
-      Gifted.ev.off("messages.upsert", handleResponse);
-    };
-
-    Gifted.ev.on("messages.upsert", handleResponse);
-    setTimeout(
-      () => Gifted.ev.off("messages.upsert", handleResponse),
-      120000,
-    );
-
-    await react("✅");
-  },
-);
-
-gmd(
-  {
-    pattern: "save",
-    aliases: ["sv", "s", "sav", "."],
-    react: "⚡",
-    category: "owner",
-    description:
-      "Save messages (supports images, videos, audio, stickers, and text).",
-  },
-  async (from, Gifted, conText) => {
-    const { mek, reply, react, sender, isSuperUser, getMediaBuffer } = conText;
-
-    if (!isSuperUser) {
-      return reply(`❌ Owner Only Command!`);
-    }
-
-    const quotedMsg =
-      mek.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-
-    if (!quotedMsg) {
-      return reply(`⚠️ Please reply to/quote a message.`);
-    }
-
-    try {
-      let mediaData;
-
-      if (quotedMsg.imageMessage) {
-        const buffer = await getMediaBuffer(quotedMsg.imageMessage, "image");
-        mediaData = {
-          image: buffer,
-          caption: quotedMsg.imageMessage.caption || "",
-        };
-      } else if (quotedMsg.videoMessage) {
-        const buffer = await getMediaBuffer(quotedMsg.videoMessage, "video");
-        mediaData = {
-          video: buffer,
-          caption: quotedMsg.videoMessage.caption || "",
-        };
-      } else if (quotedMsg.audioMessage) {
-        const buffer = await getMediaBuffer(quotedMsg.audioMessage, "audio");
-        mediaData = {
-          audio: buffer,
-          mimetype: "audio/mp4",
-        };
-      } else if (quotedMsg.stickerMessage) {
-        const buffer = await getMediaBuffer(
-          quotedMsg.stickerMessage,
-          "sticker",
-        );
-        mediaData = {
-          sticker: buffer,
-        };
-      } else if (quotedMsg.documentMessage || quotedMsg.documentWithCaptionMessage?.message?.documentMessage) {
-        const docMsg = quotedMsg.documentMessage || quotedMsg.documentWithCaptionMessage.message.documentMessage;
-        const buffer = await getMediaBuffer(docMsg, "document");
-        mediaData = {
-          document: buffer,
-          fileName: docMsg.fileName || "document",
-          mimetype: docMsg.mimetype || "application/octet-stream",
-        };
-      } else if (
-        quotedMsg.conversation ||
-        quotedMsg.extendedTextMessage?.text
-      ) {
-        const text =
-          quotedMsg.conversation || quotedMsg.extendedTextMessage.text;
-        mediaData = {
-          text: text,
-        };
-      } else if (quotedMsg.buttonsMessage || quotedMsg.templateMessage || quotedMsg.interactiveMessage || quotedMsg.listMessage || quotedMsg.buttonsResponseMessage || quotedMsg.templateButtonReplyMessage) {
-        let text = "";
-        if (quotedMsg.buttonsMessage) {
-          text = quotedMsg.buttonsMessage.contentText || quotedMsg.buttonsMessage.text || "";
-        } else if (quotedMsg.templateMessage?.hydratedTemplate) {
-          text = quotedMsg.templateMessage.hydratedTemplate.hydratedContentText || "";
-        } else if (quotedMsg.interactiveMessage?.body?.text) {
-          text = quotedMsg.interactiveMessage.body.text;
-        } else if (quotedMsg.listMessage) {
-          text = quotedMsg.listMessage.description || quotedMsg.listMessage.title || "";
-        } else if (quotedMsg.buttonsResponseMessage) {
-          text = quotedMsg.buttonsResponseMessage.selectedDisplayText || "";
-        } else if (quotedMsg.templateButtonReplyMessage) {
-          text = quotedMsg.templateButtonReplyMessage.selectedDisplayText || "";
-        }
-        if (!text) {
-          return reply(`❌ Could not extract text from the quoted message.`);
-        }
-        mediaData = {
-          text: text,
-        };
-      } else {
-        return reply(`❌ Unsupported message type.`);
-      }
-
-      await Gifted.sendMessage(sender, mediaData, { quoted: mek });
-      await react("✅");
-    } catch (error) {
-      console.error("Save Error:", error);
-      await reply(`❌ Failed to save the message. Error: ${error.message}`);
-    }
-  },
-);
-
-gmd(
-  {
-    pattern: "chjid",
-    aliases: [
-      "channeljid",
-      "chinfo",
-      "channelinfo",
-      "newsletterjid",
-      "newsjid",
-      "newsletterinfo",
-    ],
-    react: "📢",
-    category: "general",
-    description: "Get WhatsApp Channel/Newsletter Info",
-  },
-  async (from, Gifted, conText) => {
-    const { q, reply, react, botFooter, botPrefix, GiftedTechApi, GiftedApiKey } = conText;
-
-    const input = q?.trim();
-    if (!input) {
-      await react("❌");
-      return reply(
-        `❌ Provide a channel link.\nUsage: *${botPrefix}chjid* https://whatsapp.com/channel/KEY`,
-      );
-    }
-
-    const channelMatch = input.match(/whatsapp\.com\/channel\/([A-Za-z0-9_-]+)/i);
-    if (!channelMatch) {
-      await react("❌");
-      return reply(
-        "❌ Invalid channel link. Provide a valid WhatsApp channel link.\nExample: https://whatsapp.com/channel/ABC123",
-      );
-    }
-
-    await react("🔍");
-    const inviteKey = channelMatch[1];
-    const channelUrl = `https://whatsapp.com/channel/${inviteKey}`;
-
-    try {
-      const meta = await Gifted.newsletterMetadata("invite", inviteKey);
-
-      if (!meta || !meta.id) {
-        await react("❌");
         return reply(
-          "❌ Could not fetch channel info. The link may be invalid or the channel no longer exists.",
+`╭──〔 🎨 *BOT DESIGN SETTINGS* 〕──
+│
+│ *Menu Theme:* ${themeName} (${themeNum}/${THEME_KEYS.length})
+│ *Bot Name:* ${name || "ULTRA GURU"}
+│ *Footer:*   _${footer || "Not set"}_
+│ *Caption:*  _${caption || "Not set"}_
+│ *Menu Pic:* ${picShort}
+│
+╰──────────────────────────────⊷
+
+*Commands:*
+• *.setmenu* — browse & switch themes
+• *.previewmenu <n>* — preview a theme
+• *.setbotname <text>* — change bot name
+• *.setbotpic* — change profile + menu image
+• *.setmenupic* — change menu image only
+• *.setfooter <text>* — change footer
+• *.setcaption <text>* — change caption
+• *.resetdesign* — reset all to defaults`
         );
-      }
-
-      const channelJid = meta.id;
-      const tm = meta.thread_metadata || {};
-
-      const name = tm.name?.text || "Unknown Channel";
-      const rawDesc = tm.description?.text || "";
-      const verification = tm.verification || "";
-      const isVerified = verification === "VERIFIED";
-      const stateType = meta.state?.type || "";
-      const isActive = stateType === "ACTIVE";
-
-      const subCount = parseInt(tm.subscribers_count || "0", 10);
-      const followers =
-        subCount >= 1_000_000
-          ? `${(subCount / 1_000_000).toFixed(1)}M`
-          : subCount >= 1_000
-            ? `${(subCount / 1_000).toFixed(1)}K`
-            : subCount > 0
-              ? subCount.toLocaleString()
-              : "N/A";
-
-      let picUrl = null;
-      try {
-        const apiUrl = `\( {GiftedTechApi}/api/stalk/wachannel?apikey= \){GiftedApiKey}&url=${encodeURIComponent(channelUrl)}`;
-        const apiRes = await axios.get(apiUrl, { timeout: 10000 });
-        picUrl = apiRes.data?.result?.img || null;
-      } catch (apiErr) {
-        console.error("chjid pic error:", apiErr.message);
-      }
-
-      const MAX_DESC = 200;
-      let descSection = "";
-      if (rawDesc) {
-        const trimmed = rawDesc.trim();
-        if (trimmed.length > MAX_DESC) {
-          const visible = trimmed.slice(0, MAX_DESC);
-          const hidden = trimmed.slice(MAX_DESC);
-          descSection = `\n\n📄 *Description:*\n${visible}${readmore}${hidden}`;
-        } else {
-          descSection = `\n\n📄 *Description:*\n${trimmed}`;
-        }
-      }
-
-      const text =
-        `📢 *Channel Info*\n\n` +
-        `🔖 *Name:* ${name}\n` +
-        `🟢 *Status:* ${isActive ? "Active" : stateType || "Unknown"}\n` +
-        `${isVerified ? "✅ *Verified:* Yes\n" : "❌ *Verified:* No\n"}` +
-        `👥 *Followers:* ${followers}\n` +
-        `🆔 *JID:* \`${channelJid}\`` +
-        descSection;
-
-      const buttons = [
-        {
-          name: "cta_copy",
-          buttonParamsJson: JSON.stringify({
-            display_text: "📋 Copy JID",
-            copy_code: channelJid,
-          }),
-        },
-        {
-          name: "cta_url",
-          buttonParamsJson: JSON.stringify({
-            display_text: "➕ Follow Channel",
-            url: channelUrl,
-            merchant_url: channelUrl,
-          }),
-        },
-      ];
-
-      const sendOpts = {
-        text,
-        footer: botFooter,
-        buttons,
-      };
-
-      if (picUrl) {
-        sendOpts.image = { url: picUrl };
-      }
-
-      await sendButtons(Gifted, from, sendOpts);
-      await react("✅");
-    } catch (error) {
-      console.error("chjid error:", error);
-      await react("❌");
-      await reply(`❌ Error fetching channel info: ${error.message}`);
     }
-  },
 );
+
+// ─── 9. RESETDESIGN ───────────────────────────────────────────────────────────
+
+const _resetConfirm = new Map();
+
+gmd(
+    {
+        pattern: "resetdesign",
+        aliases: ["designreset", "resettheme"],
+        react: "🔄",
+        category: "owner",
+        description: "Reset all bot design settings to defaults. Run twice to confirm.",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, isSuperUser } = conText;
+
+        if (!isSuperUser) { await react("❌"); return reply("❌ Owner Only Command!"); }
+
+        const now     = Date.now();
+        const pending = _resetConfirm.get(from);
+
+        if (!pending || now - pending > 25_000) {
+            _resetConfirm.set(from, now);
+            await react("⚠️");
+            return reply(
+                "⚠️ *Reset Confirmation*\n\n" +
+                "This will reset:\n• Menu theme → ultra\n• Bot name → default\n• Footer, caption, pic → defaults\n\n" +
+                "Send *.resetdesign* again within *25 seconds* to confirm."
+            );
+        }
+
+        _resetConfirm.delete(from);
+
+        await Promise.all([
+            resetSetting("MENU_THEME"),
+            resetSetting("BOT_PIC"),
+            resetSetting("FOOTER"),
+            resetSetting("CAPTION"),
+            resetSetting("BOT_NAME"),
+        ]);
+
+        await react("✅");
+        return reply("✅ All design settings reset to defaults!\n\nSend *.menu* to see the result.");
+    }
+);
+
+// ─── exported for general.js ──────────────────────────────────────────────────
+
+async function buildThemedMenu(conText, Gifted) {
+    const themeKey = (await getSetting("MENU_THEME")) || "ultra";
+    const theme    = THEMES[themeKey] || THEMES.ultra;
+    const data     = await buildMenuData(conText);
+    return theme.render(data);
+}
+
+module.exports = { buildThemedMenu, THEMES, THEME_KEYS, buildMenuData, sendMenuMsg };

@@ -7,16 +7,6 @@ const { gmd, commands, monospace, formatBytes } = require("../guru"),
   more = String.fromCharCode(8206),
   readmore = more.repeat(4001),
   ram = `${formatBytes(freeMemoryBytes)} / ${formatBytes(totalMemoryBytes)}`;
-
-// ── Serif Italic runtime converter ─────────────────────────────────────────
-const _SI_FROM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-const _SI_TO   = '𝘈𝘉𝘊𝘋𝘌𝘍𝘎𝘏𝘐𝘑𝘒𝘓𝘔𝘕𝘖𝘗𝘘𝘙𝘚𝘛𝘜𝘝𝘞𝘟𝘠𝘡𝘢𝘣𝘤𝘥𝘦𝘧𝘨𝘩𝘪𝘫𝘬𝘭𝘮𝘯𝘰𝘱𝘲𝘳𝘴𝘵𝘶𝘷𝘸𝘹𝘺𝘻';
-const si = (str) => [...(str || '')].map(c => {
-  const idx = _SI_FROM.indexOf(c);
-  return idx >= 0 ? [..._SI_TO][idx] : c;
-}).join('');
-// ───────────────────────────────────────────────────────────────────────────
-
 const { sendButtons } = require("gifted-btns");
 
 gmd(
@@ -189,16 +179,16 @@ gmd(
         (command) => command.pattern && !command.dontAddCommandList,
       ).length;
 
-      let expiryBannerMenus = "  ♾️  *𝘓𝘐𝘍𝘌𝘛𝘐𝘔𝘌 𝘓𝘐𝘊𝘌𝘕𝘚𝘌*\n  ✅  _𝘕𝘰 𝘦𝘹𝘱𝘪𝘳𝘺 𝘴𝘦𝘵 · 𝘈𝘭𝘸𝘢𝘺𝘴 𝘢𝘤𝘵𝘪𝘷𝘦_";
+      let expiryBannerMenus = "  ♾️  *LIFETIME LICENSE*\n  ✅  _No expiry set · Always active_";
       try {
         const expiryDate = await getSetting("BOT_EXPIRY_DATE");
         if (expiryDate) {
           const exp = new Date(expiryDate);
           const daysLeft = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
           if (daysLeft <= 0) {
-            expiryBannerMenus = `  🔴  *𝘌𝘟𝘗𝘐𝘙𝘌𝘋*\n  ❌  _𝘓𝘪𝘤𝘦𝘯𝘴𝘦 𝘦𝘯𝘥𝘦𝘥 · ${exp.toDateString()}_`;
+            expiryBannerMenus = `  🔴  *EXPIRED*\n  ❌  _License ended · ${exp.toDateString()}_`;
           } else if (daysLeft <= 7) {
-            expiryBannerMenus = `  🟡  *𝘌𝘟𝘗𝘐𝘙𝘠 𝘚𝘖𝘖𝘕* · _${daysLeft} day(s) left!_\n  ⚠️  _Expires: ${exp.toDateString()}_`;
+            expiryBannerMenus = `  🟡  *EXPIRY SOON* · _${daysLeft} day(s) left!_\n  ⚠️  _Expires: ${exp.toDateString()}_`;
           } else {
             expiryBannerMenus = `  🟢  *ACTIVE* · _${daysLeft} days remaining_\n  📅  _Expires: ${exp.toDateString()}_`;
           }
@@ -346,15 +336,15 @@ gmd(
         (command) => command.pattern && !command.dontAddCommandList,
       ).length;
 
-      let expiryBannerList = "  ♾️  *𝘓𝘐𝘍𝘌𝘛𝘐𝘔𝘌 𝘓𝘐𝘊𝘌𝘕𝘚𝘌*\n  ✅  _𝘕𝘰 𝘦𝘹𝘱𝘪𝘳𝘺 𝘴𝘦𝘵 · 𝘈𝘭𝘸𝘢𝘺𝘴 𝘢𝘤𝘵𝘪𝘷𝘦_";
+      let expiryBannerList = "  ♾️  *LIFETIME LICENSE*\n  ✅  _No expiry set · Always active_";
       try {
         const { getSetting: getSettingList } = require("../guru/database/settings");
         const expiryRawList = await getSettingList("BOT_EXPIRY_DATE");
         if (expiryRawList) {
           const expL = new Date(expiryRawList);
           const dL = Math.ceil((expL - now) / (1000 * 60 * 60 * 24));
-          if (dL <= 0) expiryBannerList = `  🔴  *𝘌𝘟𝘗𝘐𝘙𝘌𝘋*\n  ❌  _𝘓𝘪𝘤𝘦𝘯𝘴𝘦 𝘦𝘯𝘥𝘦𝘥 · ${expL.toDateString()}_`;
-          else if (dL <= 7) expiryBannerList = `  🟡  *𝘌𝘟𝘗𝘐𝘙𝘠 𝘚𝘖𝘖𝘕* · _${dL} day(s) left!_\n  ⚠️  _Expires: ${expL.toDateString()}_`;
+          if (dL <= 0) expiryBannerList = `  🔴  *EXPIRED*\n  ❌  _License ended · ${expL.toDateString()}_`;
+          else if (dL <= 7) expiryBannerList = `  🟡  *EXPIRY SOON* · _${dL} day(s) left!_\n  ⚠️  _Expires: ${expL.toDateString()}_`;
           else expiryBannerList = `  🟢  *ACTIVE* · _${dL} days remaining_\n  📅  _Expires: ${expL.toDateString()}_`;
         }
       } catch {}
@@ -520,12 +510,7 @@ gmd(
       if (isNaN(num) || num < 0) return;
 
       const categorized = buildCategorizedMenu(commands);
-      // Use the SAME sort function that design.js uses to number the menu lines
-      // so "reply with 3" always maps to exactly the 3rd category the user sees
-      const { getMenuCategoryOrder } = require("./design");
-      const sortedCats = getMenuCategoryOrder(commands)
-        .map(cat => cat.toLowerCase())
-        .filter(cat => categorized[cat]);
+      const sortedCats = getSortedCats(categorized);
 
       // 0 = go back to main menu
       if (num === 0) {
@@ -566,7 +551,7 @@ gmd(
           const icon = CAT_ICONS[cat] || "⚡";
           const count = categorized[cat].length;
           const label = (cat.charAt(0).toUpperCase() + cat.slice(1)).toUpperCase();
-          return `> │◦➛ ${i + 1}. ${icon} ${si(label)}  _(${count} 𝘤𝘮𝘥𝘴)_`;
+          return `> │◦➛ ${i + 1}. ${icon} ${label}  _(${count} cmds)_`;
         }).join("\n");
 
         // ── themed menu (design.js) ────────────────────────────────────────
@@ -605,45 +590,29 @@ gmd(
       const icon = CAT_ICONS[cat] || "⚡";
       const label = (cat.charAt(0).toUpperCase() + cat.slice(1)).toUpperCase();
 
-      const PAGE_SIZE = 30;
-      const chunks = [];
-      for (let i = 0; i < cmds.length; i += PAGE_SIZE) {
-        chunks.push(cmds.slice(i, i + PAGE_SIZE));
-      }
-      const totalPages = chunks.length;
+      const cmdLines = cmds.map(cmd => {
+        const prefix = cmd.isBody ? "" : botPrefix;
+        const pat = (prefix + cmd.pattern).padEnd(18, " ");
+        const desc = cmd.description
+          ? (cmd.description.length > 28 ? cmd.description.slice(0, 26) + "…" : cmd.description)
+          : "—";
+        return `> │◈ *${pat}* › _${desc}_`;
+      }).join("\n> │\n");
 
-      for (let p = 0; p < chunks.length; p++) {
-        const chunk = chunks[p];
-        const cmdLines = chunk.map(cmd => {
-          const prefix = cmd.isBody ? "" : botPrefix;
-          const pat = (prefix + cmd.pattern).padEnd(18, " ");
-          const desc = cmd.description
-            ? (cmd.description.length > 28 ? cmd.description.slice(0, 26) + "…" : cmd.description)
-            : "—";
-          return `> │◈ *${pat}* › _${desc}_`;
-        }).join("\n> │\n");
-
-        const pageLabel = totalPages > 1 ? ` — Page ${p + 1}/${totalPages}` : "";
-        const footer = p === totalPages - 1
-          ? `  💬 _𝘙𝘦𝘱𝘭𝘺_ *0* _𝘵𝘰 𝘨𝘰 𝘣𝘢𝘤𝘬 𝘵𝘰 𝘮𝘦𝘯𝘶_\n> ✨ _${botFooter}_`
-          : `  ➡️ _Continued in next message..._`;
-
-        const card =
-`╭───〔 *${icon} ${label} 𝘊𝘖𝘔𝘔𝘈𝘕𝘋𝘚${pageLabel}* 〕──────┈⊷𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭
+      const card =
+`╭───〔 *${icon} ${label} COMMANDS* 〕──────┈⊷𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭
 ├──────────────────────
-│✵│▸ 📊 *𝘛𝘖𝘛𝘈𝘓:* ${cmds.length} 𝘤𝘰𝘮𝘮𝘢𝘯𝘥𝘴  │  *𝘚𝘩𝘰𝘸𝘪𝘯𝘨:* ${p * PAGE_SIZE + 1}–${Math.min((p + 1) * PAGE_SIZE, cmds.length)}
-│✵│▸ ⚡ *𝘗𝘙𝘌𝘍𝘐𝘟:* ${botPrefix}
+│✵│▸ 📊 *TOTAL:* ${cmds.length} commands
+│✵│▸ ⚡ *PREFIX:* ${botPrefix}
 ├──────────────────────
 │
 ${cmdLines}
 │
 ╰─────────────────────┈⊷
-${footer}`;
+  💬 _Reply_ *0* _to go back to menu_
+> ✨ _${botFooter}_`;
 
-        await Gifted.sendMessage(from, { text: card.trim() }, { quoted: mek });
-        if (p < chunks.length - 1) await new Promise(r => setTimeout(r, 800));
-      }
-
+      await Gifted.sendMessage(from, { text: card.trim() }, { quoted: mek });
       await react("✅");
     } catch (e) {
       console.error(e);
@@ -750,12 +719,12 @@ gmd(
       text:
 `꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
   ⏱️ *${(botName || "ULTRA GURU MD").toUpperCase()}* ⏱️
-      _𝘜𝘱𝘵𝘪𝘮𝘦 & 𝘚𝘵𝘢𝘵𝘶𝘴 𝘊𝘩𝘦𝘤𝘬_
+      _Uptime & Status Check_
 ꧁✦━━━━━━━━━━━━━━━━━━━━━━━━━✦꧂
 
   ⏳ *Runtime* ›  ${monospace(`${days}d ${hours}h ${minutes}m ${seconds}s`)}
-  🟢 *𝘚𝘵𝘢𝘵𝘶𝘴*  ›  Running Smoothly
-  💡 *𝘚𝘦𝘴𝘴𝘪𝘰𝘯* ›  𝘈𝘤𝘵𝘪𝘷𝘦 & 𝘚𝘵𝘢𝘣𝘭𝘦`,
+  🟢 *Status*  ›  Running Smoothly
+  💡 *Session* ›  Active & Stable`,
       footer: `> ✨ _${botFooter}_`,
       buttons: [
         { id: `${botPrefix}ping`, text: "⚡ Ping" },
@@ -812,7 +781,7 @@ _Here's everything you need to get started._
   📌 *Format*  ›  ${monospace(botPrefix + "command")}
   📦 *Version* ›  v${botVersion || "5.0.0"}
 
-▬▬▬▬ ❯ *KEY 𝘊𝘖𝘔𝘔𝘈𝘕𝘋𝘚* ❮ ▬▬▬▬▬▬
+▬▬▬▬ ❯ *KEY COMMANDS* ❮ ▬▬▬▬▬▬
 
   ${monospace(botPrefix + "menu")}    ›  Full categorized menu
   ${monospace(botPrefix + "list")}    ›  All commands + descriptions

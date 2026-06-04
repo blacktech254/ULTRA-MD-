@@ -31,10 +31,10 @@ const SettingsDB = DATABASE.define(
 
 const DEFAULT_SETTINGS = {
     PREFIX: ".",
-    OWNER_NAME: "GURUTECH 😎",
+    OWNER_NAME: "GuruTech",
     OWNER_NUMBER: "254105521300",
     BOT_NAME: "ULTRA GURU",
-    FOOTER: "Powered by GURUTECH 😎",
+    FOOTER: "Powered by GuruTech",
     CAPTION: "⚡ ULTRA GURU Premium | Ultra Fast | Ultra Secure",
     BOT_PIC: "https://res.cloudinary.com/dqxlb29uz/image/upload/v1780267810/bwm_uploads/media-1780267810008.jpg",
     VERSION: packageJson.version || "2.0.0",

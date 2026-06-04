@@ -167,6 +167,14 @@ setInterval(async () => {
     } catch (e) {}
 }, 240000);
 
+// ── Auto-restart every 5 hours ──────────────────────────────────────────────
+const AUTO_RESTART_MS = 5 * 60 * 60 * 1000;
+setTimeout(() => {
+    console.log('🔄 [AUTO-RESTART] 5-hour scheduled restart triggered...');
+    process.exit(0);
+}, AUTO_RESTART_MS);
+console.log('✅ Auto-restart scheduled in 5 hours (' + new Date(Date.now() + AUTO_RESTART_MS).toLocaleTimeString() + ')');
+
 const sessionDir = path.join(__dirname, "guru", "session");
 const pluginsPath = path.join(__dirname, "guruh");
 

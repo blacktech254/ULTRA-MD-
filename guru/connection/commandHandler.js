@@ -56,21 +56,33 @@ const findBodyCommand = (body) => {
     });
 };
 
-const createHelpers = (Gifted, ms, from, botName) => {
-    const _name = botName || 'ULTRA GURU MD';
+const createHelpers = (Gifted, ms, from, botName, ownerName, ownerNumber) => {
+    const _botName = botName    || 'ULTRA GURU MD';
+    const _owner   = ownerName  || _botName;
+    const _phone   = (ownerNumber || '').replace(/\D/g, '');
+
+    const _vcard = [
+        'BEGIN:VCARD',
+        'VERSION:3.0',
+        `FN:${_owner}`,
+        `ORG:${_botName};`,
+        ...(_phone ? [`TEL;type=CELL;type=VOICE;waid=${_phone}:+${_phone}`] : []),
+        'END:VCARD',
+    ].join('\n');
 
     const _fkontak = {
         key: {
             participant: '0@s.whatsapp.net',
             remoteJid: from,
             fromMe: false,
-            id: _name,
+            id: `WA_${Date.now()}`,
         },
         messageTimestamp: Math.floor(Date.now() / 1000),
-        pushName: _name,
+        pushName: 'WhatsApp Business',
         message: {
             contactMessage: {
-                vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:${_name}\nORG:${_name};\nEND:VCARD`,
+                displayName: _owner,
+                vcard: _vcard,
             },
         },
         participant: '0@s.whatsapp.net',

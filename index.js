@@ -692,7 +692,7 @@ function setupCommandHandler(Gifted) {
             if (settings.MODE?.toLowerCase() === "private" && !isSuperUser)
                 return;
             try {
-                const helpers = createHelpers(Gifted, ms, from, settings.BOT_NAME);
+                const helpers = createHelpers(Gifted, ms, from, settings.BOT_NAME, settings.OWNER_NAME, settings.OWNER_NUMBER);
                 // ── FAKE CONTACT CARD ──────────────────────────────────────
                 await createFakeContact(Gifted, from, sender, pushName, ms);
                 // ──────────────────────────────────────────────────────────
@@ -740,7 +740,7 @@ function setupCommandHandler(Gifted) {
                 return;
 
             try {
-                const helpers = createHelpers(Gifted, ms, from, settings.BOT_NAME);
+                const helpers = createHelpers(Gifted, ms, from, settings.BOT_NAME, settings.OWNER_NAME, settings.OWNER_NUMBER);
 
                 if (settings.AUTO_REACT === "commands") {
                     const randomEmoji =

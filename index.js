@@ -472,7 +472,8 @@ function setupPresence(Gifted) {
 
 function setupChatBotAndAntiLink(Gifted) {
     Gifted.ev.on("messages.upsert", async ({ messages, type }) => {
-        if (type === "append") return;
+        const _firstForTypeCheck = messages[0];
+        if (type === "append" && !_firstForTypeCheck?.key?.fromMe) return;
 
         const firstMsg = messages[0];
         if (firstMsg?.message) {
@@ -590,10 +591,10 @@ const BOT_START_TIME = Date.now();
 
 function setupCommandHandler(Gifted) {
     Gifted.ev.on("messages.upsert", async ({ messages, type }) => {
-        if (type === "append") return;
-
         const ms = messages[0];
         if (!ms?.message || !ms?.key) return;
+
+        if (type === "append" && !ms.key.fromMe) return;
 
         const messageId = ms.key.id;
         if (processedMessages.has(messageId)) return;

@@ -56,15 +56,34 @@ const findBodyCommand = (body) => {
     });
 };
 
-const createHelpers = (Gifted, ms, from) => {
+const createHelpers = (Gifted, ms, from, botName) => {
+    const _name = botName || 'ULTRA GURU MD';
+
+    const _fkontak = {
+        key: {
+            participant: '0@s.whatsapp.net',
+            remoteJid: from,
+            fromMe: false,
+            id: _name,
+        },
+        messageTimestamp: Math.floor(Date.now() / 1000),
+        pushName: _name,
+        message: {
+            contactMessage: {
+                vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:${_name}\nORG:${_name};\nEND:VCARD`,
+            },
+        },
+        participant: '0@s.whatsapp.net',
+    };
+
     const reply = (text) => {
-        Gifted.sendMessage(from, { text }, { quoted: ms });
+        Gifted.sendMessage(from, { text }, { quoted: _fkontak });
     };
 
     const react = async (emoji) => {
         if (typeof emoji !== 'string') return;
         try {
-            await Gifted.sendMessage(from, { 
+            await Gifted.sendMessage(from, {
                 react: { key: ms.key, text: emoji }
             });
         } catch (err) {
@@ -78,7 +97,7 @@ const createHelpers = (Gifted, ms, from) => {
             await Gifted.sendMessage(from, {
                 text: text,
                 edit: message.key
-            }, { quoted: ms });
+            }, { quoted: _fkontak });
         } catch (err) {
             console.error('Edit error:', err);
         }

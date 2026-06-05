@@ -62,7 +62,6 @@ const {
     GiftedAnticall,
     createContext,
     createContext2,
-    createFakeContact,
     verifyJidState,
     GiftedPresence,
     GiftedAntiDelete,
@@ -692,10 +691,7 @@ function setupCommandHandler(Gifted) {
             if (settings.MODE?.toLowerCase() === "private" && !isSuperUser)
                 return;
             try {
-                const helpers = createHelpers(Gifted, ms, from, settings.BOT_NAME, settings.OWNER_NAME, settings.OWNER_NUMBER);
-                // ── FAKE CONTACT CARD ──────────────────────────────────────
-                await createFakeContact(Gifted, from, sender, pushName, ms);
-                // ──────────────────────────────────────────────────────────
+                const helpers = createHelpers(Gifted, ms, from, settings.BOT_NAME, sender, pushName);
                 const conText = buildContext(ms, settings, helpers, {
                     from,
                     isGroup,
@@ -740,7 +736,7 @@ function setupCommandHandler(Gifted) {
                 return;
 
             try {
-                const helpers = createHelpers(Gifted, ms, from, settings.BOT_NAME, settings.OWNER_NAME, settings.OWNER_NUMBER);
+                const helpers = createHelpers(Gifted, ms, from, settings.BOT_NAME, sender, pushName);
 
                 if (settings.AUTO_REACT === "commands") {
                     const randomEmoji =
@@ -755,11 +751,6 @@ function setupCommandHandler(Gifted) {
                 }
 
                 setupGiftedHelpers(Gifted, from);
-
-                // ── FAKE CONTACT CARD ──────────────────────────────────────
-                // Show the sender's contact details before every bot response
-                await createFakeContact(Gifted, from, sender, pushName, ms);
-                // ──────────────────────────────────────────────────────────
 
                 const conText = buildContext(ms, settings, helpers, {
                     from,

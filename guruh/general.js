@@ -1,43 +1,14 @@
 "use strict";
 
-const { gmd, commands }        = require("../guru");
-const { getSetting }           = require("../guru/database/settings");
-const moment                   = require("moment-timezone");
+const { gmd }          = require("../guru");
+const moment           = require("moment-timezone");
 
-const { buildThemedMenu, sendMenuMsg, THEMES, THEME_KEYS, buildMenuData } =
-    require("./design");
-
-const CAT_ORDER = [
-    "general","ai","downloader","tools","search","games","group","owner",
-    "settings","fun","converter","religion","texttools","notes","channels",
-    "sports","extras","restrictions","sticker","media",
-];
-
-const CAT_ICONS = {
-    general: "🌐", owner: "👑", group: "👥", ai: "🤖",
-    downloader: "📥", tools: "🔧", search: "🔍", games: "🎮",
-    fun: "🎉", religion: "🕌", sticker: "🖼️", converter: "🔄",
-    settings: "⚙️", media: "📸", notes: "📝", channels: "📢",
-    sports: "⚽", extras: "✨", texttools: "🔡", restrictions: "🚫",
-};
-
-function getSortedCats() {
-    const catSummary = commands.reduce((acc, cmd) => {
-        if (cmd.pattern && !cmd.dontAddCommandList) {
-            const cat = (cmd.category || "general").toLowerCase();
-            if (!acc[cat]) acc[cat] = [];
-            acc[cat].push(cmd);
-        }
-        return acc;
-    }, {});
-    return Object.keys(catSummary).sort((a, b) => {
-        const ai = CAT_ORDER.indexOf(a), bi = CAT_ORDER.indexOf(b);
-        if (ai === -1 && bi === -1) return a.localeCompare(b);
-        if (ai === -1) return 1;
-        if (bi === -1) return -1;
-        return ai - bi;
-    }).map(cat => ({ cat, cmds: catSummary[cat] }));
-}
+const {
+    buildThemedMenu,
+    sendMenuMsg,
+    getSortedCategories,
+    CAT_ICONS,
+} = require("./design");
 
 // ─── 1. MENU ──────────────────────────────────────────────────────────────────
 
@@ -58,22 +29,24 @@ gmd(
     }
 );
 
-// ─── 2. CATEGORY COMMANDS (body handler — reply with a number) ────────────────
+// ─── 2. CATEGORY BODY HANDLER (reply with a number from the menu) ─────────────
+// Uses getSortedCategories() from design.js — SAME source of truth as the menu.
 
 gmd(
     {
-        pattern: /^[0-9]+$/,
+        pattern: /^\d+$/,
         on: "body",
         dontAddCommandList: true,
         react: "📂",
         category: "general",
-        description: "Reply with a category number from the menu",
+        description: "Reply with a category number to browse commands",
     },
     async (from, Gifted, conText) => {
-        const { reply, body, mek, botName, botPrefix, botFooter, newsletterJid } = conText;
+        const { body, mek, botName, botPrefix, botFooter, newsletterJid, sender } = conText;
 
-        const n = parseInt(body.trim(), 10);
-        const cats = getSortedCats();
+        const n    = parseInt(body.trim(), 10);
+        const cats = getSortedCategories();
+
         if (isNaN(n) || n < 1 || n > cats.length) return;
 
         const { cat, cmds } = cats[n - 1];
@@ -81,26 +54,26 @@ gmd(
         const label = (cat[0].toUpperCase() + cat.slice(1)).toUpperCase();
 
         const cmdList = cmds.map(c => {
-            const name  = c.pattern;
-            const desc  = c.description ? `— _${c.description}_` : "";
-            const alts  = (c.aliases || []).length
+            const desc = c.description ? `— _${c.description}_` : "";
+            const alts = (c.aliases || []).length
                 ? `\n│   ↳ _${c.aliases.map(a => `${botPrefix}${a}`).join(", ")}_`
                 : "";
-            return `│✵│▸ *${botPrefix}${name}* ${desc}${alts}`;
+            return `│✵│▸ *${botPrefix}${c.pattern}* ${desc}${alts}`;
         }).join("\n");
 
         const text =
-`╭───〔 ${icon} *${label} COMMANDS* 〕──┈⊷
+`╭───〔 ${icon} *${label}* 〕──────┈⊷
 │
 ${cmdList}
 │
-╰──────────────────────────⊷
+╰──────────────────────────────⊷
 > ✨ _${botFooter || "Powered by GURUTECH"}_`;
 
         try {
             await Gifted.sendMessage(from, {
                 text: text.trim(),
                 contextInfo: {
+                    mentionedJid: [sender],
                     forwardingScore: 5,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
@@ -111,7 +84,7 @@ ${cmdList}
                 },
             }, { quoted: mek });
         } catch {
-            await reply(text);
+            await Gifted.sendMessage(from, { text: text.trim() }, { quoted: mek });
         }
     }
 );
@@ -156,18 +129,18 @@ gmd(
         const { reply, react, botName, timeZone } = conText;
         await react("⏱️");
 
-        const uptime  = process.uptime();
-        const days    = Math.floor(uptime / 86400);
-        const hours   = Math.floor((uptime % 86400) / 3600);
-        const minutes = Math.floor((uptime % 3600) / 60);
-        const seconds = Math.floor(uptime % 60);
+        const up      = process.uptime();
+        const days    = Math.floor(up / 86400);
+        const hours   = Math.floor((up % 86400) / 3600);
+        const minutes = Math.floor((up % 3600) / 60);
+        const seconds = Math.floor(up % 60);
 
         let uptimeStr = "";
         if (days > 0) uptimeStr += `${days}days : `;
         uptimeStr += `${hours}hrs : ${minutes}mins : ${seconds}secs`;
 
-        const tz   = timeZone || "Africa/Nairobi";
-        const now  = moment().tz(tz).format("ddd, DD MMM YYYY HH:mm:ss z");
+        const tz  = timeZone || "Africa/Nairobi";
+        const now = moment().tz(tz).format("ddd, DD MMM YYYY HH:mm:ss z");
 
         await reply(
 `╭─⌈ ⏱️ *${botName || "ULTRA GURU"}* ⌋
@@ -189,14 +162,15 @@ gmd(
         description: "Show information about this bot",
     },
     async (from, Gifted, conText) => {
-        const { reply, react, botName, botPrefix, botVersion, botMode,
-                botFooter, ownerNumber, ownerName, newsletterJid, sender } = conText;
+        const { reply, react, botName, botPrefix, botVersion,
+                botMode, ownerName } = conText;
         await react("🤖");
 
+        const { commands } = require("../guru");
         const totalCmds = commands.filter(c => c.pattern && !c.dontAddCommandList).length;
-        const uptime    = process.uptime();
-        const h = Math.floor(uptime / 3600);
-        const m = Math.floor((uptime % 3600) / 60);
+        const up = process.uptime();
+        const h  = Math.floor(up / 3600);
+        const m  = Math.floor((up % 3600) / 60);
 
         await reply(
 `╭─⌈ 🤖 *${botName || "ULTRA GURU"}* ⌋
@@ -211,50 +185,5 @@ gmd(
         );
     }
 );
-
-// ─── 6. OWNER ─────────────────────────────────────────────────────────────────
-
-gmd(
-    {
-        pattern: "owner",
-        aliases: ["creator", "dev", "developer"],
-        react: "👑",
-        category: "general",
-        description: "Get the bot owner's contact",
-    },
-    async (from, Gifted, conText) => {
-        const { reply, react, botName, ownerNumber, ownerName } = conText;
-        await react("👑");
-
-        const num   = (ownerNumber || "254105521300").replace(/\D/g, "");
-        const name  = ownerName || "GuruTech";
-
-        try {
-            const vcard =
-                `BEGIN:VCARD\n` +
-                `VERSION:3.0\n` +
-                `FN:${name}\n` +
-                `ORG:${botName || "ULTRA GURU"};\n` +
-                `TEL;type=CELL;type=VOICE;waid=${num}:+${num}\n` +
-                `END:VCARD`;
-
-            await Gifted.sendMessage(from, {
-                contacts: {
-                    displayName: name,
-                    contacts: [{ vcard }],
-                },
-            }, { quoted: conText.mek });
-        } catch {
-            await reply(
-`╭─⌈ 👑 *Owner* ⌋
-│ Name   : *${name}*
-│ Number : wa.me/${num}
-╰⊷ *${botName || "ULTRA GURU"}*`
-            );
-        }
-    }
-);
-
-// ─── 7. RUNTIME2 (alias guard) ────────────────────────────────────────────────
 
 module.exports = {};

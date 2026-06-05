@@ -2079,3 +2079,88 @@ gmd(
     }
   },
 );
+
+// ─── BROADCAST ────────────────────────────────────────────────────────────────
+
+gmd(
+  {
+    pattern: "broadcast",
+    aliases: ["bc", "sendall", "blastmsg"],
+    react: "📢",
+    category: "owner",
+    description: "Send a message to all groups the bot is in. Usage: .broadcast <message>",
+  },
+  async (from, Gifted, conText) => {
+    const { reply, react, isSuperUser, q, mek, botName, botFooter } = conText;
+
+    if (!isSuperUser) {
+      await react("❌");
+      return reply("❌ Owner Only Command!");
+    }
+
+    if (!q || !q.trim()) {
+      await react("❌");
+      return reply(
+        `╭─⌈ 📢 *BROADCAST* ⌋\n` +
+        `│ Usage: *.broadcast <message>*\n` +
+        `│\n` +
+        `│ Sends your message to every group\n` +
+        `│ the bot is currently in.\n` +
+        `╰⊷ _${botFooter || "Powered by GURUTECH"}_`
+      );
+    }
+
+    await react("⏳");
+
+    let groups;
+    try {
+      const all = await Gifted.groupFetchAllParticipating();
+      groups = Object.values(all);
+    } catch (err) {
+      await react("❌");
+      return reply(`❌ Failed to fetch groups: ${err.message}`);
+    }
+
+    if (!groups.length) {
+      await react("❌");
+      return reply("📭 Bot is not in any groups.");
+    }
+
+    const message = q.trim();
+    const delay   = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    let sent    = 0;
+    let failed  = 0;
+    const errors = [];
+
+    await reply(
+      `📢 *Broadcasting to ${groups.length} group${groups.length !== 1 ? "s" : ""}…*\n` +
+      `_This may take a moment._`
+    );
+
+    for (const group of groups) {
+      try {
+        await Gifted.sendMessage(group.id, { text: message }, { quoted: mek });
+        sent++;
+      } catch (err) {
+        failed++;
+        errors.push(`${group.subject}: ${err.message}`);
+      }
+      // 1.5 s delay between sends to avoid spam ban
+      await delay(1500);
+    }
+
+    const summary =
+      `╭─⌈ 📢 *BROADCAST DONE* ⌋\n` +
+      `│ ✅ Sent    : *${sent}*\n` +
+      `│ ❌ Failed  : *${failed}*\n` +
+      `│ 📊 Total   : *${groups.length}*\n` +
+      (errors.length
+        ? `│\n│ *Errors:*\n${errors.slice(0, 5).map(e => `│ • ${e}`).join("\n")}\n`
+        : "") +
+      `╰⊷ *${botName || "ULTRA GURU"}*`;
+
+    await react(failed === 0 ? "✅" : "⚠️");
+    await reply(summary);
+  },
+);

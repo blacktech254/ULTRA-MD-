@@ -28,8 +28,38 @@ const CAT_ICONS = {
     general: "🌐", owner: "👑", group: "👥", ai: "🤖",
     downloader: "📥", tools: "🔧", search: "🔍", games: "🎮",
     fun: "🎉", religion: "🕌", sticker: "🖼️", converter: "🔄",
-    settings: "⚙️", media: "📸",
+    settings: "⚙️", media: "📸", notes: "📝", channels: "📢",
+    sports: "⚽", extras: "✨", texttools: "🔡", restrictions: "🚫",
 };
+
+const CAT_ORDER = [
+    "general","ai","downloader","tools","search","games","group","owner",
+    "settings","fun","converter","religion","texttools","notes","channels",
+    "sports","extras","restrictions","sticker","media",
+];
+
+/**
+ * getSortedCategories — single source of truth for category ordering.
+ * Returns [{ cat, cmds[] }] sorted by CAT_ORDER.
+ * Used by both buildMenuData (for display) and the number body handler (for lookup).
+ */
+function getSortedCategories() {
+    const catMap = {};
+    for (const cmd of commands) {
+        if (!cmd.pattern || cmd.dontAddCommandList) continue;
+        if (typeof cmd.pattern !== 'string') continue;
+        const cat = (cmd.category || "general").toLowerCase();
+        if (!catMap[cat]) catMap[cat] = [];
+        catMap[cat].push(cmd);
+    }
+    return Object.keys(catMap).sort((a, b) => {
+        const ai = CAT_ORDER.indexOf(a), bi = CAT_ORDER.indexOf(b);
+        if (ai === -1 && bi === -1) return a.localeCompare(b);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+    }).map(cat => ({ cat, cmds: catMap[cat] }));
+}
 
 // ─── menu data builder ────────────────────────────────────────────────────────
 
@@ -56,22 +86,15 @@ async function buildMenuData(conText) {
         }
     } catch {}
 
-    // category summary
-    const catSummary = commands.reduce((acc, cmd) => {
-        if (cmd.pattern && !cmd.dontAddCommandList) {
-            const cat = (cmd.category || "general").toLowerCase();
-            acc[cat] = (acc[cat] || 0) + 1;
-        }
-        return acc;
-    }, {});
+    // Use getSortedCategories() — same order as body handler
+    const sortedCats = getSortedCategories();
 
-    const catLines = Object.entries(catSummary)
-        .sort(([, a], [, b]) => b - a)
-        .map(([cat, count], i) => {
-            const icon  = CAT_ICONS[cat] || "⚡";
-            const label = (cat[0].toUpperCase() + cat.slice(1)).toUpperCase();
-            return `> │◦➛ ${i + 1}. ${icon} ${label}  _(${count} cmds)_`;
-        }).join("\n");
+    const catLines = sortedCats.map(({ cat, cmds }, i) => {
+        const icon  = CAT_ICONS[cat] || "⚡";
+        const count = cmds.length;
+        const label = (cat[0].toUpperCase() + cat.slice(1)).toUpperCase();
+        return `> │◦➛ ${i + 1}. ${icon} ${label}  _(${count} cmds)_`;
+    }).join("\n");
 
     return {
         sender,
@@ -799,4 +822,4 @@ async function buildThemedMenu(conText, Gifted) {
     return theme.render(data);
 }
 
-module.exports = { buildThemedMenu, THEMES, THEME_KEYS, buildMenuData, sendMenuMsg };
+module.exports = { buildThemedMenu, THEMES, THEME_KEYS, buildMenuData, sendMenuMsg, getSortedCategories, CAT_ICONS };

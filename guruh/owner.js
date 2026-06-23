@@ -552,100 +552,104 @@ gmd(
 gmd(
   {
     pattern: "vv2",
-    aliases: ["‎2", "reveal2"],
-    react: "🙄",
-    category: "owner",
-    description: "Reveal View Once Media",
+    aliases: ["reveal2", "viewonce2"],
+    react: "👁️",
+    category: "general",
+    description: "Reveal view-once media to the group/chat",
   },
   async (from, Gifted, conText) => {
-    const { mek, reply, quoted, react, botName, isSuperUser } = conText;
+    const { mek, reply, quoted, react, botName, botFooter } = conText;
 
-    if (!quoted) return reply(`Please reply to/quote a ViewOnce message`);
-    if (!isSuperUser) return reply(`Owner Only Command!`);
+    const fmt = (title, msg) =>
+      `╭─❏ 「 ${title}」\n│ ${msg}\n╰───────────────\n> _${botFooter}_`;
 
-    let viewOnceContent, mediaType;
-
-    if (
-      quoted.imageMessage?.viewOnce ||
-      quoted.videoMessage?.viewOnce ||
-      quoted.audioMessage?.viewOnce
-    ) {
-      mediaType = Object.keys(quoted).find(
-        (key) =>
-          key.endsWith("Message") &&
-          ["image", "video", "audio"].some((t) => key.includes(t)),
-      );
-      viewOnceContent = { [mediaType]: quoted[mediaType] };
-    } else if (quoted.viewOnceMessage) {
-      viewOnceContent = quoted.viewOnceMessage.message;
-      mediaType = Object.keys(viewOnceContent).find(
-        (key) =>
-          key.endsWith("Message") &&
-          ["image", "video", "audio"].some((t) => key.includes(t)),
-      );
-    } else {
-      return reply("Please reply to a view once media message.");
+    if (!quoted) {
+      await react("❌");
+      return reply(fmt("VIEW ONCE", "Reply to a view-once image or video."));
     }
 
-    if (!mediaType) return reply("Unsupported ViewOnce message type.");
-
-    let msg;
-    let tempFilePath = null;
+    await react("⌛");
 
     try {
-      const mediaMessage = {
-        ...viewOnceContent[mediaType],
-        viewOnce: false,
-      };
+      const VO_WRAPPERS = ["viewOnceMessageV2Extension", "viewOnceMessageV2", "viewOnceMessage"];
 
-      const path = require("path");
-      const tempDir = path.join(__dirname, "..", "gift", "temp");
-      await fs.mkdir(tempDir, { recursive: true });
-      const tempFileName = `vv2_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      tempFilePath = await Gifted.downloadAndSaveMediaMessage(
-        mediaMessage,
-        path.join(tempDir, tempFileName),
-      );
+      let mediaMsg = null;
+      let mediaType = null;
 
-      const originalCaption = mediaMessage.caption || "";
-      const caption = originalCaption
-        ? `${originalCaption}\n\n> *REVEALED BY ${botName}*`
-        : `> *REVEALED BY ${botName}*`;
-      const mime = mediaMessage.mimetype || "";
-
-      if (mediaType.includes("image")) {
-        msg = {
-          image: { url: tempFilePath },
-          caption,
-          mimetype: mime,
-        };
-      } else if (mediaType.includes("video")) {
-        msg = {
-          video: { url: tempFilePath },
-          caption,
-          mimetype: mime,
-        };
-      } else if (mediaType.includes("audio")) {
-        msg = {
-          audio: { url: tempFilePath },
-          ptt: true,
-          mimetype: mime || "audio/mp4",
-        };
+      // Strategy 1: direct viewOnce flag on media messages
+      for (const key of ["imageMessage", "videoMessage", "audioMessage"]) {
+        if (quoted[key]?.viewOnce) {
+          mediaMsg = { ...quoted[key], viewOnce: false };
+          mediaType = key.replace("Message", "");
+          break;
+        }
       }
 
-      await Gifted.sendMessage(from, msg);
+      // Strategy 2: viewOnceMessageV2Extension / viewOnceMessageV2 / viewOnceMessage wrappers
+      if (!mediaMsg) {
+        for (const wrapper of VO_WRAPPERS) {
+          const inner = quoted[wrapper]?.message;
+          if (!inner) continue;
+          for (const key of ["imageMessage", "videoMessage", "audioMessage"]) {
+            if (inner[key]) {
+              mediaMsg = { ...inner[key], viewOnce: false };
+              mediaType = key.replace("Message", "");
+              break;
+            }
+          }
+          if (mediaMsg) break;
+        }
+      }
+
+      if (!mediaMsg || !mediaType) {
+        await react("❌");
+        return reply(fmt("VIEW ONCE", "This message does not contain view-once media."));
+      }
+
+      // Download with multiple fallback strategies
+      let buffer = null;
+
+      const strategies = [
+        async () => await Gifted.downloadMediaMessage({ message: { [`${mediaType}Message`]: mediaMsg } }),
+        async () => await Gifted.downloadMediaMessage(mediaMsg),
+        async () => {
+          const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
+          const stream = await downloadContentFromMessage(mediaMsg, mediaType);
+          const chunks = [];
+          for await (const chunk of stream) chunks.push(chunk);
+          return Buffer.concat(chunks);
+        },
+      ];
+
+      for (const fn of strategies) {
+        try {
+          const b = await fn();
+          if (b && b.length > 0) { buffer = b; break; }
+        } catch {}
+      }
+
+      if (!buffer || buffer.length === 0) {
+        await react("❌");
+        return reply(fmt("VIEW ONCE", "Failed to download media. Try again."));
+      }
+
+      const origCaption = mediaMsg.caption || "";
+      const caption = `╭─❏ 「 VIEW ONCE REVEALED 👁」\n│ Here's your media.\n${origCaption ? "│ Caption: " + origCaption + "\n" : ""}╰───────────────\n> _${botFooter}_`;
+      const mime = mediaMsg.mimetype || "";
+
+      if (mediaType === "image") {
+        await Gifted.sendMessage(from, { image: buffer, caption });
+      } else if (mediaType === "video") {
+        await Gifted.sendMessage(from, { video: buffer, caption, mimetype: mime || "video/mp4" });
+      } else {
+        await Gifted.sendMessage(from, { audio: buffer, ptt: true, mimetype: mime || "audio/ogg; codecs=opus" });
+      }
+
       await react("✅");
     } catch (e) {
       console.error("Error in vv2 command:", e);
-      reply(`Error: ${e.message}`);
-    } finally {
-      if (tempFilePath) {
-        try {
-          await fs.unlink(tempFilePath);
-        } catch (cleanupError) {
-          console.error("Failed to clean up temp file:", cleanupError);
-        }
-      }
+      await react("❌");
+      reply(fmt("VIEW ONCE", `Failed to reveal media: ${e.message}`));
     }
   },
 );
@@ -653,100 +657,107 @@ gmd(
 gmd(
   {
     pattern: "vv",
-    aliases: ["‎", "reveal"],
-    react: "🙄",
-    category: "owner",
-    description: "Reveal View Once Media",
+    aliases: ["reveal", "viewonce", "vo"],
+    react: "👁️",
+    category: "general",
+    description: "Reveal view-once media — sent to your DM",
   },
   async (from, Gifted, conText) => {
-    const { mek, reply, quoted, react, botName, isSuperUser, sender } = conText;
+    const { mek, reply, quoted, react, sender, botName, botFooter } = conText;
 
-    if (!quoted) return reply(`Please reply to/quote a ViewOnce message`);
-    if (!isSuperUser) return reply(`Owner Only Command!`);
+    const fmt = (title, msg) =>
+      `╭─❏ 「 ${title}」\n│ ${msg}\n╰───────────────\n> _${botFooter}_`;
 
-    let viewOnceContent, mediaType;
-
-    if (
-      quoted.imageMessage?.viewOnce ||
-      quoted.videoMessage?.viewOnce ||
-      quoted.audioMessage?.viewOnce
-    ) {
-      mediaType = Object.keys(quoted).find(
-        (key) =>
-          key.endsWith("Message") &&
-          ["image", "video", "audio"].some((t) => key.includes(t)),
-      );
-      viewOnceContent = { [mediaType]: quoted[mediaType] };
-    } else if (quoted.viewOnceMessage) {
-      viewOnceContent = quoted.viewOnceMessage.message;
-      mediaType = Object.keys(viewOnceContent).find(
-        (key) =>
-          key.endsWith("Message") &&
-          ["image", "video", "audio"].some((t) => key.includes(t)),
-      );
-    } else {
-      return reply("Please reply to a view once media message.");
+    if (!quoted) {
+      await react("❌");
+      return reply(fmt("VIEW ONCE", "Reply to a view-once image or video."));
     }
 
-    if (!mediaType) return reply("Unsupported ViewOnce message type.");
-
-    let msg;
-    let tempFilePath = null;
+    await react("⌛");
 
     try {
-      const mediaMessage = {
-        ...viewOnceContent[mediaType],
-        viewOnce: false,
-      };
+      const VO_WRAPPERS = ["viewOnceMessageV2Extension", "viewOnceMessageV2", "viewOnceMessage"];
 
-      const path = require("path");
-      const tempDir = path.join(__dirname, "..", "gift", "temp");
-      await fs.mkdir(tempDir, { recursive: true });
-      const tempFileName = `vv_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      tempFilePath = await Gifted.downloadAndSaveMediaMessage(
-        mediaMessage,
-        path.join(tempDir, tempFileName),
-      );
+      let mediaMsg = null;
+      let mediaType = null;
 
-      const originalCaption = mediaMessage.caption || "";
-      const caption = originalCaption
-        ? `${originalCaption}\n\n> *REVEALED BY ${botName}*`
-        : `> *REVEALED BY ${botName}*`;
-      const mime = mediaMessage.mimetype || "";
-
-      if (mediaType.includes("image")) {
-        msg = {
-          image: { url: tempFilePath },
-          caption,
-          mimetype: mime,
-        };
-      } else if (mediaType.includes("video")) {
-        msg = {
-          video: { url: tempFilePath },
-          caption,
-          mimetype: mime,
-        };
-      } else if (mediaType.includes("audio")) {
-        msg = {
-          audio: { url: tempFilePath },
-          ptt: true,
-          mimetype: mime || "audio/mp4",
-        };
+      // Strategy 1: direct viewOnce flag on media messages
+      for (const key of ["imageMessage", "videoMessage", "audioMessage"]) {
+        if (quoted[key]?.viewOnce) {
+          mediaMsg = { ...quoted[key], viewOnce: false };
+          mediaType = key.replace("Message", "");
+          break;
+        }
       }
 
-      await Gifted.sendMessage(sender, msg);
+      // Strategy 2: viewOnceMessageV2Extension / viewOnceMessageV2 / viewOnceMessage wrappers
+      if (!mediaMsg) {
+        for (const wrapper of VO_WRAPPERS) {
+          const inner = quoted[wrapper]?.message;
+          if (!inner) continue;
+          for (const key of ["imageMessage", "videoMessage", "audioMessage"]) {
+            if (inner[key]) {
+              mediaMsg = { ...inner[key], viewOnce: false };
+              mediaType = key.replace("Message", "");
+              break;
+            }
+          }
+          if (mediaMsg) break;
+        }
+      }
+
+      if (!mediaMsg || !mediaType) {
+        await react("❌");
+        return reply(fmt("VIEW ONCE", "This message does not contain view-once media."));
+      }
+
+      // Download with multiple fallback strategies
+      let buffer = null;
+
+      const strategies = [
+        async () => await Gifted.downloadMediaMessage({ message: { [`${mediaType}Message`]: mediaMsg } }),
+        async () => await Gifted.downloadMediaMessage(mediaMsg),
+        async () => {
+          const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
+          const stream = await downloadContentFromMessage(mediaMsg, mediaType);
+          const chunks = [];
+          for await (const chunk of stream) chunks.push(chunk);
+          return Buffer.concat(chunks);
+        },
+      ];
+
+      for (const fn of strategies) {
+        try {
+          const b = await fn();
+          if (b && b.length > 0) { buffer = b; break; }
+        } catch {}
+      }
+
+      if (!buffer || buffer.length === 0) {
+        await react("❌");
+        return reply(fmt("VIEW ONCE", "Failed to download media. Try again."));
+      }
+
+      const origCaption = mediaMsg.caption || "";
+      const caption = `╭─❏ 「 VIEW ONCE REVEALED 👁」\n│ Here's your media.\n${origCaption ? "│ Caption: " + origCaption + "\n" : ""}╰───────────────\n> _${botFooter}_`;
+      const mime = mediaMsg.mimetype || "";
+
+      // vv → sends to sender's DM (private reveal)
+      const dest = sender;
+
+      if (mediaType === "image") {
+        await Gifted.sendMessage(dest, { image: buffer, caption });
+      } else if (mediaType === "video") {
+        await Gifted.sendMessage(dest, { video: buffer, caption, mimetype: mime || "video/mp4" });
+      } else {
+        await Gifted.sendMessage(dest, { audio: buffer, ptt: true, mimetype: mime || "audio/ogg; codecs=opus" });
+      }
+
       await react("✅");
     } catch (e) {
       console.error("Error in vv command:", e);
-      reply(`Error: ${e.message}`);
-    } finally {
-      if (tempFilePath) {
-        try {
-          await fs.unlink(tempFilePath);
-        } catch (cleanupError) {
-          console.error("Failed to clean up temp file:", cleanupError);
-        }
-      }
+      await react("❌");
+      reply(fmt("VIEW ONCE", `Failed to reveal media: ${e.message}`));
     }
   },
 );

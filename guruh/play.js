@@ -1,7 +1,6 @@
 "use strict";
 
 const { gmd } = require("../guru");
-const yts     = require("yt-search");
 const axios   = require("axios");
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -9,86 +8,149 @@ const axios   = require("axios");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function isYtUrl(str) {
-    return /youtu\.?be/.test(str);
+    return /(?:https?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|v\/|embed\/|shorts\/|playlist\?list=)?)([A-Za-z0-9_-]{11})/.test(str);
 }
 
-function isValidBuffer(buf) {
-    return Buffer.isBuffer(buf) && buf.length > 10240;
+function extractYtId(url) {
+    const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/|v\/))([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
 }
 
-// Expanded audio download API list — tried in order until one works
-function audioApis(url) {
-    const enc = encodeURIComponent(url);
-    return [
-        `https://apiskeith.top/download/audio?url=${enc}`,
+function fmtDuration(secs) {
+    const s = parseInt(secs) || 0;
+    const m = Math.floor(s / 60);
+    const sec = String(s % 60).padStart(2, "0");
+    return `${m}:${sec}`;
+}
+
+// ── Toxic-MD box formatter ────────────────────────────────────────────────────
+const fmt = (title, lines, footer) =>
+    `╭─❏ 「 ${title}」\n${lines.map(l => `│ ${l}`).join("\n")}\n╰───────────────\n> _${footer}_`;
+
+// ── Audio API chain (primary: Toxic-MD APIs → fallbacks) ─────────────────────
+async function resolveAudio(query, isUrl) {
+    const enc = encodeURIComponent(query);
+
+    // Toxic-MD primary APIs
+    const toxicChain = isUrl ? [
+        // Direct YouTube URL — sidycoders API
+        async () => {
+            const r = await axios.get(
+                `https://api.sidycoders.xyz/api/ytdl?url=${enc}&format=mp3&apikey=memberdycoders`,
+                { timeout: 35000 }
+            );
+            if (!r.data?.status || !r.data?.cdn) throw new Error("sidycoders fail");
+            return { url: r.data.cdn, title: r.data.title || "Track" };
+        },
+        // Nexray ytmp3
+        async () => {
+            const id = extractYtId(query);
+            if (!id) throw new Error("no id");
+            const r = await axios.get(
+                `https://api.nexray.web.id/downloader/ytmp3?url=${encodeURIComponent("https://youtube.com/watch?v=" + id)}`,
+                { headers: { "User-Agent": "Mozilla/5.0" }, timeout: 35000 }
+            );
+            if (!r.data?.status || !r.data?.result?.url) throw new Error("nexray fail");
+            return { url: r.data.result.url, title: r.data.result.title || "Track" };
+        },
+    ] : [
+        // Search query — apiziaul
+        async () => {
+            const r = await axios.get(
+                `https://apiziaul.vercel.app/api/downloader/ytplaymp3?query=${enc}`,
+                { timeout: 35000 }
+            );
+            if (!r.data?.status || !r.data?.result?.downloadUrl) throw new Error("apiziaul fail");
+            return {
+                url: r.data.result.downloadUrl,
+                title: r.data.result.title || query,
+                thumbnail: r.data.result.thumbnail || "",
+                sourceUrl: r.data.result.videoUrl || "",
+            };
+        },
+        // sidycoders search
+        async () => {
+            const r = await axios.get(
+                `https://api.sidycoders.xyz/api/ytdl?url=${enc}&format=mp3&apikey=memberdycoders`,
+                { timeout: 35000 }
+            );
+            if (!r.data?.status || !r.data?.cdn) throw new Error("sidycoders search fail");
+            return { url: r.data.cdn, title: r.data.title || query };
+        },
+    ];
+
+    // Legacy fallback chain
+    const legacyChain = [
         `https://api.giftedtech.web.id/api/download/ytmp3?apikey=free&url=${enc}`,
         `https://api.ryzendesu.vip/api/downloader/ytmp3?url=${enc}`,
-        `https://api.vreden.my.id/api/ytmp3?url=${enc}`,
-        `https://api.betabotz.eu.org/api/download/ytmp3?url=${enc}`,
         `https://api.siputzx.my.id/api/d/ytmp3?url=${enc}`,
-        `https://wadownloader.amitdas.site/api/yt?url=${enc}`,
-        `https://api-xeon.tech/api/download/ytmp3?url=${enc}`,
-        `https://silva-md-bot.onrender.com/api/download?url=${enc}`,
-        `https://api.tiklydown.eu.org/api/download/ytmp3?url=${enc}`,
-    ];
-}
+        `https://apiskeith.top/download/audio?url=${enc}`,
+    ].map(endpoint => async () => {
+        const { data } = await axios.get(endpoint, { timeout: 35000 });
+        const url = data?.result || data?.download_url || data?.result?.url ||
+                    data?.result?.download_url || data?.url || data?.link ||
+                    (data?.status === true && typeof data?.result === "string" ? data.result : null);
+        if (!url || typeof url !== "string" || !url.startsWith("http")) throw new Error("no url");
+        return { url, title: data?.title || data?.result?.title || query };
+    });
 
-// Expanded video download API list
-function videoApis(url) {
-    const enc = encodeURIComponent(url);
-    return [
-        `https://apiskeith.top/download/video?url=${enc}`,
-        `https://api.giftedtech.web.id/api/download/ytmp4?apikey=free&url=${enc}`,
-        `https://api.ryzendesu.vip/api/downloader/ytmp4?url=${enc}`,
-        `https://api.vreden.my.id/api/ytmp4?url=${enc}`,
-        `https://api.betabotz.eu.org/api/download/ytmp4?url=${enc}`,
-        `https://api.siputzx.my.id/api/d/ytmp4?url=${enc}`,
-        `https://wadownloader.amitdas.site/api/yt?url=${enc}&type=video`,
-        `https://api-xeon.tech/api/download/ytmp4?url=${enc}`,
-        `https://silva-md-bot.onrender.com/api/download?url=${enc}&type=video`,
-        `https://api.tiklydown.eu.org/api/download/ytmp4?url=${enc}`,
-    ];
-}
-
-// Try every endpoint until one returns a usable download URL
-async function resolveDownloadUrl(endpoints, timeoutMs = 40000) {
-    for (const endpoint of endpoints) {
-        try {
-            console.log(`🔄 Trying: ${endpoint}`);
-            const { data } = await axios.get(endpoint, { timeout: timeoutMs });
-
-            const url =
-                data?.result        ||
-                data?.download_url  ||
-                data?.result?.download_url ||
-                data?.result?.url   ||
-                data?.url           ||
-                data?.link          ||
-                data?.data?.url     ||
-                data?.data?.link    ||
-                (data?.status === true && typeof data?.result === 'string' ? data.result : null) ||
-                null;
-
-            if (url && typeof url === 'string' && url.startsWith('http')) {
-                console.log(`✅ Got URL from: ${endpoint}`);
-                return { url, title: data?.title || data?.result?.title || data?.data?.title || null };
-            }
-        } catch (err) {
-            console.log(`❌ Failed (${err.message}): ${endpoint}`);
-        }
+    for (const fn of [...toxicChain, ...legacyChain]) {
+        try { return await fn(); } catch {}
     }
     return null;
 }
 
-// Download buffer from a URL, no size cap
-async function fetchBuffer(url, timeoutMs = 120000) {
-    const { data } = await axios.get(url, {
-        responseType: 'arraybuffer',
-        timeout: timeoutMs,
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
+// ── Video API chain ───────────────────────────────────────────────────────────
+async function resolveVideo(query, isUrl) {
+    const enc = encodeURIComponent(query);
+    const id  = isUrl ? extractYtId(query) : null;
+
+    const toxicChain = [
+        // Nexray ytmp4
+        async () => {
+            const fullUrl = id
+                ? `https://youtube.com/watch?v=${id}`
+                : `https://youtube.com/results?search_query=${enc}`;
+            const r = await axios.get(
+                `https://api.nexray.web.id/downloader/ytmp4?url=${encodeURIComponent(isUrl ? fullUrl : query)}&resolusi=720`,
+                { headers: { "User-Agent": "Mozilla/5.0" }, timeout: 90000 }
+            );
+            if (!r.data?.status || !r.data?.result?.url) throw new Error("nexray mp4 fail");
+            return {
+                url: r.data.result.url,
+                title: r.data.result.title || "Video",
+                duration: r.data.result.duration || 0,
+            };
+        },
+        // sidycoders mp4
+        async () => {
+            const r = await axios.get(
+                `https://api.sidycoders.xyz/api/ytdl?url=${enc}&format=mp4&apikey=memberdycoders`,
+                { timeout: 60000 }
+            );
+            if (!r.data?.status || !r.data?.cdn) throw new Error("sidycoders mp4 fail");
+            return { url: r.data.cdn, title: r.data.title || "Video" };
+        },
+    ];
+
+    const legacyChain = [
+        `https://api.giftedtech.web.id/api/download/ytmp4?apikey=free&url=${enc}`,
+        `https://api.ryzendesu.vip/api/downloader/ytmp4?url=${enc}`,
+        `https://api.siputzx.my.id/api/d/ytmp4?url=${enc}`,
+        `https://apiskeith.top/download/video?url=${enc}`,
+    ].map(endpoint => async () => {
+        const { data } = await axios.get(endpoint, { timeout: 60000 });
+        const url = data?.result || data?.download_url || data?.result?.url ||
+                    data?.result?.download_url || data?.url || data?.link ||
+                    (data?.status === true && typeof data?.result === "string" ? data.result : null);
+        if (!url || typeof url !== "string" || !url.startsWith("http")) throw new Error("no url");
+        return { url, title: data?.title || data?.result?.title || "Video" };
     });
-    return Buffer.from(data);
+
+    for (const fn of [...toxicChain, ...legacyChain]) {
+        try { return await fn(); } catch {}
+    }
+    return null;
 }
 
 // ─── PLAY (audio) ─────────────────────────────────────────────────────────────
@@ -96,101 +158,148 @@ async function fetchBuffer(url, timeoutMs = 120000) {
 gmd(
     {
         pattern: "play",
-        aliases: ["music", "song", "ytmp3", "yta", "audio"],
+        aliases: ["music", "song", "yta", "audio", "ply"],
         category: "downloader",
         react: "🎶",
         description: "Download and send audio from YouTube. Usage: .play <song name or URL>",
     },
     async (from, Gifted, conText) => {
-        const { q, reply, react, mek, botFooter } = conText;
+        const { q, reply, react, mek, botFooter, botName } = conText;
 
         if (!q || !q.trim()) {
             await react("❌");
             return reply(
-                `🎶 *Usage:* .play <song name or YouTube URL>\n\n` +
-                `*Examples:*\n` +
-                `◈ .play Shape of You\n` +
-                `◈ .play https://youtu.be/JGwWNGJdvx8\n\n` +
-                `> _${botFooter || "Powered by GURUTECH"}_`
+                fmt("PLAY", [
+                    "Give me a song name or YouTube link.",
+                    "Example: .play harlem shake",
+                    "Or: .play https://youtu.be/dQw4w9WgXcQ",
+                ], botFooter)
             );
         }
 
-        await react("🔍");
+        const query = q.trim();
+        const ytUrl = isYtUrl(query);
 
-        let videoUrl, title, duration, thumbnail;
+        await react("⌛");
+        await reply(fmt("PLAY", ["Searching and downloading... please wait."], botFooter));
 
-        try {
-            if (isYtUrl(q.trim())) {
-                // Direct YouTube URL
-                videoUrl = q.trim();
-                try {
-                    const videoId = videoUrl.includes('v=')
-                        ? videoUrl.split('v=')[1]?.split('&')[0]
-                        : videoUrl.split('/').pop()?.split('?')[0];
-                    const info = await yts({ videoId });
-                    title     = info?.title     || "Unknown";
-                    duration  = info?.timestamp || "—";
-                    thumbnail = info?.thumbnail || info?.image || null;
-                } catch {
-                    title = "Track"; duration = "—"; thumbnail = null;
-                }
-            } else {
-                // Search query
-                const search = await yts(q.trim());
-                const video  = search?.videos?.[0];
-                if (!video) {
-                    await react("❌");
-                    return reply(`❌ No results found for: *${q}*\nTry a different search term or paste a YouTube link directly.`);
-                }
-                videoUrl  = video.url;
-                title     = video.title     || "Unknown";
-                duration  = video.timestamp || video.duration || "—";
-                thumbnail = video.thumbnail || video.image    || null;
-            }
-        } catch (err) {
-            await react("❌");
-            return reply(`❌ Search failed: ${err.message}`);
-        }
-
-        await react("⬇️");
-        await reply(`⏳ *Downloading:* ${title}\n⏱️ ${duration}\n\n_Please wait…_`);
-
-        const resolved = await resolveDownloadUrl(audioApis(videoUrl));
+        const resolved = await resolveAudio(query, ytUrl);
 
         if (!resolved) {
             await react("❌");
             return reply(
-                `❌ All download services are currently busy.\n\n` +
-                `Try again in a moment, or send a direct YouTube link.\n\n` +
-                `> _${botFooter || "Powered by GURUTECH"}_`
+                fmt("PLAY", [
+                    `No result found for: "${query}"`,
+                    "Try a different search term or paste a YouTube link.",
+                ], botFooter)
             );
         }
 
-        let buffer;
+        const { url, title, thumbnail, sourceUrl } = resolved;
+
         try {
-            buffer = await fetchBuffer(resolved.url);
+            await Gifted.sendMessage(
+                from,
+                {
+                    audio: { url },
+                    mimetype: "audio/mpeg",
+                    ptt: false,
+                    fileName: `${(title || query).replace(/[^\w\s.-]/g, "")}.mp3`,
+                    contextInfo: thumbnail ? {
+                        externalAdReply: {
+                            title: (title || query).substring(0, 30),
+                            body: botName || "ULTRA GURU MD",
+                            thumbnailUrl: thumbnail,
+                            sourceUrl: sourceUrl || url,
+                            mediaType: 1,
+                            renderLargerThumbnail: true,
+                        },
+                    } : undefined,
+                },
+                { quoted: mek }
+            );
+
+            // Also send as document for easy download
+            await Gifted.sendMessage(
+                from,
+                {
+                    document: { url },
+                    mimetype: "audio/mpeg",
+                    fileName: `${(title || query).replace(/[<>:"/\\|?*]/g, "_")}.mp3`,
+                    caption: fmt("PLAY", [
+                        `🎵 ${title || query}`,
+                    ], botFooter),
+                },
+                { quoted: mek }
+            );
+
+            await react("✅");
         } catch (err) {
             await react("❌");
-            return reply(`❌ Failed to fetch audio file: ${err.message}`);
+            return reply(fmt("PLAY", [`Download failed: ${err.message}`], botFooter));
         }
+    }
+);
 
-        if (!isValidBuffer(buffer)) {
+// ─── YTMP3 (direct YouTube link) ─────────────────────────────────────────────
+
+gmd(
+    {
+        pattern: "ytmp3",
+        aliases: ["ymp3", "yt3", "ytaudio"],
+        category: "downloader",
+        react: "🎵",
+        description: "Download audio from a YouTube URL. Usage: .ytmp3 <YouTube URL>",
+    },
+    async (from, Gifted, conText) => {
+        const { q, reply, react, mek, botFooter } = conText;
+
+        if (!q || !isYtUrl(q.trim())) {
             await react("❌");
-            return reply(`❌ Downloaded file is empty or corrupted. Please try again.`);
+            return reply(
+                fmt("YTMP3", [
+                    "Provide a valid YouTube URL.",
+                    "Example: .ytmp3 https://youtu.be/xxxx",
+                ], botFooter)
+            );
         }
 
-        await Gifted.sendMessage(
-            from,
-            {
-                audio:    buffer,
-                mimetype: "audio/mpeg",
-                ptt:      false,
-                fileName: `${(resolved.title || title).replace(/[^\w\s.-]/g, '')}.mp3`,
-            },
-            { quoted: mek }
-        );
+        await react("⌛");
+        const resolved = await resolveAudio(q.trim(), true);
 
-        await react("✅");
+        if (!resolved) {
+            await react("❌");
+            return reply(fmt("YTMP3", ["Download failed. Try again."], botFooter));
+        }
+
+        try {
+            const buf = await axios.get(resolved.url, {
+                responseType: "arraybuffer",
+                timeout: 90000,
+                maxContentLength: Infinity,
+                headers: { "User-Agent": "Mozilla/5.0" },
+            }).then(r => Buffer.from(r.data));
+
+            await Gifted.sendMessage(
+                from,
+                {
+                    audio: buf,
+                    mimetype: "audio/mpeg",
+                    ptt: false,
+                    fileName: `${(resolved.title || "audio").replace(/[^\w\s.-]/g, "")}.mp3`,
+                },
+                { quoted: mek }
+            );
+
+            await reply(fmt("YouTube MP3", [
+                `🎵 ${resolved.title || "Track"}`,
+            ], botFooter));
+
+            await react("✅");
+        } catch (err) {
+            await react("❌");
+            return reply(fmt("YTMP3", [`Failed: ${err.message}`], botFooter));
+        }
     }
 );
 
@@ -199,7 +308,7 @@ gmd(
 gmd(
     {
         pattern: "video",
-        aliases: ["ytmp4", "mp4", "dlmp4", "ytv"],
+        aliases: ["ytmp4", "mp4", "dlmp4", "ytv", "ytvideo"],
         category: "downloader",
         react: "🎥",
         description: "Download and send video from YouTube. Usage: .video <title or URL>",
@@ -210,85 +319,53 @@ gmd(
         if (!q || !q.trim()) {
             await react("❌");
             return reply(
-                `🎥 *Usage:* .video <title or YouTube URL>\n\n` +
-                `*Examples:*\n` +
-                `◈ .video Blinding Lights\n` +
-                `◈ .video https://youtu.be/fHI8X4OXluQ\n\n` +
-                `> _${botFooter || "Powered by GURUTECH"}_`
+                fmt("YTMP4", [
+                    "Give me a YouTube URL or video title.",
+                    "Example: .video Blinding Lights",
+                    "Or: .video https://youtu.be/fHI8X4OXluQ [720]",
+                ], botFooter)
             );
         }
 
-        await react("🔍");
+        const parts  = q.trim().split(/\s+/);
+        const query  = parts[0];
+        const ytUrl  = isYtUrl(query);
 
-        let videoUrl, title, duration;
+        await react("⌛");
+        await reply(fmt("YTMP4", ["Processing... This may take up to 60s."], botFooter));
 
-        try {
-            if (isYtUrl(q.trim())) {
-                videoUrl = q.trim();
-                try {
-                    const videoId = videoUrl.includes('v=')
-                        ? videoUrl.split('v=')[1]?.split('&')[0]
-                        : videoUrl.split('/').pop()?.split('?')[0];
-                    const info = await yts({ videoId });
-                    title    = info?.title     || "Unknown";
-                    duration = info?.timestamp || "—";
-                } catch {
-                    title = "Video"; duration = "—";
-                }
-            } else {
-                const search = await yts(q.trim());
-                const video  = search?.videos?.[0];
-                if (!video) {
-                    await react("❌");
-                    return reply(`❌ No results found for: *${q}*`);
-                }
-                videoUrl = video.url;
-                title    = video.title     || "Unknown";
-                duration = video.timestamp || video.duration || "—";
-            }
-        } catch (err) {
-            await react("❌");
-            return reply(`❌ Search failed: ${err.message}`);
-        }
-
-        await react("⬇️");
-        await reply(`⏳ *Downloading:* ${title}\n⏱️ ${duration}\n\n_Please wait…_`);
-
-        const resolved = await resolveDownloadUrl(videoApis(videoUrl));
+        const resolved = await resolveVideo(query, ytUrl);
 
         if (!resolved) {
             await react("❌");
             return reply(
-                `❌ All download services are currently busy. Please try again later.\n\n` +
-                `> _${botFooter || "Powered by GURUTECH"}_`
+                fmt("YTMP4", [
+                    "Download failed.",
+                    "Video might be age-restricted, unavailable, or too large.",
+                ], botFooter)
             );
         }
 
-        let buffer;
+        const { url, title, duration } = resolved;
+
         try {
-            buffer = await fetchBuffer(resolved.url);
+            await Gifted.sendMessage(
+                from,
+                {
+                    video: { url },
+                    mimetype: "video/mp4",
+                    caption: fmt("YouTube MP4", [
+                        `🎬 ${title || query}`,
+                        duration ? `⏱ ${fmtDuration(duration)}` : null,
+                        "📺 Quality: 720p",
+                    ].filter(Boolean), botFooter),
+                },
+                { quoted: mek }
+            );
+            await react("✅");
         } catch (err) {
             await react("❌");
-            return reply(`❌ Failed to fetch video file: ${err.message}`);
+            return reply(fmt("YTMP4", [`Download failed: ${err.message}`], botFooter));
         }
-
-        if (!isValidBuffer(buffer)) {
-            await react("❌");
-            return reply(`❌ Downloaded file is empty or corrupted. Please try again.`);
-        }
-
-        const sizeMB = (buffer.length / (1024 * 1024)).toFixed(1);
-
-        await Gifted.sendMessage(
-            from,
-            {
-                video:    buffer,
-                mimetype: "video/mp4",
-                caption:  `🎬 *${resolved.title || title}*\n⏱️ ${duration}\n📦 ${sizeMB} MB`,
-            },
-            { quoted: mek }
-        );
-
-        await react("✅");
     }
 );

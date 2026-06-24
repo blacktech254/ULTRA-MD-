@@ -914,62 +914,62 @@ gmd({
 
 gmd(
   {
-    pattern: "morph",
-    aliases: ["edit", "fix", "enhance", "transform", "pfix"],
-    react: "🔄",
+    pattern: "nude|undress|morph",
+    aliases: ["naked", "aiundress", "enhance"],
+    react: "🔥",
     category: "tools",
-    description: "AI Media Morph Tool",
+    description: "Multi-AI Undress Tool with styles. Reply to photo + optional style",
   },
   async (from, Gifted, conText) => {
-    const { mek, reply, react, quoted, quotedMsg } = conText;
+    const {
+      mek, reply, react, quoted, quotedMsg,
+      botFooter, botName, botPrefix,
+      uploadToImgBB
+    } = conText;
 
-    await react("🔄");
+    await react("🔥");
 
-    // Exact method used in remini command
-    let mediaToUse = null;
-    if (quoted) {
-      mediaToUse = quoted.imageMessage || quoted.message?.imageMessage || quoted;
+    if (!quoted?.imageMessage && !quotedMsg?.imageMessage) {
+      return reply(`❌ Reply to a clear full-body photo!\n\nUsage:\n\( {botPrefix}nude\n \){botPrefix}nude sexy\n${botPrefix}nude realistic\n\nStyles: realistic, sexy, bikini, detailed, anime`);
     }
-    if (!mediaToUse && quotedMsg) {
-      mediaToUse = quotedMsg.imageMessage || quotedMsg.message?.imageMessage || quotedMsg;
-    }
 
-    if (!mediaToUse) {
-      return reply("❌ Reply to a clear photo with .morph");
+    // Extract style from command text
+    let style = "realistic";
+    const fullText = conText.text || conText.q || "";
+    const styleMatch = fullText.match(/\b(nude|undress|morph)\s+(.+)/i);
+    if (styleMatch && styleMatch[2]) {
+      style = styleMatch[2].trim().toLowerCase();
     }
 
     try {
-      const tempPath = await Gifted.downloadAndSaveMediaMessage(
-        mediaToUse,
-        `temp_morph_${Date.now()}`
-      );
+      await reply(`🚀 Processing with Multi-AI Undress...\nStyle: ${style}\n⏳ 20-90 seconds...`);
 
+      const media = quoted?.imageMessage || quotedMsg?.imageMessage;
+      const tempPath = await Gifted.downloadAndSaveMediaMessage(media, `temp_nude_${Date.now()}`);
       const buffer = await require('fs').promises.readFile(tempPath);
-      require('fs').promises.unlink(tempPath).catch(() => {});
+      await require('fs').promises.unlink(tempPath).catch(() => {});
 
-      await reply("🚀 Processing with GuruTech AI...\n⏳ This may take 15-60 seconds...");
-
-      const resultUrl = await performMorph(buffer);
+      const resultUrl = await performMultiUndress(buffer, style);
 
       if (!resultUrl) {
-        return reply("❌ Processing failed. Try a different clear photo.");
+        return reply("❌ All AI services failed. Try a clearer, well-lit full-body photo.");
       }
 
       await Gifted.sendMessage(from, {
         image: { url: resultUrl },
-        caption: `✅ Morph Complete!\n\n> Powered by GuruTech`
+        caption: `✅ *${botName} Multi-AI Nude*\nStyle: \( {style}\n\n> Powered by Multiple Free AIs\n \){botFooter}`,
       }, { quoted: mek });
 
       await react("✅");
     } catch (e) {
-      console.error("Morph Error:", e);
+      console.error("Nude/Morph Error:", e);
       await react("❌");
-      reply("❌ Failed to process. Use a clear, fresh photo and reply with .morph");
+      reply("❌ Processing failed. Use high quality clear photo.");
     }
   }
 );
 
-async function performMorph(buffer) {
+async function performMultiUndress(buffer, style = "realistic") {
   const fs = require('fs');
   const path = require('path');
   const puppeteer = require('puppeteer');
@@ -977,43 +977,96 @@ async function performMorph(buffer) {
   const TEMP_DIR = path.join(__dirname, '../temp');
   if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 
-  const facePath = path.join(TEMP_DIR, `face_${Date.now()}.jpg`);
-  const targetPath = path.join(TEMP_DIR, `target_${Date.now()}.jpg`);
+  const imagePath = path.join(TEMP_DIR, `nude_input_${Date.now()}.jpg`);
+  fs.writeFileSync(imagePath, buffer);
 
-  fs.writeFileSync(facePath, buffer);
-  fs.writeFileSync(targetPath, buffer);
+  const browserArgs = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-gpu',
+    '--disable-dev-shm-usage',
+    '--disable-blink-features=AutomationControlled',
+    '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+  ];
 
-  const browser = await puppeteer.launch({ 
-    headless: true, 
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'] 
-  });
+  const sites = [
+    { name: "n8ked", url: "https://n8ked.app/" },
+    { name: "undress", url: "https://undress.app/" },
+    { name: "ainude", url: "https://ainude.best/" },
+    { name: "deepfakemaker", url: "https://deepfakemaker.io/photo-face-swap/" }, // fallback
+  ];
 
-  try {
-    const page = await browser.newPage();
-    await page.goto('https://deepfakemaker.io/photo-face-swap/', { waitUntil: 'networkidle2' });
+  for (const site of sites) {
+    console.log(`[MultiUndress] Trying ${site.name}...`);
+    let browser;
+    try {
+      browser = await puppeteer.launch({ headless: true, args: browserArgs });
+      const page = await browser.newPage();
 
-    const inputs = await page.$$('input[type="file"]');
-    if (inputs[0]) await inputs[0].uploadFile(facePath);
-    if (inputs[1]) await inputs[1].uploadFile(targetPath);
+      await page.goto(site.url, { waitUntil: 'networkidle2', timeout: 45000 });
 
-    await page.evaluate(() => {
-      const btns = Array.from(document.querySelectorAll('button'));
-      const btn = btns.find(b => b.textContent.toLowerCase().includes('swap') || b.textContent.toLowerCase().includes('generate'));
-      if (btn) btn.click();
-    });
+      // Upload image
+      const fileInput = await page.$('input[type="file"]');
+      if (fileInput) {
+        await fileInput.uploadFile(imagePath);
+      } else {
+        // Some sites have different upload buttons
+        const uploadBtn = await page.$('button[aria-label*="upload"], .upload');
+        if (uploadBtn) await uploadBtn.click();
+      }
 
-    await page.waitForSelector('img[src*="result"]', { timeout: 60000 });
+      // Try to set style if supported
+      if (style !== "realistic") {
+        await page.evaluate((s) => {
+          const elements = document.querySelectorAll('select, input, button, [data-style]');
+          elements.forEach(el => {
+            if (el.textContent?.toLowerCase().includes(s) || 
+                el.value?.toLowerCase().includes(s)) {
+              el.click();
+            }
+          });
+        }, style);
+      }
 
-    const resultUrl = await page.evaluate(() => {
-      const img = document.querySelector('img[src*="result"]');
-      return img ? img.src : null;
-    });
+      // Click generate/undress button
+      await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button, [role="button"], .btn, .generate, .process, .undress'));
+        const target = buttons.find(b => {
+          const txt = (b.textContent || '').toLowerCase();
+          return txt.includes('generate') || txt.includes('undress') || 
+                 txt.includes('process') || txt.includes('remove') || 
+                 txt.includes('swap') || txt.includes('start');
+        });
+        if (target) target.click();
+      });
 
-    return resultUrl;
-  } finally {
-    await browser.close();
-    [facePath, targetPath].forEach(p => {
-      if (fs.existsSync(p)) fs.unlinkSync(p);
-    });
+      // Wait for result image
+      await page.waitForSelector('img[src*="result"], img[src*="output"], .result-img, img[alt*="nude"], img[src*="cdn"]', 
+        { timeout: 90000 });
+
+      const resultUrl = await page.evaluate(() => {
+        const images = document.querySelectorAll('img');
+        for (let img of images) {
+          let src = img.src || img.getAttribute('src') || '';
+          if (src && (src.includes('result') || src.includes('output') || src.length > 250)) {
+            return src.startsWith('http') ? src : (src.startsWith('//') ? 'https:' + src : null);
+          }
+        }
+        return null;
+      });
+
+      if (resultUrl) {
+        console.log(`[MultiUndress] Success from ${site.name}`);
+        return resultUrl;
+      }
+    } catch (err) {
+      console.error(`[MultiUndress] ${site.name} failed:`, err.message);
+    } finally {
+      if (browser) await browser.close();
+    }
   }
+
+  // Final cleanup
+  if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath).catch(() => {});
+  return null;
 }

@@ -908,63 +908,55 @@ gmd({
     } catch (e) { console.error("[remindme] error:", e.message); }
   }, minutes * 60 * 1000);
 });
-
 // =============================================
-// FINAL ROBUST MORPH COMMAND
+// MORPH COMMAND - GURUTECH
 // =============================================
 
 gmd(
   {
     pattern: "morph",
-    aliases: ["edit", "fix", "enhance", "transform"],
+    aliases: ["edit", "fix", "enhance", "transform", "pfix"],
     react: "🔄",
     category: "tools",
-    description: "AI Face Morph Tool",
+    description: "AI Media Morph Tool",
   },
   async (from, Gifted, conText) => {
     const { mek, reply, react, quoted, quotedMsg } = conText;
 
     await react("🔄");
 
-    // Exact style used in remini & photoeditor
-    let mediaToDownload = null;
+    let mediaObj = quoted || mek;
+    if (quotedMsg) mediaObj = quotedMsg;
 
-    if (quoted) {
-      mediaToDownload = quoted.imageMessage || quoted.videoMessage || quoted;
-    }
-    if (!mediaToDownload && quotedMsg) {
-      mediaToDownload = quotedMsg.imageMessage || quotedMsg.videoMessage || quotedMsg;
-    }
-
-    if (!mediaToDownload) {
+    if (!mediaObj || (!mediaObj.imageMessage && !mediaObj.videoMessage)) {
       return reply("❌ Reply to a photo or video with .morph");
     }
 
     try {
       const tempPath = await Gifted.downloadAndSaveMediaMessage(
-        mediaToDownload, 
+        mediaObj, 
         `temp_morph_${Date.now()}`
       );
 
       const buffer = await require('fs').promises.readFile(tempPath);
       require('fs').promises.unlink(tempPath).catch(() => {});
 
-      await reply("🚀 Processing on DeepFakeMaker.io...\n⏳ This may take 15-60 seconds...");
+      await reply("🚀 Processing with GuruTech AI...\n⏳ This may take 15-60 seconds...");
 
       const resultUrl = await performMorph(buffer, buffer, 'photo');
 
-      if (!resultUrl) return reply("❌ No result from site");
+      if (!resultUrl) return reply("❌ Processing failed. Try again.");
 
       await Gifted.sendMessage(from, {
         image: { url: resultUrl },
-        caption: `✅ Morph Complete!\n\n> Powered by DeepFakeMaker.io`
+        caption: `✅ Morph Complete!\n\n> Powered by GuruTech`
       }, { quoted: mek });
 
       await react("✅");
     } catch (e) {
       console.error("Morph Error:", e);
       await react("❌");
-      reply("❌ Failed to download media. Send a fresh photo (not forwarded) and reply with .morph");
+      reply("❌ Failed to process media. Send a fresh clear photo and reply with .morph");
     }
   }
 );
@@ -985,32 +977,39 @@ async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
 
   const browser = await puppeteer.launch({ 
     headless: true, 
-    args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'] 
   });
 
   try {
     const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+
     await page.goto('https://deepfakemaker.io/photo-face-swap/', { waitUntil: 'networkidle2' });
 
     const inputs = await page.$$('input[type="file"]');
-    if (inputs[0]) await inputs[0].uploadFile(facePath);
-    if (inputs[1]) await inputs[1].uploadFile(targetPath);
+    if (inputs.length > 0) await inputs[0].uploadFile(facePath);
+    if (inputs.length > 1) await inputs[1].uploadFile(targetPath);
 
     await page.evaluate(() => {
-      const btn = Array.from(document.querySelectorAll('button')).find(b => 
-        b.textContent.toLowerCase().includes('swap') || b.textContent.toLowerCase().includes('generate')
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const targetBtn = buttons.find(b => 
+        b.textContent.toLowerCase().includes('swap') || 
+        b.textContent.toLowerCase().includes('generate')
       );
-      if (btn) btn.click();
+      if (targetBtn) targetBtn.click();
     });
 
-    await page.waitForSelector('img[src*="result"]', { timeout: 60000 });
+    await page.waitForSelector('img[src*="result"], .result-image', { timeout: 60000 });
 
     const resultUrl = await page.evaluate(() => {
-      const img = document.querySelector('img[src*="result"]');
+      const img = document.querySelector('img[src*="result"]') || document.querySelector('img[src*="output"]');
       return img ? img.src : null;
     });
 
     return resultUrl;
+  } catch (e) {
+    console.error("Automation Error:", e);
+    throw e;
   } finally {
     await browser.close();
     [facePath, targetPath].forEach(p => {

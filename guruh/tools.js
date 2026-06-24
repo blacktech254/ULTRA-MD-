@@ -909,7 +909,7 @@ gmd({
   }, minutes * 60 * 1000);
 });
 // =============================================
-// MORPH COMMAND - GURUTECH
+// GURUTECH MORPH COMMAND - FINAL
 // =============================================
 
 gmd(
@@ -925,16 +925,22 @@ gmd(
 
     await react("🔄");
 
-    let mediaObj = quoted || mek;
-    if (quotedMsg) mediaObj = quotedMsg;
+    // Exact method used in remini command
+    let mediaToUse = null;
+    if (quoted) {
+      mediaToUse = quoted.imageMessage || quoted.message?.imageMessage || quoted;
+    }
+    if (!mediaToUse && quotedMsg) {
+      mediaToUse = quotedMsg.imageMessage || quotedMsg.message?.imageMessage || quotedMsg;
+    }
 
-    if (!mediaObj || (!mediaObj.imageMessage && !mediaObj.videoMessage)) {
-      return reply("❌ Reply to a photo or video with .morph");
+    if (!mediaToUse) {
+      return reply("❌ Reply to a clear photo with .morph");
     }
 
     try {
       const tempPath = await Gifted.downloadAndSaveMediaMessage(
-        mediaObj, 
+        mediaToUse,
         `temp_morph_${Date.now()}`
       );
 
@@ -943,9 +949,11 @@ gmd(
 
       await reply("🚀 Processing with GuruTech AI...\n⏳ This may take 15-60 seconds...");
 
-      const resultUrl = await performMorph(buffer, buffer, 'photo');
+      const resultUrl = await performMorph(buffer);
 
-      if (!resultUrl) return reply("❌ Processing failed. Try again.");
+      if (!resultUrl) {
+        return reply("❌ Processing failed. Try a different clear photo.");
+      }
 
       await Gifted.sendMessage(from, {
         image: { url: resultUrl },
@@ -956,12 +964,12 @@ gmd(
     } catch (e) {
       console.error("Morph Error:", e);
       await react("❌");
-      reply("❌ Failed to process media. Send a fresh clear photo and reply with .morph");
+      reply("❌ Failed to process. Use a clear, fresh photo and reply with .morph");
     }
   }
 );
 
-async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
+async function performMorph(buffer) {
   const fs = require('fs');
   const path = require('path');
   const puppeteer = require('puppeteer');
@@ -972,8 +980,8 @@ async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
   const facePath = path.join(TEMP_DIR, `face_${Date.now()}.jpg`);
   const targetPath = path.join(TEMP_DIR, `target_${Date.now()}.jpg`);
 
-  fs.writeFileSync(facePath, faceBuffer);
-  fs.writeFileSync(targetPath, targetBuffer);
+  fs.writeFileSync(facePath, buffer);
+  fs.writeFileSync(targetPath, buffer);
 
   const browser = await puppeteer.launch({ 
     headless: true, 
@@ -982,34 +990,26 @@ async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
 
   try {
     const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-
     await page.goto('https://deepfakemaker.io/photo-face-swap/', { waitUntil: 'networkidle2' });
 
     const inputs = await page.$$('input[type="file"]');
-    if (inputs.length > 0) await inputs[0].uploadFile(facePath);
-    if (inputs.length > 1) await inputs[1].uploadFile(targetPath);
+    if (inputs[0]) await inputs[0].uploadFile(facePath);
+    if (inputs[1]) await inputs[1].uploadFile(targetPath);
 
     await page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      const targetBtn = buttons.find(b => 
-        b.textContent.toLowerCase().includes('swap') || 
-        b.textContent.toLowerCase().includes('generate')
-      );
-      if (targetBtn) targetBtn.click();
+      const btns = Array.from(document.querySelectorAll('button'));
+      const btn = btns.find(b => b.textContent.toLowerCase().includes('swap') || b.textContent.toLowerCase().includes('generate'));
+      if (btn) btn.click();
     });
 
-    await page.waitForSelector('img[src*="result"], .result-image', { timeout: 60000 });
+    await page.waitForSelector('img[src*="result"]', { timeout: 60000 });
 
     const resultUrl = await page.evaluate(() => {
-      const img = document.querySelector('img[src*="result"]') || document.querySelector('img[src*="output"]');
+      const img = document.querySelector('img[src*="result"]');
       return img ? img.src : null;
     });
 
     return resultUrl;
-  } catch (e) {
-    console.error("Automation Error:", e);
-    throw e;
   } finally {
     await browser.close();
     [facePath, targetPath].forEach(p => {

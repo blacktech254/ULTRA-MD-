@@ -910,7 +910,7 @@ gmd({
 });
 
 // =============================================
-// FINAL MORPH COMMAND - ROBUST DOWNLOAD
+// FINAL ROBUST MORPH COMMAND
 // =============================================
 
 gmd(
@@ -926,17 +926,23 @@ gmd(
 
     await react("🔄");
 
-    // Get correct media object (critical fix)
-    let mediaObj = quoted;
-    if (!mediaObj && quotedMsg) mediaObj = quotedMsg;
-    if (!mediaObj) {
+    // Exact style used in remini & photoeditor
+    let mediaToDownload = null;
+
+    if (quoted) {
+      mediaToDownload = quoted.imageMessage || quoted.videoMessage || quoted;
+    }
+    if (!mediaToDownload && quotedMsg) {
+      mediaToDownload = quotedMsg.imageMessage || quotedMsg.videoMessage || quotedMsg;
+    }
+
+    if (!mediaToDownload) {
       return reply("❌ Reply to a photo or video with .morph");
     }
 
     try {
-      // Use the exact pattern that works in remini/photoeditor
       const tempPath = await Gifted.downloadAndSaveMediaMessage(
-        mediaObj, 
+        mediaToDownload, 
         `temp_morph_${Date.now()}`
       );
 
@@ -958,7 +964,7 @@ gmd(
     } catch (e) {
       console.error("Morph Error:", e);
       await react("❌");
-      reply("❌ Failed to download media. Send the image **directly** (not forwarded) and try again.");
+      reply("❌ Failed to download media. Send a fresh photo (not forwarded) and reply with .morph");
     }
   }
 );

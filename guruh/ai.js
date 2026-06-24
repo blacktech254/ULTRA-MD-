@@ -505,3 +505,237 @@ gmd(
         await reply(`🗑️ *Meta AI memory cleared!*\n\nYour conversation history has been reset. Start a fresh chat with *.metaai*${footer}`);
     }
 );
+
+// ─── AI IMAGE GENERATION ─────────────────────────────────────────────────────
+
+gmd(
+    {
+        pattern: "imagine",
+        aliases: ["aiimage", "generate", "genimage", "dalle", "flux"],
+        react: "🎨",
+        description: "Generate an AI image from a text prompt",
+        category: "ai",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, q, mek, botFooter, botName, sender } = conText;
+        const footer = buildFooter(botFooter, botName);
+
+        if (!q || !q.trim()) {
+            return reply(
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🎨  *AI IMAGE GENERATOR*
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  Powered by Flux · Pollinations
+┃
+┃  *Usage:*
+┃  .imagine <description>
+┃
+┃  *Examples:*
+┃  .imagine a lion wearing a crown
+┃  .imagine futuristic city at night
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${footer}`
+            );
+        }
+
+        try {
+            if (react) await react("🎨");
+            const seed  = Math.floor(Math.random() * 999999);
+            const url   = `https://image.pollinations.ai/prompt/${encodeURIComponent(q.trim())}?model=flux&width=1024&height=1024&seed=${seed}&nologo=true&enhance=true`;
+            const imgRes = await axios.get(url, { responseType: 'arraybuffer', timeout: 90000 });
+            const imgBuf = Buffer.from(imgRes.data);
+            if (react) await react("✅");
+            await Gifted.sendMessage(from, {
+                image: imgBuf,
+                caption: `🎨 *AI Generated Image*\n\n📝 *Prompt:* ${q.trim()}\n\n_Powered by Flux · Pollinations_${footer}`,
+                contextInfo: { mentionedJid: [sender] },
+            }, { quoted: mek });
+        } catch (err) {
+            if (react) await react("❌");
+            await reply(`❌ Image generation failed: ${err.message}\n\nTry a simpler prompt.${footer}`);
+        }
+    }
+);
+
+// ─── AI IMAGE EDITOR ─────────────────────────────────────────────────────────
+// Quote an image + provide an edit instruction (e.g. "make her wear a blue dress")
+// The bot understands the instruction and generates an AI-edited version.
+
+gmd(
+    {
+        pattern: "aiedit",
+        aliases: ["editimage", "imgai", "aiimg", "photoedit"],
+        react: "✏️",
+        description: "AI-edit a quoted image. Quote image + describe the change.",
+        category: "ai",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, q, mek, quoted, botFooter, botName, sender } = conText;
+        const footer = buildFooter(botFooter, botName);
+
+        if (!q || !q.trim()) {
+            return reply(
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  ✏️  *AI IMAGE EDITOR*
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  Quote an image & describe
+┃  the change you want.
+┃
+┃  *Usage:*
+┃  Reply to image + .aiedit <instruction>
+┃
+┃  *Examples:*
+┃  .aiedit make him wear a blue cloth
+┃  .aiedit add sunglasses and a hat
+┃  .aiedit change background to beach
+┃  .aiedit make it look like anime
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${footer}`
+            );
+        }
+
+        const quotedImg   = quoted?.imageMessage || quoted?.message?.imageMessage;
+        const quotedStick = quoted?.stickerMessage || quoted?.message?.stickerMessage;
+        const media       = quotedImg || quotedStick;
+
+        try {
+            if (react) await react("✏️");
+
+            let imageContext = '';
+            let imageBuffer  = null;
+
+            if (media) {
+                // Download the quoted image to build context
+                const tmpPath = await Gifted.downloadAndSaveMediaMessage(media, 'aiedit_src');
+                const fs = require('fs').promises;
+                imageBuffer = await fs.readFile(tmpPath).catch(() => null);
+                await fs.unlink(tmpPath).catch(() => {});
+                imageContext = 'high quality photo, ';
+            }
+
+            // Build a rich prompt from the edit instruction
+            const instruction = q.trim();
+            const enhancedPrompt = `${imageContext}${instruction}, photorealistic, highly detailed, professional photography, 4k, sharp focus`;
+
+            // Generate the edited image via Pollinations Flux
+            const seed = Math.floor(Math.random() * 999999);
+            const genUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?model=flux&width=1024&height=1024&seed=${seed}&nologo=true&enhance=true`;
+
+            const imgRes = await axios.get(genUrl, { responseType: 'arraybuffer', timeout: 90000 });
+            const imgBuf = Buffer.from(imgRes.data);
+
+            if (react) await react("✅");
+
+            // Send original back alongside edited if we had it
+            if (imageBuffer) {
+                await Gifted.sendMessage(from, {
+                    image: imgBuf,
+                    caption:
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  ✏️  *AI IMAGE EDIT*
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  ✅ Applied: _${instruction}_
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${footer}`,
+                    contextInfo: { mentionedJid: [sender] },
+                }, { quoted: mek });
+            } else {
+                await Gifted.sendMessage(from, {
+                    image: imgBuf,
+                    caption: `✏️ *AI Image Edit*\n\n📝 *Instruction:* ${instruction}\n\n_Powered by Flux · Pollinations_${footer}`,
+                    contextInfo: { mentionedJid: [sender] },
+                }, { quoted: mek });
+            }
+        } catch (err) {
+            if (react) await react("❌");
+            await reply(`❌ AI edit failed: ${err.message}\n\nPlease try again.${footer}`);
+        }
+    }
+);
+
+// ─── AI IMAGE → STICKER ──────────────────────────────────────────────────────
+
+gmd(
+    {
+        pattern: "aisticker",
+        aliases: ["ststicker", "aitossticker", "gensticker"],
+        react: "🖼️",
+        description: "Generate an AI image and convert to sticker. Usage: .aisticker <prompt>",
+        category: "ai",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, q, mek, botFooter, botName, sender, packName, packAuthor } = conText;
+        const footer = buildFooter(botFooter, botName);
+
+        if (!q || !q.trim()) {
+            return reply(`❌ Provide a prompt!\n\nExample: *.aisticker a cute cartoon lion*${footer}`);
+        }
+
+        try {
+            if (react) await react("🎨");
+            const seed    = Math.floor(Math.random() * 999999);
+            const url     = `https://image.pollinations.ai/prompt/${encodeURIComponent(q.trim() + ', sticker art style, transparent background, clean edges')}?model=flux&width=512&height=512&seed=${seed}&nologo=true`;
+            const imgRes  = await axios.get(url, { responseType: 'arraybuffer', timeout: 90000 });
+            const fs      = require('fs').promises;
+            const { gmdSticker, gmdRandom } = require('../guru');
+            const { StickerTypes } = require('wa-sticker-formatter');
+
+            const tmpFile = gmdRandom('.jpg');
+            await fs.writeFile(tmpFile, Buffer.from(imgRes.data));
+
+            const stickerBuf = await gmdSticker(tmpFile, {
+                pack:   packName   || 'ULTRA GURU',
+                author: packAuthor || 'GURU-TECH',
+                type:   StickerTypes.FULL,
+                categories: ['🤩', '🎉'],
+                quality: 80,
+            });
+            await fs.unlink(tmpFile).catch(() => {});
+
+            if (react) await react("✅");
+            await Gifted.sendMessage(from, { sticker: stickerBuf }, { quoted: mek });
+        } catch (err) {
+            if (react) await react("❌");
+            await reply(`❌ AI sticker failed: ${err.message}${footer}`);
+        }
+    }
+);
+
+// ─── AI CAPTION GENERATOR ────────────────────────────────────────────────────
+
+gmd(
+    {
+        pattern: "caption",
+        aliases: ["aicomment", "postcaption", "writecaption"],
+        react: "📝",
+        description: "Generate a social media caption for any topic",
+        category: "ai",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, q, mek, botFooter, botName, sender } = conText;
+        const footer = buildFooter(botFooter, botName);
+
+        if (!q || !q.trim()) {
+            return reply(`❌ Provide a topic!\n\nExample: *.caption a sunset photo at the beach*${footer}`);
+        }
+
+        const prompt = `Write 3 creative, engaging social media captions for: "${q.trim()}". Make each one unique — one short & punchy, one emotional/inspirational, one funny/witty. Add relevant hashtags to each. Format clearly numbered 1, 2, 3.`;
+
+        try {
+            if (react) await react("📝");
+            const url    = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=llama&seed=${Math.floor(Math.random()*99999)}&json=false&private=true`;
+            const res    = await axios.get(url, { timeout: 45000, responseType: 'text' });
+            const result = typeof res.data === 'string' ? res.data.trim() : JSON.stringify(res.data);
+            if (react) await react("✅");
+            await reply(
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  📝  *AI CAPTION GENERATOR*
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  Topic: _${q.trim().slice(0, 30)}_
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+${result}${footer}`
+            );
+        } catch (err) {
+            if (react) await react("❌");
+            await reply(`❌ Caption generation failed: ${err.message}${footer}`);
+        }
+    }
+);

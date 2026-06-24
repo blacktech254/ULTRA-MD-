@@ -1588,55 +1588,5 @@ const setupVVTracker = (Gifted) => {
     });
 };
 
-// ── Auto-Save View-Once: react with ❤️ or 😂 → silently forwarded to reactor's own DM ──
-let _autoSaveVOActive = false;
 
-const _AUTOSAVE_EMOJIS = new Set(["❤️", "❤", "😍", "😂", "🤣"]);
-
-const setupAutoSaveVO = (Gifted) => {
-    if (_autoSaveVOActive) return;
-    _autoSaveVOActive = true;
-
-    const { loadMsg } = require("./database/messageStore");
-
-    Gifted.ev.on("messages.upsert", async ({ messages }) => {
-        for (const msg of messages) {
-            try {
-                if (!msg?.message?.reactionMessage) continue;
-                if (msg.key.remoteJid === "status@broadcast") continue;
-
-                const reaction = msg.message.reactionMessage;
-                if (!_AUTOSAVE_EMOJIS.has(reaction.text)) continue;
-
-                const reactedKey = reaction.key;
-                if (!reactedKey?.id) continue;
-
-                const from = msg.key.remoteJid;
-                const original = loadMsg(from, reactedKey.id);
-                if (!original?.message) continue;
-                if (!_isViewOnceMsg(original.message)) continue;
-
-                const { content, type } = _extractViewOnceData(original.message);
-                if (!content || !type) continue;
-
-                // Send to reactor's own private DM — silent inbox save
-                const reactorJid = msg.key.participant || msg.key.remoteJid;
-                const reactorNum = reactorJid.split("@")[0].split(":")[0];
-                const reactorDmJid = `${reactorNum}@s.whatsapp.net`;
-
-                // Show original sender in caption
-                const origSenderJid = original.key?.participant || original.key?.remoteJid || "";
-                const origSenderNum = origSenderJid.split("@")[0].split(":")[0];
-
-                const settings = await getAllSettings();
-                const botName = settings.BOT_NAME || "ULTRA GURU";
-
-                await _sendVVAnonymous(Gifted, content, type, reactorDmJid, botName, origSenderNum);
-            } catch (e) {
-                console.error("[AutoSaveVO] Error:", e.message);
-            }
-        }
-    });
-};
-
-module.exports = { logger, emojis, GiftedAutoReact, GiftedTechApi, GiftedApiKey, GiftedAntiLink, GiftedAntibad, GiftedAntiBot, GiftedAntiGroupMention, GiftedAutoBio, GiftedChatBot, GiftedAntiDelete, GiftedAnticall, GiftedPresence, GiftedAntiViewOnce, GiftedAntiEdit, setupVVTracker, setupAutoSaveVO };
+module.exports = { logger, emojis, GiftedAutoReact, GiftedTechApi, GiftedApiKey, GiftedAntiLink, GiftedAntibad, GiftedAntiBot, GiftedAntiGroupMention, GiftedAutoBio, GiftedChatBot, GiftedAntiDelete, GiftedAnticall, GiftedPresence, GiftedAntiViewOnce, GiftedAntiEdit, setupVVTracker, sendVVAnonymous: _sendVVAnonymous, isViewOnceMsg: _isViewOnceMsg, extractViewOnceData: _extractViewOnceData };

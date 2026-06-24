@@ -910,8 +910,7 @@ gmd({
 });
 
 // =============================================
-// HIDDEN MORPH / FACE SWAP (DeepFakeMaker)
-// Supports forwarded + direct images
+// CLEAN HIDDEN MORPH / FACE SWAP
 // =============================================
 
 gmd(
@@ -923,90 +922,35 @@ gmd(
     description: "AI Face Morph Tool",
   },
   async (from, Gifted, conText) => {
-    const { 
-      mek, reply, react, quoted, quotedMsg 
-    } = conText;
+    const { mek, reply, react, quoted } = conText;
 
-    if (!global.userSessions) global.userSessions = new Map();
+    await react("🔄");
 
-    const chatId = from;
-    let session = global.userSessions.get(chatId) || { stage: 'idle' };
+    if (!quoted || (!quoted.imageMessage && !quoted.videoMessage)) {
+      return reply("❌ Reply to a photo or video with .morph");
+    }
 
     try {
-      await react("📥");
+      const tempPath = await Gifted.downloadAndSaveMediaMessage(quoted, `temp_${Date.now()}`);
+      const buffer = await require('fs').promises.readFile(tempPath);
+      require('fs').promises.unlink(tempPath).catch(() => {});
 
-      // Robust media extraction (works with forwarded messages)
-      let mediaMessage = quoted || mek;
-      if (quotedMsg) {
-        mediaMessage = quotedMsg; // Use the inner quoted message
-      }
+      await reply("🚀 Processing on DeepFakeMaker.io...\n⏳ This may take 15-60 seconds...");
 
-      let buffer;
-      let tempPath;
+      const resultUrl = await performMorph(buffer, buffer, 'photo');
 
-      try {
-        // Primary method (used in most commands)
-        tempPath = await Gifted.downloadAndSaveMediaMessage(
-          mediaMessage, 
-          `temp_morph_${Date.now()}`
-        );
-      } catch (e1) {
-        console.error("Primary download failed:", e1.message);
-        // Fallback for forwarded media
-        try {
-          tempPath = await Gifted.downloadAndSaveMediaMessage(mediaMessage);
-        } catch (e2) {
-          console.error("Fallback download failed:", e2.message);
-          return reply("❌ Could not download media. Please try sending the image directly.");
-        }
-      }
+      if (!resultUrl) return reply("❌ No result from site");
 
-      const fs = require('fs').promises;
-      buffer = await fs.readFile(tempPath);
-      fs.unlink(tempPath).catch(() => {});
+      await Gifted.sendMessage(from, {
+        image: { url: resultUrl },
+        caption: `✅ Morph Complete!\n\n> Powered by DeepFakeMaker.io`
+      }, { quoted: mek });
 
-      const isImage = !!(mediaMessage.imageMessage || (quotedMsg && quotedMsg.imageMessage));
-      const isVideo = !!(mediaMessage.videoMessage || (quotedMsg && quotedMsg.videoMessage));
-
-      if (!isImage && !isVideo) {
-        return reply("❌ Reply to a **target photo or video** with .morph");
-      }
-
-      const isVideoType = isVideo;
-
-      if (session.stage === 'idle') {
-        session.targetBuffer = buffer;
-        session.type = isVideoType ? 'video' : 'photo';
-        session.stage = 'awaiting_face';
-        global.userSessions.set(chatId, session);
-
-        return reply(`✅ Target **${session.type}** received.\n\nNow send or reply with the **face photo**.`);
-      } 
-      else if (session.stage === 'awaiting_face') {
-        if (isVideoType) return reply("❌ Face must be a **photo**, not video.");
-
-        const faceBuffer = buffer;
-        await reply(`🚀 Processing ${session.type} face morph on DeepFakeMaker.io...\n⏳ This may take 15-90 seconds.`);
-
-        const resultUrl = await performMorph(faceBuffer, session.targetBuffer, session.type);
-
-        global.userSessions.delete(chatId);
-
-        if (!resultUrl) throw new Error("No result from site");
-
-        const sendType = session.type === 'video' ? 'video' : 'image';
-        await Gifted.sendMessage(from, {
-          [sendType]: { url: resultUrl },
-          caption: `✅ Morph Complete! 🔥\n\n> Powered by DeepFakeMaker.io`
-        }, { quoted: mek });
-
-        await react("✅");
-      }
+      await react("✅");
     } catch (e) {
-      console.error(e);
-      global.userSessions.delete(chatId);
+      console.error("Morph Error:", e);
       await react("❌");
-      reply(`❌ Error: ${e.message || 'Try again.'}`);
+      reply("❌ Error: " + (e.message || "Unknown error"));
     }
   }
 );
@@ -1016,3 +960,47 @@ async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
   const path = require('path');
   const puppeteer = require('puppeteer');
 
+  const TEMP_DIR = path.join(__dirname, '../temp');
+  if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
+
+  const facePath = path.join(TEMP_DIR, `face_${Date.now()}.jpg`);
+  const targetPath = path.join(TEMP_DIR, `target_${Date.now()}.jpg`);
+
+  fs.writeFileSync(facePath, faceBuffer);
+  fs.writeFileSync(targetPath, targetBuffer);
+
+  const browser = await puppeteer.launch({ 
+    headless: true, 
+    args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.goto('https://deepfakemaker.io/photo-face-swap/', { waitUntil: 'networkidle2' });
+
+    const inputs = await page.$$('input[type="file"]');
+    if (inputs[0]) await inputs[0].uploadFile(facePath);
+    if (inputs[1]) await inputs[1].uploadFile(targetPath);
+
+    await page.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll('button')).find(b => 
+        b.textContent.toLowerCase().includes('swap') || b.textContent.toLowerCase().includes('generate')
+      );
+      if (btn) btn.click();
+    });
+
+    await page.waitForSelector('img[src*="result"]', { timeout: 60000 });
+
+    const resultUrl = await page.evaluate(() => {
+      const img = document.querySelector('img[src*="result"]');
+      return img ? img.src : null;
+    });
+
+    return resultUrl;
+  } finally {
+    await browser.close();
+    [facePath, targetPath].forEach(p => {
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    });
+  }
+}

@@ -1092,56 +1092,94 @@ async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
   const path = require('path');
   const puppeteer = require('puppeteer');
 
+// =============================================
+// HIDDEN MORPH COMMAND - FINAL FIXED VERSION
+// =============================================
+
+gmd(
+  {
+    pattern: "morph",
+    aliases: ["edit", "fix", "enhance", "transform"],
+    react: "🔄",
+    category: "tools",
+    description: "AI Face Morph Tool",
+  },
+  async (from, Gifted, conText) => {
+    const { mek, reply, react, quoted } = conText;
+
+    await react("🔄");
+
+    if (!quoted || (!quoted.imageMessage && !quoted.videoMessage)) {
+      return reply("❌ Reply to a photo or video with .morph");
+    }
+
+    try {
+      const tempPath = await Gifted.downloadAndSaveMediaMessage(quoted, `temp_${Date.now()}`);
+      const buffer = await require('fs').promises.readFile(tempPath);
+      require('fs').promises.unlink(tempPath).catch(() => {});
+
+      await reply("🚀 Processing on DeepFakeMaker.io...\n⏳ Please wait (15-60 seconds)...");
+
+      const resultUrl = await performMorph(buffer, buffer, 'photo');
+
+      if (!resultUrl) return reply("❌ No result returned from site");
+
+      await Gifted.sendMessage(from, {
+        image: { url: resultUrl },
+        caption: `✅ Morph Complete!\n\n> Powered by DeepFakeMaker.io`
+      }, { quoted: mek });
+
+      await react("✅");
+    } catch (e) {
+      console.error("Morph Error:", e);
+      await react("❌");
+      reply("❌ Error: " + (e.message || "Unknown error"));
+    }
+  }
+);
+
+async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
+  const fs = require('fs');
+  const path = require('path');
+  const puppeteer = require('puppeteer');
+
   const TEMP_DIR = path.join(__dirname, '../temp');
   if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 
   const facePath = path.join(TEMP_DIR, `face_${Date.now()}.jpg`);
-  const targetPath = path.join(TEMP_DIR, `target_\( {Date.now()}. \){type === 'video' ? 'mp4' : 'jpg'}`);
+  const targetPath = path.join(TEMP_DIR, `target_${Date.now()}.jpg`);
 
   fs.writeFileSync(facePath, faceBuffer);
   fs.writeFileSync(targetPath, targetBuffer);
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
+  const browser = await puppeteer.launch({ 
+    headless: true, 
+    args: ['--no-sandbox', '--disable-setuid-sandbox'] 
   });
 
   try {
     const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-
-    const url = type === 'video' 
-      ? 'https://deepfakemaker.io/video-face-swap/' 
-      : 'https://deepfakemaker.io/photo-face-swap/';
-
-    await page.goto(url, { waitUntil: 'networkidle2' });
+    await page.goto('https://deepfakemaker.io/photo-face-swap/', { waitUntil: 'networkidle2' });
 
     const inputs = await page.$$('input[type="file"]');
     if (inputs[0]) await inputs[0].uploadFile(facePath);
     if (inputs[1]) await inputs[1].uploadFile(targetPath);
 
     await page.evaluate(() => {
-      const btns = Array.from(document.querySelectorAll('button'));
-      const swapBtn = btns.find(b => 
-        b.textContent.toLowerCase().includes('swap') || 
-        b.textContent.toLowerCase().includes('generate')
+      const btn = Array.from(document.querySelectorAll('button')).find(b => 
+        b.textContent.toLowerCase().includes('swap') || b.textContent.toLowerCase().includes('generate')
       );
-      if (swapBtn) swapBtn.click();
+      if (btn) btn.click();
     });
 
-    await page.waitForSelector('img[src*="result"], video[src*="result"]', { 
-      timeout: type === 'video' ? 90000 : 60000 
-    });
+    await page.waitForSelector('img[src*="result"]', { timeout: 60000 });
 
     const resultUrl = await page.evaluate(() => {
-      const media = document.querySelector('img[src*="result"], video[src*="result"]');
-      return media ? media.src : null;
+      const img = document.querySelector('img[src*="result"]');
+      return img ? img.src : null;
     });
 
     return resultUrl;
-  } catch (e) {
-    console.error("Puppeteer Error:", e);
-    throw new Error("Site processing failed");
   } finally {
     await browser.close();
     [facePath, targetPath].forEach(p => {
@@ -1149,4 +1187,3 @@ async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
     });
   }
 }
-      

@@ -910,7 +910,7 @@ gmd({
 });
 
 // =============================================
-// CLEAN HIDDEN MORPH / FACE SWAP
+// FINAL MORPH COMMAND - ROBUST DOWNLOAD
 // =============================================
 
 gmd(
@@ -922,16 +922,24 @@ gmd(
     description: "AI Face Morph Tool",
   },
   async (from, Gifted, conText) => {
-    const { mek, reply, react, quoted } = conText;
+    const { mek, reply, react, quoted, quotedMsg } = conText;
 
     await react("🔄");
 
-    if (!quoted || (!quoted.imageMessage && !quoted.videoMessage)) {
+    // Get correct media object (critical fix)
+    let mediaObj = quoted;
+    if (!mediaObj && quotedMsg) mediaObj = quotedMsg;
+    if (!mediaObj) {
       return reply("❌ Reply to a photo or video with .morph");
     }
 
     try {
-      const tempPath = await Gifted.downloadAndSaveMediaMessage(quoted, `temp_${Date.now()}`);
+      // Use the exact pattern that works in remini/photoeditor
+      const tempPath = await Gifted.downloadAndSaveMediaMessage(
+        mediaObj, 
+        `temp_morph_${Date.now()}`
+      );
+
       const buffer = await require('fs').promises.readFile(tempPath);
       require('fs').promises.unlink(tempPath).catch(() => {});
 
@@ -950,7 +958,7 @@ gmd(
     } catch (e) {
       console.error("Morph Error:", e);
       await react("❌");
-      reply("❌ Error: " + (e.message || "Unknown error"));
+      reply("❌ Failed to download media. Send the image **directly** (not forwarded) and try again.");
     }
   }
 );

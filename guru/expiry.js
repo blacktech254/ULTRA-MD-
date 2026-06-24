@@ -193,12 +193,13 @@ async function checkExpiry({ onExpire, onWarn, exitOnExpiry = true } = {}) {
 
 function startExpiryWatchdog(onExpire, onWarn) {
     const THIRTY_MINS = 30 * 60 * 1000;
-    checkExpiry({ onExpire, onWarn, exitOnExpiry: true });
-    const timer = setInterval(async () => {
-        await checkExpiry({ onExpire, onWarn, exitOnExpiry: true });
-    }, THIRTY_MINS);
+    // exitOnExpiry is always false — we lock commands via global._licenceExpired
+    // and notify the owner, but we NEVER kill the process here.
+    const run = () => checkExpiry({ onExpire, onWarn, exitOnExpiry: false });
+    run();
+    const timer = setInterval(run, THIRTY_MINS);
     if (timer.unref) timer.unref();
-    console.log('🔒 [EXPIRY] Licence watchdog started (checks every 30 min)');
+    console.log('🔒 [EXPIRY] Licence watchdog started (checks every 30 min, no process.exit)');
 }
 
 function gmdProgress(filled, total = 10) {

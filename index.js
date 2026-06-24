@@ -37,6 +37,7 @@ const {
     GiftedAutoReact,
     GiftedAntiLink,
     GiftedAntibad,
+    GiftedAntiBot,
     GiftedAntiGroupMention,
     GiftedAutoBio,
     handleGameMessage,
@@ -536,6 +537,7 @@ function setupChatBotAndAntiLink(Gifted) {
             if (from.endsWith("@g.us")) {
                 await GiftedAntiLink(Gifted, message, getGroupMetadata);
                 await GiftedAntibad(Gifted, message, getGroupMetadata);
+                await GiftedAntiBot(Gifted, message, getGroupMetadata);
             }
             await GiftedAntiGroupMention(Gifted, message, getGroupMetadata);
             await handleGameMessage(Gifted, message);

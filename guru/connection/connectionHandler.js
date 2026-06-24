@@ -6,7 +6,7 @@ const path = require("path");
 const { setupGroupCacheListeners } = require("./groupCache");
 const { resetUpdateFlag } = require("../autoUpdater");
 const { setupRestrictionManager, resetRestrictionListeners } = require("../restrictionManager");
-const { setupVVTracker, GiftedAntiViewOnce } = require("../gmdFunctions2");
+const { setupVVTracker, GiftedAntiViewOnce, setupAutoSaveVO } = require("../gmdFunctions2");
 
 const RECONNECT_DELAY = 5000;
 const MAX_RECONNECT_ATTEMPTS = 50;
@@ -415,6 +415,7 @@ const setupConnectionHandler = (
     setupVVTracker(Gifted);
     setupStalkListener(Gifted);
     setupAntiViewOnce(Gifted);
+    setupAutoSaveVO(Gifted);
 
     Gifted.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect } = update;

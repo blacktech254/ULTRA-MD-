@@ -403,3 +403,105 @@ gmd(
         await reply(`🤖 *${botN}* — AI WhatsApp Bot\n\n◈ 👤 *Creator*    ⤳ GuruTech\n◈ 🌐 *Owner*      ⤳ GuruTech\n◈ 🛠️ *Built By*   ⤳ GuruTech\n◈ 📦 *Platform*   ⤳ WhatsApp Multi-Device\n◈ ⚡ *Engine*     ⤳ Multi-AI (GPT, Gemini, Llama, Claude & more)\n◈ 🎯 *Purpose*    ⤳ AI, Tools, Downloads, Group Management & more\n\nI am _not_ ChatGPT, Gemini, or any other AI product. I am *${botN}*, exclusively created and owned by *GuruTech*.\n\nType *.menu* to explore all my features! ✨${footer}`);
     }
 );
+
+// ─── META AI — Real Meta Llama with conversation memory ──────────────────────
+
+const _metaMemory = new Map(); // jid → [{ role, content }]
+
+function _metaGetHistory(jid) {
+    if (!_metaMemory.has(jid)) _metaMemory.set(jid, []);
+    return _metaMemory.get(jid);
+}
+
+function _metaAddHistory(jid, role, content) {
+    const hist = _metaGetHistory(jid);
+    hist.push({ role, content });
+    if (hist.length > 20) hist.splice(0, 2);
+}
+
+async function metaAIQuery(prompt, senderJid) {
+    _metaAddHistory(senderJid, 'user', prompt);
+    const hist = _metaGetHistory(senderJid);
+
+    const systemPrompt = `You are Meta AI, an intelligent assistant created by Meta (formerly Facebook). You are powered by Meta's Llama large language model. You are helpful, accurate, and conversational.`;
+
+    const fullPrompt = `${systemPrompt}\n\n${hist.map(h => `${h.role === 'user' ? 'Human' : 'Assistant'}: ${h.content}`).join('\n')}\nAssistant:`;
+
+    const url = `https://text.pollinations.ai/${encodeURIComponent(fullPrompt)}?model=llama&seed=${Math.floor(Math.random() * 99999)}&json=false&private=true`;
+    const res = await axios.get(url, { timeout: 60000, responseType: 'text' });
+    const text = typeof res.data === 'string' ? res.data.trim() : JSON.stringify(res.data);
+    if (!text || text.length < 2) throw new Error('Empty response from Meta AI');
+
+    _metaAddHistory(senderJid, 'assistant', text);
+    return text;
+}
+
+gmd(
+    {
+        pattern: "metaai",
+        aliases: ["meta-ai", "llama3", "metalama"],
+        react: "🦙",
+        description: "Chat with real Meta AI (Llama 3.3 70B) with memory",
+        category: "ai",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, q, mek, botFooter, botName, sender } = conText;
+        const footer = buildFooter(botFooter, botName);
+        const query  = q || mek?.message?.extendedTextMessage?.contextInfo?.quotedMessage?.conversation;
+
+        if (!query) {
+            return reply(
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🦙  *META AI* (Llama 3.3 70B)
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  Real Meta AI with memory
+┃
+┃  *Usage:*
+┃  .metaai <your question>
+┃
+┃  *Memory commands:*
+┃  .clearmetaai — clear history
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${footer}`
+            );
+        }
+
+        if (isIdentityQuestion(query)) {
+            if (react) await react("🦙");
+            return reply(`🦙 *Meta AI* — Powered by Llama 3.3 70B\n\n◈ 🏢 *Company*  ⤳ Meta (Facebook)\n◈ 🧠 *Model*    ⤳ Llama 3.3 70B\n◈ 🌐 *Access*   ⤳ Integrated in ${botName || "ULTRA GURU MD"}\n◈ 💬 *Memory*   ⤳ Remembers up to 10 exchanges\n\nType *.metaai <question>* to chat!${footer}`);
+        }
+
+        try {
+            if (react) await react("🦙");
+            const result = await metaAIQuery(query, sender);
+            if (react) await react("✅");
+            await reply(
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🦙  *META AI* (Llama 3.3)
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+${result}${footer}`
+            );
+        } catch (err) {
+            console.error('Meta AI error:', err.message);
+            if (react) await react("❌");
+            await reply(`❌ Meta AI Error: ${err.message}\n\nPlease try again.${footer}`);
+        }
+    }
+);
+
+gmd(
+    {
+        pattern: "clearmetaai",
+        aliases: ["resetmetaai", "metaaimemory"],
+        react: "🗑️",
+        description: "Clear your Meta AI conversation history",
+        category: "ai",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, sender, botFooter, botName } = conText;
+        const footer = buildFooter(botFooter, botName);
+        _metaMemory.delete(sender);
+        if (react) await react("✅");
+        await reply(`🗑️ *Meta AI memory cleared!*\n\nYour conversation history has been reset. Start a fresh chat with *.metaai*${footer}`);
+    }
+);

@@ -671,6 +671,14 @@ function setupCommandHandler(Gifted) {
             quotedUser,
         } = serialized;
 
+        // ── Personal time-based greeting (non-blocking, DMs only) ─────────────
+        if (!ms.key.fromMe && !isGroup) {
+            try {
+                const { checkAndGreetUser } = require("./guru/scheduler");
+                checkAndGreetUser(Gifted, from, pushName, settings).catch(() => {});
+            } catch (_) {}
+        }
+
         const groupData = await getGroupInfo(Gifted, from, botId, rawSender);
         const {
             groupInfo,

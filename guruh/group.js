@@ -896,10 +896,15 @@ gmd(
       const inviteLink = `https://chat.whatsapp.com/${inviteCode}`;
 
       const successText =
-        `*🆕 Group Created Successfully!*\n\n` +
-        `*Group Name:* ${groupName}\n` +
-        `*Group ID:* ${group.id}\n\n` +
-        `*Invite Link:* ${inviteLink}`;
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🆕  *GROUP CREATED*
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  Name   : ${groupName}
+┃  ID     : ${group.id.split('@')[0]}
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  🔗 *Invite Link:*
+┃  ${inviteLink}
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`;
 
       await Gifted.sendMessage(
         from,
@@ -959,7 +964,15 @@ gmd(
       await Gifted.sendMessage(
         from,
         {
-          text: `⚠️ *WARNING* ⚠️\n\n💀 *Group will be terminated now...*\n\n_All members will be removed._\n\n⚠️ _Using this command frequently might lead to WhatsApp bans._`,
+          text:
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  💀  *GROUP TERMINATION*
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  ⚠️  Removing all members…
+┃  🔥  Bot will leave after.
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  _Overuse may cause bans!_
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`,
           contextInfo: {
             forwardingScore: 5,
             isForwarded: true,

@@ -379,3 +379,93 @@ gmd(
         );
     }
 );
+
+// ─── USER TIMEZONE COMMAND ────────────────────────────────────────────────────
+// Users set their own timezone so personal greetings fire at the right local time.
+
+gmd(
+    {
+        pattern: "mytimezone",
+        aliases: ["settimezone", "settz", "mytzone", "timezone"],
+        react: "🌍",
+        category: "general",
+        description: "Set your timezone for personal greetings. Usage: .mytimezone Africa/Nairobi",
+    },
+    async (from, Gifted, conText) => {
+        const { react, reply, sender, q, botFooter } = conText;
+        const { getUserTimezone } = require("../guru/scheduler");
+
+        const POPULAR_ZONES = [
+            'Africa/Nairobi', 'Africa/Lagos', 'Africa/Accra', 'Africa/Johannesburg',
+            'Africa/Cairo', 'Africa/Dar_es_Salaam', 'Africa/Kampala', 'Africa/Kigali',
+            'Asia/Dubai', 'Asia/Riyadh', 'Asia/Kolkata', 'Asia/Singapore',
+            'Europe/London', 'Europe/Berlin', 'America/New_York', 'America/Sao_Paulo',
+            'Australia/Sydney', 'Pacific/Auckland',
+        ];
+
+        if (!q || !q.trim()) {
+            const phone  = sender.replace('@s.whatsapp.net', '').replace(/[^0-9]/g, '');
+            const current = await getUserTimezone(sender).catch(() => 'Auto-detected');
+            return reply(
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🌍  *SET MY TIMEZONE*
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  Current : _${current}_
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  *Usage:*
+┃  .mytimezone <Timezone>
+┃
+┃  *Popular zones:*
+${POPULAR_ZONES.slice(0, 8).map(z => `┃  • ${z}`).join('\n')}
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  _Full list: en.wikipedia.org_
+┃  _/wiki/List_of_tz_database..._
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+> _${botFooter}_`
+            );
+        }
+
+        const tz = q.trim();
+        // Validate the timezone
+        try {
+            new Date().toLocaleString('en-US', { timeZone: tz });
+        } catch {
+            await react("❌");
+            return reply(
+`❌ *Invalid timezone:* \`${tz}\`
+
+Use a valid IANA timezone name, e.g:
+• \`Africa/Nairobi\`
+• \`Africa/Lagos\`
+• \`Asia/Dubai\`
+• \`Europe/London\`
+• \`America/New_York\`
+
+> _${botFooter}_`
+            );
+        }
+
+        const phone = sender.replace('@s.whatsapp.net', '').replace(/[^0-9]/g, '');
+        await setSetting(`USER_TZ_${phone}`, tz);
+        const localTime = new Date().toLocaleString('en-US', {
+            timeZone: tz,
+            hour: '2-digit', minute: '2-digit', hour12: true
+        });
+
+        await react("✅");
+        await reply(
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🌍  *TIMEZONE SAVED!*
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  Zone  : _${tz}_
+┃  Time  : 🕐 ${localTime} (your local)
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  ✅ Personal greetings will
+┃  now match your local time!
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+> _${botFooter}_`
+        );
+    }
+);

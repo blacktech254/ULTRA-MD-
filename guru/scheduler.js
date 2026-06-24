@@ -1,6 +1,146 @@
 
-const { getSetting } = require("./database/settings");
+const { getSetting, setSetting } = require("./database/settings");
 const { getAllGreetingsChats, addGreetingsChat, initGreetingsDB } = require("./database/greetings");
+
+// ─── COUNTRY CODE → TIMEZONE MAP ─────────────────────────────────────────────
+const COUNTRY_TZ = {
+    '254': 'Africa/Nairobi',        '255': 'Africa/Dar_es_Salaam',
+    '256': 'Africa/Kampala',        '250': 'Africa/Kigali',
+    '234': 'Africa/Lagos',          '233': 'Africa/Accra',
+    '27':  'Africa/Johannesburg',   '260': 'Africa/Lusaka',
+    '263': 'Africa/Harare',         '265': 'Africa/Blantyre',
+    '251': 'Africa/Addis_Ababa',    '252': 'Africa/Mogadishu',
+    '237': 'Africa/Douala',         '216': 'Africa/Tunis',
+    '212': 'Africa/Casablanca',     '20':  'Africa/Cairo',
+    '249': 'Africa/Khartoum',       '243': 'Africa/Kinshasa',
+    '244': 'Africa/Luanda',         '221': 'Africa/Dakar',
+    '225': 'Africa/Abidjan',        '258': 'Africa/Maputo',
+    '264': 'Africa/Windhoek',       '267': 'Africa/Gaborone',
+    '971': 'Asia/Dubai',            '966': 'Asia/Riyadh',
+    '965': 'Asia/Kuwait',           '974': 'Asia/Qatar',
+    '968': 'Asia/Muscat',           '962': 'Asia/Amman',
+    '961': 'Asia/Beirut',           '91':  'Asia/Kolkata',
+    '92':  'Asia/Karachi',          '62':  'Asia/Jakarta',
+    '60':  'Asia/Kuala_Lumpur',     '65':  'Asia/Singapore',
+    '63':  'Asia/Manila',           '66':  'Asia/Bangkok',
+    '84':  'Asia/Ho_Chi_Minh',      '81':  'Asia/Tokyo',
+    '82':  'Asia/Seoul',            '86':  'Asia/Shanghai',
+    '1':   'America/New_York',      '44':  'Europe/London',
+    '49':  'Europe/Berlin',         '33':  'Europe/Paris',
+    '39':  'Europe/Rome',           '34':  'Europe/Madrid',
+    '31':  'Europe/Amsterdam',      '55':  'America/Sao_Paulo',
+    '52':  'America/Mexico_City',   '57':  'America/Bogota',
+    '54':  'America/Argentina/Buenos_Aires',
+    '61':  'Australia/Sydney',      '64':  'Pacific/Auckland',
+    '7':   'Europe/Moscow',
+};
+
+function getTimezoneFromPhone(phoneNum) {
+    // Try longest match first (e.g. 254 before 25)
+    for (const len of [3, 2, 1]) {
+        const prefix = String(phoneNum).slice(0, len);
+        if (COUNTRY_TZ[prefix]) return COUNTRY_TZ[prefix];
+    }
+    return null;
+}
+
+// ─── PER-USER GREETING TRACKER (in-memory, resets each bot start) ─────────────
+// Structure: Map<jid, { date: 'YYYY-MM-DD', gm: bool, gn: bool, noon: bool }>
+const _userGreeted = new Map();
+
+function _todayKey(tz) {
+    const d = new Date(new Date().toLocaleString('en-US', { timeZone: tz || 'UTC' }));
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function _localHour(tz) {
+    return new Date(new Date().toLocaleString('en-US', { timeZone: tz || 'UTC' })).getHours();
+}
+
+const PERSONAL_GM = [
+    (name) => `🌅 *Good morning, ${name}!* ☀️\n\nA brand new day is here — full of energy, opportunity and blessings! Start strong, stay focused. You've got this! 💪\n\n🙏 Thank you for choosing *ULTRA GURU MD*. We're here for you all day! 🤖`,
+    (name) => `☀️ *Rise and shine, ${name}!*\n\nToday is a fresh canvas — paint it with purpose and passion. Drink some water, take a deep breath, and conquer the day! 🌟\n\n💙 *ULTRA GURU MD* says GM! Thanks for using us 🤖`,
+    (name) => `🌄 *Good morning, ${name}!*\n\nYou made it to another beautiful day! ✨ Make the most of every moment — greatness is just one decision away.\n\n🤖 *ULTRA GURU MD* — always by your side. Thank you for your loyalty! 💜`,
+    (name) => `🌞 *Hey ${name}, good morning!*\n\nWishing you a day filled with success, smiles and good vibes! 🔥 Go out there and show the world what you're made of!\n\n> 🤖 _Powered by ULTRA GURU MD — your #1 WhatsApp assistant_`,
+    (name) => `☕ *Morning, ${name}!*\n\nHope you slept well and woke up refreshed! Today is loaded with possibilities — grab them! 🚀\n\n✨ *Thank you for using ULTRA GURU MD!* We appreciate you every single day 💙`,
+];
+
+const PERSONAL_GN = [
+    (name) => `🌙 *Good night, ${name}!* 😴\n\nYou made it through another day — well done! Rest well tonight, recharge and come back stronger tomorrow.\n\n🙏 *ULTRA GURU MD* thanks you for being part of our family. Sleep tight! 🤖`,
+    (name) => `✨ *Goodnight, ${name}!*\n\nSweet dreams! You worked hard today and you deserve all the rest. Tomorrow is a fresh start waiting for you. 🌙\n\n💙 *Thank you for using ULTRA GURU MD!* We'll be here when you wake up 🤖`,
+    (name) => `🌛 *Time to rest, ${name}!*\n\nAs the stars come out tonight, let all worries fade. Sleep deeply and wake up refreshed and ready! 💤\n\n> 🤖 _ULTRA GURU MD — grateful for every day you choose us!_`,
+    (name) => `😴 *Good night, ${name}!*\n\nHope your day was amazing! Your body and mind need rest now — go recharge. Greatness awaits tomorrow! 🌺\n\n✨ *Thank you for using ULTRA GURU MD* — See you in the morning! 💜`,
+    (name) => `🌙 *Goodnight, ${name}!* 💫\n\nLay your head down and let go of everything. Tomorrow is a brand new chance to shine even brighter!\n\n🙏 *ULTRA GURU MD* night mode: ON — Thank you for being amazing! 🤖`,
+];
+
+const PERSONAL_NOON = [
+    (name) => `🌤️ *Good afternoon, ${name}!*\n\nHope your morning was productive! Keep the momentum going — the day is still yours! 💪\n\n🤖 *ULTRA GURU MD* checking in. Thank you for choosing us! ✨`,
+    (name) => `☀️ *Afternoon, ${name}!*\n\nMidday energy check! Take a short break, grab something to eat, and then go finish the day strong! 🍽️\n\n💙 *Thank you for using ULTRA GURU MD!* 🤖`,
+];
+
+async function getUserTimezone(jid) {
+    // Priority: user-set preference → country code from phone → server timezone → UTC
+    try {
+        const phone = jid.replace('@s.whatsapp.net', '').replace(/[^0-9]/g, '');
+        const userPref = await getSetting(`USER_TZ_${phone}`).catch(() => null);
+        if (userPref && userPref.trim()) return userPref.trim();
+        const fromPhone = getTimezoneFromPhone(phone);
+        if (fromPhone) return fromPhone;
+    } catch {}
+    return (await getSetting('TIME_ZONE').catch(() => null)) || 'Africa/Nairobi';
+}
+
+async function checkAndGreetUser(Gifted, jid, pushName, settings) {
+    try {
+        // Only greet DMs, skip groups, status, newsletters
+        if (!jid || jid.endsWith('@g.us') || jid.endsWith('@newsletter') || jid === 'status@broadcast') return;
+
+        const enabled = settings?.GREETINGS_ENABLED || await getSetting('GREETINGS_ENABLED').catch(() => 'false');
+        if (enabled !== 'true') return;
+
+        const tz     = await getUserTimezone(jid);
+        const hour   = _localHour(tz);
+        const today  = _todayKey(tz);
+        const name   = (pushName || 'Friend').split(' ')[0];
+
+        const state  = _userGreeted.get(jid) || { date: null, gm: false, gn: false, noon: false };
+        // Reset if it's a new day
+        if (state.date !== today) {
+            state.date = today;
+            state.gm   = false;
+            state.gn   = false;
+            state.noon = false;
+        }
+
+        let type = null;
+        // Morning: 5am – 11:59am
+        if (hour >= 5 && hour < 12 && !state.gm) { type = 'gm'; state.gm = true; }
+        // Afternoon: 12pm – 4:59pm
+        else if (hour >= 12 && hour < 17 && !state.noon) { type = 'noon'; state.noon = true; }
+        // Night: 8pm – 11:59pm
+        else if (hour >= 20 && hour < 24 && !state.gn) { type = 'gn'; state.gn = true; }
+
+        if (!type) return; // Not a greeting window, or already greeted
+
+        _userGreeted.set(jid, state);
+
+        let pool, msg;
+        if (type === 'gm')   pool = PERSONAL_GM;
+        else if (type === 'gn') pool = PERSONAL_GN;
+        else pool = PERSONAL_NOON;
+
+        msg = pool[Math.floor(Math.random() * pool.length)](name);
+
+        const botPic = settings?.BOT_PIC || await getSetting('BOT_PIC').catch(() => null);
+        if (botPic && botPic.startsWith('http')) {
+            await Gifted.sendMessage(jid, { image: { url: botPic }, caption: msg });
+        } else {
+            await Gifted.sendMessage(jid, { text: msg });
+        }
+    } catch (e) {
+        // Silent fail — greetings are non-critical
+    }
+}
 
 const GM_MESSAGES = [
     `🌅 *Good Morning!* ☀️\n\nRise and shine, fam! A brand new day is here — full of possibilities. Start strong, stay focused, and make every moment count! 💪\n\n_ULTRA GURU is with you all day_ 🤖`,
@@ -139,4 +279,4 @@ function stopScheduler() {
     }
 }
 
-module.exports = { startScheduler, stopScheduler, sendGreeting };
+module.exports = { startScheduler, stopScheduler, sendGreeting, checkAndGreetUser, getUserTimezone };

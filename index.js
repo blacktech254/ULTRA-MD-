@@ -193,12 +193,14 @@ try {
     const { startExpiryWatchdog } = require("./guru/expiry");
     startExpiryWatchdog(
         async (msg) => {
-            // Notify owner on expiry if socket is available
+            // Lock all commands — bot stays connected, just stops responding
+            global._licenceExpired = true;
+            console.warn('[EXPIRY] ⛔ Licence expired — commands locked. Bot will NOT restart.');
             try {
                 const ownerJid = (process.env.OWNER_NUMBER || "").replace(/[^0-9]/g, "") + "@s.whatsapp.net";
                 if (global._botSocket && ownerJid.length > 10) {
                     await global._botSocket.sendMessage(ownerJid, {
-                        text: `⛔ *ULTRA GURU MD — LICENCE EXPIRED*\n\n${msg}\n\n_Bot shutting down. Renew your licence to continue._`,
+                        text: `⛔ *ULTRA GURU MD — LICENCE EXPIRED*\n\n${msg}\n\n_Commands are locked. Renew your licence to continue._`,
                     });
                 }
             } catch {}
@@ -276,18 +278,17 @@ async function startGifted() {
                             const { expiryLine } = require("./guru/expiry");
                             const expLine = await expiryLine().catch(() => "✅ Active");
                             const connectionMsg =
-`╔══════════════════════════════════════╗
-║  ✅  *${botName} — ONLINE*
-╠══════════════════════════════════════╣
-║  📊  Plugins   : ${totalCommands}
-║  ⚡  Prefix    : ${s.PREFIX || d.PREFIX}
-║  ⚙️  Mode      : ${md}
-║  🔒  Licence   : ${expLine}
-║  📲  Telegram  : t.me/GURU_TECHLAB
-╠══════════════════════════════════════╣
-║  _Note: Allow a few seconds to sync._
-╚══════════════════════════════════════╝
-> ✨ _${s.CAPTION || d.CAPTION}_`;
+`*✅ ${botName} — ONLINE*
+
+┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+📊 *Plugins*  : ${totalCommands}
+⚡ *Prefix*   : ${s.PREFIX || d.PREFIX}
+⚙️ *Mode*     : ${md}
+🔒 *Licence*  : ${expLine}
+📲 *Telegram* : t.me/GURU_TECHLAB
+┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+> ✨ _${s.CAPTION || d.CAPTION}_
+> _Allow a few seconds to sync._`;
 
                             const destJid = jidNormalizedUser(Gifted.user.id);
                             let ctx = {};
@@ -762,6 +763,15 @@ function setupCommandHandler(Gifted) {
         if (isCommand && command) {
             const gmd = findCommand(command);
             if (!gmd) return;
+
+            // Licence gate — block ALL commands when expired (bot stays online)
+            if (global._licenceExpired) {
+                try {
+                    const helpers = createHelpers(Gifted, ms, from, settings.BOT_NAME, sender, pushName);
+                    await helpers.reply('⛔ *Bot licence has expired.*\n\n_Contact the owner to renew._');
+                } catch {}
+                return;
+            }
 
             if (settings.MODE?.toLowerCase() === "private" && !isSuperUser)
                 return;

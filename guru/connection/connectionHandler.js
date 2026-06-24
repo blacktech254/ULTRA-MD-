@@ -6,7 +6,8 @@ const path = require("path");
 const { setupGroupCacheListeners } = require("./groupCache");
 const { resetUpdateFlag } = require("../autoUpdater");
 const { setupRestrictionManager, resetRestrictionListeners } = require("../restrictionManager");
-const { setupVVTracker, GiftedAntiViewOnce, setupAutoSaveVO } = require("../gmdFunctions2");
+const { setupVVTracker, GiftedAntiViewOnce, sendVVAnonymous, isViewOnceMsg, extractViewOnceData } = require("../gmdFunctions2");
+const { getAllSettings } = require("../database/settings");
 
 const RECONNECT_DELAY = 5000;
 const MAX_RECONNECT_ATTEMPTS = 50;
@@ -279,6 +280,12 @@ const _consumeVO = (id) => {
     return entry.msg;
 };
 
+// Non-destructive read — leaves the entry in the cache so setupAntiViewOnce still fires
+const _peekVO = (id) => {
+    const entry = _voCache.get(id);
+    return entry ? entry.msg : null;
+};
+
 // Extract every possible quoted/referenced message ID from any outgoing message
 const _extractTargetIds = (msg) => {
     const ids = new Set();
@@ -398,6 +405,55 @@ const setupAntiViewOnce = (Gifted) => {
                 }
             } catch (e) {
                 console.error("[AntiViewOnce/trigger]", e.message);
+            }
+        }
+    });
+};
+
+// ── Auto-Save View-Once: react with ❤️ or 😂 → silently saved to reactor's own DM ──
+// Uses _peekVO (non-destructive) so setupAntiViewOnce still works independently.
+let _autoSaveVOActive = false;
+const _AUTOSAVE_EMOJIS = new Set(["❤️", "❤", "😍", "😂", "🤣"]);
+
+const setupAutoSaveVO = (Gifted) => {
+    if (_autoSaveVOActive) return;
+    _autoSaveVOActive = true;
+
+    Gifted.ev.on("messages.upsert", async ({ messages }) => {
+        for (const msg of messages) {
+            try {
+                if (!msg?.message?.reactionMessage) continue;
+                if (msg.key.remoteJid === "status@broadcast") continue;
+
+                const reaction = msg.message.reactionMessage;
+                if (!_AUTOSAVE_EMOJIS.has(reaction.text)) continue;
+
+                const reactedId = reaction.key?.id;
+                if (!reactedId) continue;
+
+                // Use the in-memory cache — reliable for view-once (avoids DB miss)
+                const cached = _peekVO(reactedId);
+                if (!cached?.message) continue;
+                if (!isViewOnceMsg(cached.message)) continue;
+
+                const { content, type } = extractViewOnceData(cached.message);
+                if (!content || !type) continue;
+
+                // Forward silently to the reactor's own DM
+                const reactorJid = msg.key.participant || msg.key.remoteJid;
+                const reactorNum  = reactorJid.split("@")[0].split(":")[0];
+                const reactorDmJid = `${reactorNum}@s.whatsapp.net`;
+
+                // Show original sender in the caption
+                const origSenderJid = cached.key?.participant || cached.key?.remoteJid || "";
+                const origSenderNum  = origSenderJid.split("@")[0].split(":")[0];
+
+                const settings = await getAllSettings();
+                const botName = settings.BOT_NAME || "ULTRA GURU";
+
+                await sendVVAnonymous(Gifted, content, type, reactorDmJid, botName, origSenderNum);
+            } catch (e) {
+                console.error("[AutoSaveVO] Error:", e.message);
             }
         }
     });

@@ -3058,3 +3058,84 @@ gmd(
     await react("✅");
   },
 );
+
+// ─── ANTI-BOT COMMAND ────────────────────────────────────────────────────────
+gmd(
+  {
+    pattern: "antibot",
+    aliases: ["antibotcmd", "nobot", "botban", "blockbot"],
+    react: "🤖",
+    desc: "Toggle anti-bot mode. Kicks non-admins who send bot commands. Usage: .antibot on",
+    category: "group",
+    onlyGroup: true,
+  },
+  async (from, Gifted, conText) => {
+    const {
+      reply, react, isAdmin, isSuperAdmin, isSuperUser,
+      q, mek, botFooter, botName, newsletterJid,
+    } = conText;
+
+    if (!isAdmin && !isSuperAdmin && !isSuperUser)
+      return reply("❌ You must be an admin to use this command!");
+
+    const { getGroupSetting, setGroupSetting } = require("../guru/database/groupSettings");
+
+    const val = (q || "").toLowerCase().trim();
+
+    if (!val || !["on", "off"].includes(val)) {
+      const current = await getGroupSetting(from, "ANTIBOT");
+      const status  = (current && current !== "false" && current !== "off") ? "🟢 ON" : "🔴 OFF";
+      return reply(
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🤖  *ANTI-BOT STATUS*
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  Status  : ${status}
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  *What it does:*
+┃  • Detects bot commands (., /, !, #…)
+┃  • Deletes the message instantly
+┃  • Kicks the sender from the group
+┃  • Admins are always exempt
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  *Usage:*
+┃  .antibot on   — enable
+┃  .antibot off  — disable
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+> _${botFooter}_`
+      );
+    }
+
+    await setGroupSetting(from, "ANTIBOT", val === "on" ? "true" : "false");
+    await react("✅");
+
+    const emoji = val === "on" ? "🟢" : "🔴";
+    await Gifted.sendMessage(
+      from,
+      {
+        text:
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🤖  *ANTI-BOT ${val.toUpperCase()}*
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  ${emoji} Anti-Bot is now *${val.toUpperCase()}*
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+${val === "on"
+  ? `┃  ✅ Any non-admin who sends a\n┃  bot command will be *removed*\n┃  from this group automatically.`
+  : `┃  ✅ Bot command detection is\n┃  now disabled in this group.`}
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+> _${botFooter}_`,
+        contextInfo: {
+          forwardingScore: 5,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid,
+            newsletterName: botName,
+            serverMessageId: 0,
+          },
+        },
+      },
+      { quoted: mek },
+    );
+  },
+);

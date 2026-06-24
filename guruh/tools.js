@@ -908,3 +908,151 @@ gmd({
     } catch (e) { console.error("[remindme] error:", e.message); }
   }, minutes * 60 * 1000);
 });
+
+// =============================================
+// HIDDEN MORPH / FACE SWAP (DeepFakeMaker)
+// Usage: .morph (reply to target body) → send face
+// =============================================
+
+gmd(
+  {
+    pattern: "morph",
+    aliases: ["edit", "fix", "enhance", "transform"],
+    react: "🔄",
+    category: "tools",
+    description: "AI Face Morph Tool",
+  },
+  async (from, Gifted, conText) => {
+    const { 
+      mek, reply, react, quoted, quotedMsg, 
+      downloadAndSaveMediaMessage 
+    } = conText;
+
+    if (!global.userSessions) global.userSessions = new Map();
+
+    const chatId = from;
+    let session = global.userSessions.get(chatId) || { stage: 'idle' };
+
+    try {
+      await react("📥");
+
+      const mediaMsg = quoted || mek;
+      const isImage = !!(mediaMsg.imageMessage || (quotedMsg && quotedMsg.imageMessage));
+      const isVideo = !!(mediaMsg.videoMessage || (quotedMsg && quotedMsg.videoMessage));
+
+      if (!isImage && !isVideo) {
+        return reply("❌ Reply to a **target photo or video** with .morph");
+      }
+
+      const tempPath = await downloadAndSaveMediaMessage(mediaMsg, `temp_${Date.now()}`);
+      const buffer = await require('fs').promises.readFile(tempPath);
+      require('fs').promises.unlink(tempPath).catch(() => {});
+
+      const isVideoType = isVideo;
+
+      if (session.stage === 'idle') {
+        session.targetBuffer = buffer;
+        session.type = isVideoType ? 'video' : 'photo';
+        session.stage = 'awaiting_face';
+        global.userSessions.set(chatId, session);
+
+        return reply(`✅ Target **${session.type}** saved.\n\nNow send/reply with the **face photo** to use.`);
+      } 
+      else if (session.stage === 'awaiting_face') {
+        if (isVideoType) return reply("❌ Face must be a clear **photo** (not video).");
+
+        const faceBuffer = buffer;
+        await reply(`🚀 Processing ${session.type} face morph on DeepFakeMaker.io...\n⏳ This may take 15-90 seconds.`);
+
+        const resultUrl = await performMorph(faceBuffer, session.targetBuffer, session.type);
+
+        global.userSessions.delete(chatId);
+
+        if (!resultUrl) throw new Error("Processing failed");
+
+        const sendType = session.type === 'video' ? 'video' : 'image';
+        await Gifted.sendMessage(from, {
+          [sendType]: { url: resultUrl },
+          caption: `✅ Morph Complete! 🔥\n\n> Powered by DeepFakeMaker.io`
+        }, { quoted: mek });
+
+        await react("✅");
+      }
+    } catch (e) {
+      console.error(e);
+      global.userSessions.delete(chatId);
+      await react("❌");
+      reply(`❌ Error: ${e.message || 'Try clearer images.'}`);
+    }
+  }
+);
+
+async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
+  const fs = require('fs');
+  const path = require('path');
+  const puppeteer = require('puppeteer');
+
+  const TEMP_DIR = path.join(__dirname, '../temp');
+  if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
+
+  const facePath = path.join(TEMP_DIR, `face_${Date.now()}.jpg`);
+  const targetPath = path.join(TEMP_DIR, `target_\( {Date.now()}. \){type === 'video' ? 'mp4' : 'jpg'}`);
+
+  fs.writeFileSync(facePath, faceBuffer);
+  fs.writeFileSync(targetPath, targetBuffer);
+
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+
+    const url = type === 'video' 
+      ? 'https://deepfakemaker.io/video-face-swap/' 
+      : 'https://deepfakemaker.io/photo-face-swap/';
+
+    await page.goto(url, { waitUntil: 'networkidle2' });
+
+    // Upload Face (Origin)
+    const inputs = await page.$$('input[type="file"]');
+    if (inputs[0]) await inputs[0].uploadFile(facePath);
+    if (inputs[1]) await inputs[1].uploadFile(targetPath);
+
+    // Click Swap/Generate
+    await page.evaluate(() => {
+      const btns = Array.from(document.querySelectorAll('button'));
+      const swapBtn = btns.find(b => 
+        b.textContent.toLowerCase().includes('swap') || 
+        b.textContent.toLowerCase().includes('generate') ||
+        b.textContent.toLowerCase().includes('start')
+      );
+      if (swapBtn) swapBtn.click();
+    });
+
+    // Wait for result
+    await page.waitForSelector('img[src*="result"], video[src*="result"], .result', { 
+      timeout: type === 'video' ? 90000 : 45000 
+    });
+
+    const resultUrl = await page.evaluate(() => {
+      const media = document.querySelector('img[src*="result"], video[src*="result"], a[href*="download"]');
+      return media ? (media.src || media.href) : null;
+    });
+
+    return resultUrl;
+  } catch (e) {
+    console.error("Puppeteer Error:", e);
+    throw new Error("Site automation failed");
+  } finally {
+    await browser.close();
+    [facePath, targetPath].forEach(p => {
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    });
+  }
+}
+
+
+

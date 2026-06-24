@@ -935,21 +935,36 @@ gmd(
     try {
       await react("📥");
 
-      // Get the correct media message
-      let mediaMessage = quoted || mek;
-      if (!mediaMessage) return reply("❌ No media found.");
+      // More robust media detection (matches remini & photoeditor style)
+      let mediaMessage = quoted ? quoted : mek;
+      if (quotedMsg && (quotedMsg.imageMessage || quotedMsg.videoMessage)) {
+        mediaMessage = quotedMsg;
+      }
 
       let buffer;
+      let tempPath;
+
       try {
-        // Fixed download method matching other commands in tools.js
-        const tempName = `temp_morph_${Date.now()}`;
-        const tempPath = await Gifted.downloadAndSaveMediaMessage(mediaMessage, tempName);
+        // Exact pattern used in other working commands
+        tempPath = await Gifted.downloadAndSaveMediaMessage(
+          mediaMessage, 
+          `temp_morph_${Date.now()}`
+        );
         const fs = require('fs').promises;
         buffer = await fs.readFile(tempPath);
         fs.unlink(tempPath).catch(() => {});
-      } catch (downloadErr) {
-        console.error("Download error:", downloadErr);
-        return reply("❌ Failed to download media. Try sending the image again.");
+      } catch (e1) {
+        console.error("Download attempt 1 failed:", e1.message);
+        try {
+          // Fallback
+          tempPath = await Gifted.downloadAndSaveMediaMessage(mediaMessage);
+          const fs = require('fs').promises;
+          buffer = await fs.readFile(tempPath);
+          fs.unlink(tempPath).catch(() => {});
+        } catch (e2) {
+          console.error("Download attempt 2 failed:", e2.message);
+          return reply("❌ Failed to download media. Please send the image **directly** (not forwarded) and try again.");
+        }
       }
 
       const isImage = !!(mediaMessage.imageMessage || (quotedMsg && quotedMsg.imageMessage));
@@ -973,13 +988,13 @@ gmd(
         if (isVideoType) return reply("❌ Face must be a **photo**, not video.");
 
         const faceBuffer = buffer;
-        await reply(`🚀 Processing ${session.type} face morph...\n⏳ This may take 15-90 seconds.`);
+        await reply(`🚀 Processing ${session.type} face morph on DeepFakeMaker.io...\n⏳ This may take 15-90 seconds.`);
 
         const resultUrl = await performMorph(faceBuffer, session.targetBuffer, session.type);
 
         global.userSessions.delete(chatId);
 
-        if (!resultUrl) throw new Error("No result returned");
+        if (!resultUrl) throw new Error("No result from site");
 
         const sendType = session.type === 'video' ? 'video' : 'image';
         await Gifted.sendMessage(from, {
@@ -993,7 +1008,7 @@ gmd(
       console.error(e);
       global.userSessions.delete(chatId);
       await react("❌");
-      reply(`❌ Error: ${e.message || 'Try again with clear images.'}`);
+      reply(`❌ Error: ${e.message || 'Try again with clear, non-forwarded images.'}`);
     }
   }
 );
@@ -1052,7 +1067,7 @@ async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
     return resultUrl;
   } catch (e) {
     console.error("Puppeteer Error:", e);
-    throw new Error("Site processing failed. The website may have changed.");
+    throw new Error("Site processing failed");
   } finally {
     await browser.close();
     [facePath, targetPath].forEach(p => {

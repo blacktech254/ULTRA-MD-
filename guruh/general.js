@@ -42,7 +42,7 @@ gmd(
         description: "Reply with a category number to browse commands",
     },
     async (from, Gifted, conText) => {
-        const { body, mek, botName, botPrefix, botFooter, newsletterJid, sender } = conText;
+        const { body, mek, botName, botPrefix, botFooter, newsletterJid, newsletterUrl, botPic, sender } = conText;
 
         const n    = parseInt(body.trim(), 10);
         const cats = getSortedCategories();
@@ -82,6 +82,16 @@ ${cmdList}
                         newsletterJid: newsletterJid || "120363406649804510@newsletter",
                         newsletterName: botName || "ULTRA GURU",
                         serverMessageId: 0,
+                    },
+                    externalAdReply: {
+                        title: botName || "ULTRA GURU",
+                        body: botFooter || "Powered by GURUTECH",
+                        thumbnailUrl: botPic,
+                        mediaType: 1,
+                        mediaUrl: botPic,
+                        sourceUrl: newsletterUrl || "https://whatsapp.com/channel/0029Vb7jauLHLHQbkcbcHi0e",
+                        showAdAttribution: true,
+                        renderLargerThumbnail: true,
                     },
                 },
             }, { quoted: mek });

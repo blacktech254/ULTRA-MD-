@@ -45,6 +45,7 @@ const GROUP_SETTING_DEFAULTS = {
     ANTIGROUPMENTION_WARN_COUNT: "3",
     ANTIPROMOTE: "false",
     ANTIDEMOTE: "false",
+    ANTIBOT: "false",
 };
 
 const AntilinkWarningsDB = DATABASE.define(
@@ -412,6 +413,7 @@ async function getEnabledGroupSettings() {
         ANTIGROUPMENTION: [],
         ANTIPROMOTE: [],
         ANTIDEMOTE: [],
+        ANTIBOT: [],
     };
 
     const records = await GroupSettingsDB.findAll();

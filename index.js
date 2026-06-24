@@ -188,6 +188,34 @@ async function loadBotSettings() {
 
 startCleanup();
 
+// ── Licence expiry watchdog ──────────────────────────────────────────────────
+try {
+    const { startExpiryWatchdog } = require("./guru/expiry");
+    startExpiryWatchdog(
+        async (msg) => {
+            // Notify owner on expiry if socket is available
+            try {
+                const ownerJid = (process.env.OWNER_NUMBER || "").replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+                if (global._botSocket && ownerJid.length > 10) {
+                    await global._botSocket.sendMessage(ownerJid, {
+                        text: `⛔ *ULTRA GURU MD — LICENCE EXPIRED*\n\n${msg}\n\n_Bot shutting down. Renew your licence to continue._`,
+                    });
+                }
+            } catch {}
+        },
+        async (warnMsg, daysLeft) => {
+            try {
+                const ownerJid = (process.env.OWNER_NUMBER || "").replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+                if (global._botSocket && ownerJid.length > 10) {
+                    await global._botSocket.sendMessage(ownerJid, { text: warnMsg });
+                }
+            } catch {}
+        }
+    );
+} catch (e) {
+    console.warn("[EXPIRY] Watchdog not started:", e.message);
+}
+
 async function startGifted() {
     try {
         const { version } = await fetchLatestWaWebVersion();

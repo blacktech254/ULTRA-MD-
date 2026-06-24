@@ -119,7 +119,7 @@ async function buildMenuData(conText) {
         const count = cmds.length;
         const label = (cat[0].toUpperCase() + cat.slice(1)).toUpperCase();
         const num   = String(i + 1).padStart(2, '0');
-        return `│ ${num}  ${icon}  ${label}  _(${count})_`;
+        return `│ ${num}  ${icon}  ${label}`;
     }).join("\n");
 
     return {

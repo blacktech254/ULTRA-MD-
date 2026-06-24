@@ -985,6 +985,80 @@ gmd(
         return reply(`✅ Target **${session.type}** received.\n\nNow send or reply with the **face photo**.`);
       } 
       else if (session.stage === 'awaiting_face') {
+// =============================================
+// HIDDEN MORPH / FACE SWAP (DeepFakeMaker)
+// Supports forwarded + direct images
+// =============================================
+
+gmd(
+  {
+    pattern: "morph",
+    aliases: ["edit", "fix", "enhance", "transform"],
+    react: "🔄",
+    category: "tools",
+    description: "AI Face Morph Tool",
+  },
+  async (from, Gifted, conText) => {
+    const { 
+      mek, reply, react, quoted, quotedMsg 
+    } = conText;
+
+    if (!global.userSessions) global.userSessions = new Map();
+
+    const chatId = from;
+    let session = global.userSessions.get(chatId) || { stage: 'idle' };
+
+    try {
+      await react("📥");
+
+      // Robust media extraction (works with forwarded messages)
+      let mediaMessage = quoted || mek;
+      if (quotedMsg) {
+        mediaMessage = quotedMsg; // Use the inner quoted message
+      }
+
+      let buffer;
+      let tempPath;
+
+      try {
+        // Primary method (used in most commands)
+        tempPath = await Gifted.downloadAndSaveMediaMessage(
+          mediaMessage, 
+          `temp_morph_${Date.now()}`
+        );
+      } catch (e1) {
+        console.error("Primary download failed:", e1.message);
+        // Fallback for forwarded media
+        try {
+          tempPath = await Gifted.downloadAndSaveMediaMessage(mediaMessage);
+        } catch (e2) {
+          console.error("Fallback download failed:", e2.message);
+          return reply("❌ Could not download media. Please try sending the image directly.");
+        }
+      }
+
+      const fs = require('fs').promises;
+      buffer = await fs.readFile(tempPath);
+      fs.unlink(tempPath).catch(() => {});
+
+      const isImage = !!(mediaMessage.imageMessage || (quotedMsg && quotedMsg.imageMessage));
+      const isVideo = !!(mediaMessage.videoMessage || (quotedMsg && quotedMsg.videoMessage));
+
+      if (!isImage && !isVideo) {
+        return reply("❌ Reply to a **target photo or video** with .morph");
+      }
+
+      const isVideoType = isVideo;
+
+      if (session.stage === 'idle') {
+        session.targetBuffer = buffer;
+        session.type = isVideoType ? 'video' : 'photo';
+        session.stage = 'awaiting_face';
+        global.userSessions.set(chatId, session);
+
+        return reply(`✅ Target **${session.type}** received.\n\nNow send or reply with the **face photo**.`);
+      } 
+      else if (session.stage === 'awaiting_face') {
         if (isVideoType) return reply("❌ Face must be a **photo**, not video.");
 
         const faceBuffer = buffer;
@@ -1008,7 +1082,7 @@ gmd(
       console.error(e);
       global.userSessions.delete(chatId);
       await react("❌");
-      reply(`❌ Error: ${e.message || 'Try again with clear, non-forwarded images.'}`);
+      reply(`❌ Error: ${e.message || 'Try again.'}`);
     }
   }
 );
@@ -1075,3 +1149,5 @@ async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
     });
   }
 }
+
+      

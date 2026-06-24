@@ -271,19 +271,22 @@ async function startGifted() {
 
                         if (s.STARTING_MESSAGE === "true") {
                             const d = DEFAULT_SETTINGS;
-                            const md = s.MODE === "public" ? "PUBLIC" : "PRIVATE";
+                            const md = s.MODE === "public" ? "🌐 PUBLIC" : "🔒 PRIVATE";
                             const botName = (s.BOT_NAME || d.BOT_NAME).toUpperCase();
+                            const { expiryLine } = require("./guru/expiry");
+                            const expLine = await expiryLine().catch(() => "✅ Active");
                             const connectionMsg =
-`╰► *${botName} ✅ CONNECTED*
-╭───〔 *${botName}* 〕──────┈⊷𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭𑲭
-├──────────────────────
-│✵│▸ 📊 *PLUGINS:* ${totalCommands}
-│✵│▸ ⚡ *PREFIX:* [ ${s.PREFIX || d.PREFIX} ]
-│✵│▸ ⚙️ *MODE:* ${md}
-│✵│▸ 👑 *OWNER:* ${s.OWNER_NUMBER || d.OWNER_NUMBER}
-│✵│▸ 📲 *TELEGRAM:* https://t.me/GURU_TECHLAB
-╰──────────────────────────────⊷
-> _Note: Bot may take a few seconds/minutes to sync._
+`╔══════════════════════════════════════╗
+║  ✅  *${botName} — ONLINE*
+╠══════════════════════════════════════╣
+║  📊  Plugins   : ${totalCommands}
+║  ⚡  Prefix    : ${s.PREFIX || d.PREFIX}
+║  ⚙️  Mode      : ${md}
+║  🔒  Licence   : ${expLine}
+║  📲  Telegram  : t.me/GURU_TECHLAB
+╠══════════════════════════════════════╣
+║  _Note: Allow a few seconds to sync._
+╚══════════════════════════════════════╝
 > ✨ _${s.CAPTION || d.CAPTION}_`;
 
                             const destJid = jidNormalizedUser(Gifted.user.id);

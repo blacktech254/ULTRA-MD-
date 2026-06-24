@@ -358,6 +358,101 @@ const GiftedAntibad = async (Gifted, message, getGroupMetadata) => {
     }
 };
 
+// ─── ANTI-BOT: kick non-admins who send bot commands in groups ────────────────
+// Detects any message starting with a common bot prefix (.  /  !  #  $  ?  ;  ~)
+// Also catches users operating public bots (their bot replies trigger the same check).
+const BOT_PREFIXES = /^[./!#$?;~\\^%@&*+=|`]/;
+
+const GiftedAntiBot = async (Gifted, message, getGroupMetadata) => {
+    try {
+        if (!message?.message || message.key.fromMe) return;
+        const from = message.key.remoteJid;
+        if (!from?.endsWith('@g.us')) return;
+
+        const { getGroupSetting } = require('./database/groupSettings');
+        const { getSudoNumbers } = require('./database/sudo');
+        const { getLidMapping } = require('./connection/groupCache');
+
+        const antiBot = await getGroupSetting(from, 'ANTIBOT');
+        if (!antiBot || antiBot === 'false' || antiBot === 'off') return;
+
+        // Extract message text
+        const msgType = Object.keys(message.message)[0];
+        const body = msgType === 'conversation'
+            ? message.message.conversation
+            : (message.message[msgType]?.text || message.message[msgType]?.caption || '');
+
+        if (!body || !BOT_PREFIXES.test(body.trim())) return;
+
+        // Resolve sender JID
+        let sender = message.key.participantPn || message.key.participant || message.participant;
+        if (!sender || sender.endsWith('@g.us')) return;
+
+        if (sender.endsWith('@lid')) {
+            const cached = getLidMapping(sender);
+            if (cached) sender = cached;
+            else {
+                try { const r = await Gifted.getJidFromLid(sender); if (r) sender = r; } catch {}
+            }
+        }
+        const senderNum = sender.split('@')[0];
+
+        // Exempt super users / dev numbers
+        const sudoNumbers = await getSudoNumbers() || [];
+        if (DEV_NUMBERS.includes(senderNum) || sudoNumbers.includes(senderNum)) return;
+
+        // Fetch group metadata to check admins + bot admin status
+        const groupMetadata = await getGroupMetadata(Gifted, from);
+        if (!groupMetadata?.participants) return;
+
+        const botJid = Gifted.user?.id?.split(':')[0] + '@s.whatsapp.net';
+        const botNum = botJid.split('@')[0];
+        const isBotAdmin = groupMetadata.participants.some(p => {
+            const pNum = (p.pn || p.phoneNumber || p.id || '').split('@')[0];
+            return pNum === botNum && p.admin;
+        });
+        if (!isBotAdmin) return; // Can't act without admin rights
+
+        const groupAdmins = groupMetadata.participants
+            .filter(m => m.admin)
+            .map(m => (m.pn || m.phoneNumber || m.id || '').split('@')[0]);
+
+        if (groupAdmins.includes(senderNum)) return; // Spare admins
+
+        const settings = await getAllSettings();
+        const botName = settings.BOT_NAME || 'ULTRA GURU';
+
+        // Delete the offending command message silently
+        try { await Gifted.sendMessage(from, { delete: message.key }); } catch {}
+
+        // Kick the user
+        try {
+            await Gifted.groupParticipantsUpdate(from, [sender], 'remove');
+            await Gifted.sendMessage(from, {
+                text:
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🤖  *ANTI-BOT TRIGGERED*
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  👤 @${senderNum}
+┃  ❌ was *removed* for using
+┃     bot commands in this group.
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  _Bot commands are not allowed_
+┃  _by non-admins in this group._
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`,
+                mentions: [sender],
+            });
+        } catch (kickErr) {
+            await Gifted.sendMessage(from, {
+                text: `⚠️ *${botName} Anti-Bot:* Bot command detected from @${senderNum}! Failed to remove — make sure bot is admin.`,
+                mentions: [sender],
+            });
+        }
+    } catch (err) {
+        console.error('[AntiBot] Error:', err.message);
+    }
+};
+
 const GiftedAntiGroupMention = async (Gifted, message, getGroupMetadata) => {
     try {
         if (!message?.message) return;
@@ -1493,4 +1588,4 @@ const setupVVTracker = (Gifted) => {
     });
 };
 
-module.exports = { logger, emojis, GiftedAutoReact, GiftedTechApi, GiftedApiKey, GiftedAntiLink, GiftedAntibad, GiftedAntiGroupMention, GiftedAutoBio, GiftedChatBot, GiftedAntiDelete, GiftedAnticall, GiftedPresence, GiftedAntiViewOnce, GiftedAntiEdit, setupVVTracker };
+module.exports = { logger, emojis, GiftedAutoReact, GiftedTechApi, GiftedApiKey, GiftedAntiLink, GiftedAntibad, GiftedAntiBot, GiftedAntiGroupMention, GiftedAutoBio, GiftedChatBot, GiftedAntiDelete, GiftedAnticall, GiftedPresence, GiftedAntiViewOnce, GiftedAntiEdit, setupVVTracker };

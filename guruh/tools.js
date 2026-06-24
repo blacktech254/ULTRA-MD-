@@ -911,7 +911,7 @@ gmd({
 
 // =============================================
 // HIDDEN MORPH / FACE SWAP (DeepFakeMaker)
-// Usage: .morph (reply to target body) → send face
+// Usage: .morph (reply to target) → send face
 // =============================================
 
 gmd(
@@ -925,7 +925,7 @@ gmd(
   async (from, Gifted, conText) => {
     const { 
       mek, reply, react, quoted, quotedMsg, 
-      downloadAndSaveMediaMessage 
+      downloadAndSaveMediaMessage: downloadMedia // renamed fallback
     } = conText;
 
     if (!global.userSessions) global.userSessions = new Map();
@@ -937,16 +937,26 @@ gmd(
       await react("📥");
 
       const mediaMsg = quoted || mek;
+      
+      // Fixed download logic
+      let buffer;
+      try {
+        const tempPath = await Gifted.downloadAndSaveMediaMessage(mediaMsg);
+        buffer = await require('fs').promises.readFile(tempPath);
+        require('fs').promises.unlink(tempPath).catch(() => {});
+      } catch (e) {
+        // Alternative method used in other commands
+        const tempPath = await Gifted.downloadAndSaveMediaMessage(mediaMsg, `temp_${Date.now()}`);
+        buffer = await require('fs').promises.readFile(tempPath);
+        require('fs').promises.unlink(tempPath).catch(() => {});
+      }
+
       const isImage = !!(mediaMsg.imageMessage || (quotedMsg && quotedMsg.imageMessage));
       const isVideo = !!(mediaMsg.videoMessage || (quotedMsg && quotedMsg.videoMessage));
 
       if (!isImage && !isVideo) {
         return reply("❌ Reply to a **target photo or video** with .morph");
       }
-
-      const tempPath = await downloadAndSaveMediaMessage(mediaMsg, `temp_${Date.now()}`);
-      const buffer = await require('fs').promises.readFile(tempPath);
-      require('fs').promises.unlink(tempPath).catch(() => {});
 
       const isVideoType = isVideo;
 
@@ -1016,12 +1026,10 @@ async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
 
     await page.goto(url, { waitUntil: 'networkidle2' });
 
-    // Upload Face (Origin)
     const inputs = await page.$$('input[type="file"]');
-    if (inputs[0]) await inputs[0].uploadFile(facePath);
-    if (inputs[1]) await inputs[1].uploadFile(targetPath);
+    if (inputs[0]) await inputs[0].uploadFile(facePath);   // Face (Origin)
+    if (inputs[1]) await inputs[1].uploadFile(targetPath); // Target
 
-    // Click Swap/Generate
     await page.evaluate(() => {
       const btns = Array.from(document.querySelectorAll('button'));
       const swapBtn = btns.find(b => 
@@ -1032,20 +1040,19 @@ async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
       if (swapBtn) swapBtn.click();
     });
 
-    // Wait for result
-    await page.waitForSelector('img[src*="result"], video[src*="result"], .result', { 
+    await page.waitForSelector('img[src*="result"], video[src*="result"]', { 
       timeout: type === 'video' ? 90000 : 45000 
     });
 
     const resultUrl = await page.evaluate(() => {
-      const media = document.querySelector('img[src*="result"], video[src*="result"], a[href*="download"]');
-      return media ? (media.src || media.href) : null;
+      const media = document.querySelector('img[src*="result"], video[src*="result"]');
+      return media ? media.src : null;
     });
 
     return resultUrl;
   } catch (e) {
     console.error("Puppeteer Error:", e);
-    throw new Error("Site automation failed");
+    throw new Error("Automation failed - site may have changed");
   } finally {
     await browser.close();
     [facePath, targetPath].forEach(p => {
@@ -1053,6 +1060,3 @@ async function performMorph(faceBuffer, targetBuffer, type = 'photo') {
     });
   }
 }
-
-
-

@@ -593,3 +593,41 @@ gmd({
 
 // Track bot start time
 if (!global.__botStartTime) global.__botStartTime = Date.now();
+
+// ── Auto-bio startup launcher ────────────────────────────────────
+// Starts the interval automatically if AUTO_BIO is on (default: true)
+if (!global.__autoBioInterval) {
+    getSetting("AUTO_BIO").then(val => {
+        const enabled = (val === null || val === undefined) ? "true" : val;
+        if (enabled !== "true") return;
+
+        global.__autoBioInterval = setInterval(async () => {
+            try {
+                const sock = global._botSocket;
+                if (!sock) return;
+                const startTime = global.__botStartTime || Date.now();
+                const upMs = Date.now() - startTime;
+                const upH  = Math.floor(upMs / 3_600_000);
+                const upM  = Math.floor((upMs % 3_600_000) / 60_000);
+                const customBio = await getSetting("BOT_BIO").catch(() => "");
+                const bio = customBio && customBio.trim()
+                    ? customBio.trim()
+                    : `⚡ ULTRA GURU MD | Up ${upH}h${upM}m | ${new Date().toLocaleDateString()} | Always Online 🤖`;
+                await sock.updateProfileStatus(bio);
+            } catch (_) {}
+        }, 30 * 60_000);
+
+        // Run once immediately on startup (after 10s to let socket settle)
+        setTimeout(async () => {
+            try {
+                const sock = global._botSocket;
+                if (!sock) return;
+                const customBio = await getSetting("BOT_BIO").catch(() => "");
+                const bio = customBio && customBio.trim()
+                    ? customBio.trim()
+                    : `⚡ ULTRA GURU MD | Online & Ready | ${new Date().toLocaleDateString()} | Always Active 🤖`;
+                await sock.updateProfileStatus(bio);
+            } catch (_) {}
+        }, 10_000);
+    }).catch(() => {});
+}

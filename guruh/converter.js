@@ -327,14 +327,14 @@ gmd({
     react: "🎥",
     description: "Convert a sticker (animated or static) to an MP4 video. Reply to a sticker."
 }, async (from, Gifted, conText) => {
-    const { mek, reply, react, quoted, quotedMsg, botFooter, sender, botName, newsletterJid } = conText;
+    const { mek, reply, react, quotedMsg, botFooter, sender, botName, newsletterJid } = conText;
 
     if (!quotedMsg) {
         await react("❌");
         return reply("Please reply to a sticker message.");
     }
 
-    const quotedSticker = quoted?.stickerMessage || quoted?.message?.stickerMessage;
+    const quotedSticker = quotedMsg?.stickerMessage || quotedMsg?.message?.stickerMessage;
     if (!quotedSticker) {
         await react("❌");
         return reply("The quoted message is not a sticker.");
@@ -350,9 +350,9 @@ gmd({
         tempMp4  = gmdRandom(".mp4");
         await fs.writeFile(tempWebp, stickerBuffer);
 
-        // Convert webp → mp4 using ffmpeg
+        // webp → mp4: -r sets output framerate, -t caps to 10s, explicit libx264
         await ffmpegRun(
-            `ffmpeg -i "${tempWebp}" -movflags faststart -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=15" "${tempMp4}" -y`
+            `ffmpeg -i "${tempWebp}" -c:v libx264 -pix_fmt yuv420p -movflags faststart -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -r 15 -t 10 "${tempMp4}" -y`
         );
 
         const videoBuffer = await fs.readFile(tempMp4);
@@ -386,46 +386,38 @@ gmd({
     react: "🔄️",
     description: "Convert a GIF to an animated sticker. Reply to a GIF message."
 }, async (from, Gifted, conText) => {
-    const { mek, reply, react, quoted, quotedMsg, packName, packAuthor } = conText;
+    const { mek, reply, react, quotedMsg, packName, packAuthor } = conText;
 
     if (!quotedMsg) {
         await react("❌");
         return reply("Please reply to a GIF message.");
     }
 
-    // GIFs can arrive as imageMessage (gif mimetype) or videoMessage (gifPlayback=true)
-    const quotedImg   = quoted?.imageMessage || quoted?.message?.imageMessage;
-    const quotedVideo = quoted?.videoMessage || quoted?.message?.videoMessage;
+    // GIFs arrive as imageMessage (gif mimetype) or videoMessage (gifPlayback=true)
+    const quotedImg   = quotedMsg?.imageMessage   || quotedMsg?.message?.imageMessage;
+    const quotedVideo = quotedMsg?.videoMessage   || quotedMsg?.message?.videoMessage;
 
-    const isGifImage = quotedImg && (quotedImg.mimetype?.includes("gif") || quotedImg.gifPlayback);
-    const isGifVideo = quotedVideo?.gifPlayback === true;
+    const isGifImage = !!quotedImg && (quotedImg.mimetype?.includes("gif") || !!quotedImg.gifPlayback);
+    const isGifVideo = !!quotedVideo;   // accept any video – wa-sticker-formatter handles mp4→animated webp
 
-    const gifMsg = isGifImage ? quotedImg : isGifVideo ? quotedVideo : null;
-    if (!gifMsg) {
+    const mediaMsg = isGifImage ? quotedImg : isGifVideo ? quotedVideo : null;
+    if (!mediaMsg) {
         await react("❌");
-        return reply("The quoted message is not a GIF. Send a GIF and reply to it with this command.");
+        return reply("The quoted message is not a GIF or video. Reply to a GIF/video with this command.");
     }
 
-    let tempGif, tempFile;
+    let tempFile;
     try {
-        const filePath = await Gifted.downloadAndSaveMediaMessage(gifMsg, "temp_media");
-        const gifBuffer = await fs.readFile(filePath);
+        const filePath = await Gifted.downloadAndSaveMediaMessage(mediaMsg, "temp_media");
+        const mediaBuffer = await fs.readFile(filePath);
         await fs.unlink(filePath).catch(() => {});
 
-        // If it came as video/mp4, convert to gif first so gmdSticker can handle it
-        if (isGifVideo) {
-            tempGif = gmdRandom(".gif");
-            tempFile = gmdRandom(".mp4");
-            await fs.writeFile(tempFile, gifBuffer);
-            await ffmpegRun(
-                `ffmpeg -i "${tempFile}" -vf "fps=10,scale=320:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" -loop 0 "${tempGif}" -y`
-            );
-        } else {
-            tempGif = gmdRandom(".gif");
-            await fs.writeFile(tempGif, gifBuffer);
-        }
+        const ext = isGifImage ? ".gif" : ".mp4";
+        tempFile = gmdRandom(ext);
+        await fs.writeFile(tempFile, mediaBuffer);
 
-        const stickerBuffer = await gmdSticker(tempGif, {
+        // wa-sticker-formatter natively handles both .gif and .mp4 → animated webp
+        const stickerBuffer = await gmdSticker(tempFile, {
             pack: packName || "ULTRA GURU",
             author: packAuthor || "GURU-TECH",
             type: StickerTypes.FULL,
@@ -440,9 +432,8 @@ gmd({
     } catch (e) {
         console.error("[gif2st] Error:", e.message);
         await react("❌");
-        await reply("Failed to convert GIF to sticker: " + e.message);
+        await reply("Failed to convert to animated sticker: " + e.message);
     } finally {
-        if (tempGif)  await fs.unlink(tempGif).catch(() => {});
         if (tempFile) await fs.unlink(tempFile).catch(() => {});
     }
 });
@@ -455,20 +446,20 @@ gmd({
     react: "🔄️",
     description: "Convert a video to a GIF. Reply to a video. Use --hq for higher quality."
 }, async (from, Gifted, conText) => {
-    const { q, mek, reply, react, quoted, quotedMsg, botFooter, sender, botName, newsletterJid } = conText;
+    const { q, mek, reply, react, quotedMsg, botFooter, sender, botName, newsletterJid } = conText;
 
     if (!quotedMsg) {
         await react("❌");
         return reply("Please reply to a video message.");
     }
 
-    const quotedVideo = quoted?.videoMessage || quoted?.message?.videoMessage;
+    const quotedVideo = quotedMsg?.videoMessage || quotedMsg?.message?.videoMessage;
     if (!quotedVideo) {
         await react("❌");
         return reply("The quoted message is not a video.");
     }
 
-    const isHQ = q?.includes("--hq") || q?.includes("-hq");
+    const isHQ  = q?.includes("--hq") || q?.includes("-hq");
     const scale = isHQ ? 480 : 320;
     const fps   = isHQ ? 15 : 10;
 
@@ -482,9 +473,9 @@ gmd({
         tempGif = gmdRandom(".gif");
         await fs.writeFile(tempMp4, videoBuffer);
 
-        // Two-pass palette GIF for best quality
+        // Palette-based GIF for quality — MUST use -filter_complex, not -vf, for split
         await ffmpegRun(
-            `ffmpeg -i "${tempMp4}" -vf "fps=${fps},scale=${scale}:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" -loop 0 -t 10 "${tempGif}" -y`
+            `ffmpeg -i "${tempMp4}" -filter_complex "[0:v]fps=${fps},scale=${scale}:-1,split[a][b];[a]palettegen[p];[b][p]paletteuse" -loop 0 -t 10 "${tempGif}" -y`
         );
 
         const gifBuffer = await fs.readFile(tempGif);

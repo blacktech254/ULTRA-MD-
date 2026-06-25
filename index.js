@@ -1,45 +1,5 @@
 require("events").EventEmitter.defaultMaxListeners = 960;
 
-const _isTransientWAError = (err) => {
-    if (!err) return false;
-    const msg  = err?.message || "";
-    const code = err?.data || err?.output?.statusCode || err?.code || "";
-    return (
-        msg === "rate-overlimit" ||
-        msg.includes("rate-overlimit") ||
-        code === 429 ||
-        String(code) === "429" ||
-        code === 428 ||
-        msg === "Connection Closed" ||
-        msg.includes("ECONNRESET") ||
-        msg.includes("ETIMEDOUT") ||
-        msg.includes("ECONNREFUSED") ||
-        msg.includes("EPIPE") ||
-        msg.includes("Connection Terminated") ||
-        msg.includes("Stream Errored") ||
-        msg.includes("socket hang up") ||
-        msg.includes("network timeout") ||
-        String(code) === "ECONNRESET" ||
-        String(code) === "EPIPE"
-    );
-};
-
-process.on("unhandledRejection", (reason, promise) => {
-    if (_isTransientWAError(reason)) {
-        console.warn("⚠️ [unhandledRejection] Transient WhatsApp error (suppressed):", reason?.message || reason);
-        return;
-    }
-    console.error("❌ [unhandledRejection]:", reason);
-});
-
-process.on("uncaughtException", (err) => {
-    if (_isTransientWAError(err)) {
-        console.warn("⚠️ [uncaughtException] Transient WhatsApp error (suppressed):", err?.message || err);
-        return;
-    }
-    console.error("❌ [uncaughtException]:", err);
-});
-
 if (!globalThis.crypto) {
     const { webcrypto } = require("crypto");
     globalThis.crypto = webcrypto;
@@ -207,13 +167,13 @@ setInterval(async () => {
     } catch (e) {}
 }, 240000);
 
-// ── Auto-restart every 10 hours ──────────────────────────────────────────────
-const AUTO_RESTART_MS = 10 * 60 * 60 * 1000;
+// ── Auto-restart every 24 hours ──────────────────────────────────────────────
+const AUTO_RESTART_MS = 24 * 60 * 60 * 1000;
 setTimeout(() => {
-    console.log('🔄 [AUTO-RESTART] 10-hour scheduled restart triggered...');
+    console.log('🔄 [AUTO-RESTART] 24-hour scheduled restart triggered...');
     process.exit(0);
 }, AUTO_RESTART_MS);
-console.log('✅ Auto-restart scheduled in 10 hours (' + new Date(Date.now() + AUTO_RESTART_MS).toLocaleTimeString() + ')');
+console.log('✅ Auto-restart scheduled in 24 hours (' + new Date(Date.now() + AUTO_RESTART_MS).toLocaleTimeString() + ')');
 
 const sessionDir = path.join(__dirname, "guru", "session");
 const pluginsPath = path.join(__dirname, "guruh");
@@ -278,6 +238,7 @@ async function startGifted() {
         };
 
         Gifted = makeWASocket(socketConfig);
+        global._botSocket = Gifted;
         store.bind(Gifted.ev);
 
         Gifted.ev.process(async (events) => {
@@ -304,6 +265,12 @@ async function startGifted() {
                 await safeNewsletterFollow(Gifted, s.NEWSLETTER_JID);
                 await safeGroupAcceptInvite(Gifted, s.GC_JID);
                 await initializeLidStore(Gifted);
+
+                // ── Start greeting scheduler (GM / GN / Wellness) ────────────────
+                try {
+                    const { startScheduler } = require("./guru/scheduler");
+                    startScheduler(Gifted);
+                } catch (e) { console.error("[Scheduler] start error:", e.message); }
 
                 setTimeout(async () => {
                     try {
@@ -647,7 +614,20 @@ function setupStatusHandlers(Gifted) {
                 );
             }
         } catch (error) {
-            if (_isTransientWAError(error)) return;
+            const code = error?.output?.statusCode || error?.code || "";
+            const msg  = error?.message || "";
+            const transient =
+                code === 428 ||
+                msg === "Connection Closed" ||
+                msg.includes("ECONNRESET") ||
+                msg.includes("ETIMEDOUT") ||
+                msg.includes("ECONNREFUSED") ||
+                msg.includes("EPIPE") ||
+                msg.includes("Connection Terminated") ||
+                msg.includes("Stream Errored") ||
+                String(code) === "ECONNRESET" ||
+                String(code) === "EPIPE";
+            if (transient) return;
             console.error("Error Processing Status Actions:", error);
         }
     });
@@ -754,6 +734,13 @@ function setupCommandHandler(Gifted) {
             shouldRead = true;
         }
         if (shouldRead) await Gifted.readMessages([ms.key]);
+
+        // ── Plugin passive message hooks ──────────────────────────────────────
+        if (Array.isArray(global.__pluginMsgHooks)) {
+            for (const hook of global.__pluginMsgHooks) {
+                try { await hook(ms, Gifted, settings); } catch (_) {}
+            }
+        }
 
         const bodyCmd = findBodyCommand(body);
         if (bodyCmd && bodyCmd.function) {

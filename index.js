@@ -1,5 +1,45 @@
 require("events").EventEmitter.defaultMaxListeners = 960;
 
+const _isTransientWAError = (err) => {
+    if (!err) return false;
+    const msg  = err?.message || "";
+    const code = err?.data || err?.output?.statusCode || err?.code || "";
+    return (
+        msg === "rate-overlimit" ||
+        msg.includes("rate-overlimit") ||
+        code === 429 ||
+        String(code) === "429" ||
+        code === 428 ||
+        msg === "Connection Closed" ||
+        msg.includes("ECONNRESET") ||
+        msg.includes("ETIMEDOUT") ||
+        msg.includes("ECONNREFUSED") ||
+        msg.includes("EPIPE") ||
+        msg.includes("Connection Terminated") ||
+        msg.includes("Stream Errored") ||
+        msg.includes("socket hang up") ||
+        msg.includes("network timeout") ||
+        String(code) === "ECONNRESET" ||
+        String(code) === "EPIPE"
+    );
+};
+
+process.on("unhandledRejection", (reason, promise) => {
+    if (_isTransientWAError(reason)) {
+        console.warn("⚠️ [unhandledRejection] Transient WhatsApp error (suppressed):", reason?.message || reason);
+        return;
+    }
+    console.error("❌ [unhandledRejection]:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+    if (_isTransientWAError(err)) {
+        console.warn("⚠️ [uncaughtException] Transient WhatsApp error (suppressed):", err?.message || err);
+        return;
+    }
+    console.error("❌ [uncaughtException]:", err);
+});
+
 if (!globalThis.crypto) {
     const { webcrypto } = require("crypto");
     globalThis.crypto = webcrypto;
@@ -607,20 +647,7 @@ function setupStatusHandlers(Gifted) {
                 );
             }
         } catch (error) {
-            const code = error?.output?.statusCode || error?.code || "";
-            const msg  = error?.message || "";
-            const transient =
-                code === 428 ||
-                msg === "Connection Closed" ||
-                msg.includes("ECONNRESET") ||
-                msg.includes("ETIMEDOUT") ||
-                msg.includes("ECONNREFUSED") ||
-                msg.includes("EPIPE") ||
-                msg.includes("Connection Terminated") ||
-                msg.includes("Stream Errored") ||
-                String(code) === "ECONNRESET" ||
-                String(code) === "EPIPE";
-            if (transient) return;
+            if (_isTransientWAError(error)) return;
             console.error("Error Processing Status Actions:", error);
         }
     });

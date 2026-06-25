@@ -58,7 +58,7 @@ const DEFAULT_SETTINGS = {
     AUTO_REACT: "off",
     AUTO_REPLY: "false",
     AUTO_READ_MESSAGES: "off",
-    AUTO_BIO: "false",
+    AUTO_BIO: "true",
     AUTO_BLOCK: "",
     AUTO_JOIN: "true",  // Added auto join setting
     YT: "youtube.com/@gurutech",

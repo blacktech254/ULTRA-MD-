@@ -160,9 +160,57 @@ const GN_MESSAGES = [
     `💤 *Goodnight fam!*\n\nLay your head down, close your eyes, and let the magic of sleep work on you. Wishing you peaceful rest tonight! 🌙✨\n\n_From ULTRA GURU with love_ 🤖`,
 ];
 
+// ── Daily Wellness Messages ───────────────────────────────────────────────────
+const WELLNESS_MESSAGES = [
+    `🌟 *Daily Check-In — ULTRA GURU MD*\n${"═".repeat(32)}\n\n` +
+    `👋 Hey fam! Hope you're having an amazing day!\n\n` +
+    `📋 *Quick Check-In:*\n` +
+    `✅ How are you doing today?\n` +
+    `🔄 Have you updated your bot lately?\n` +
+    `💡 Any features you'd love to see added?\n\n` +
+    `${"─".repeat(32)}\n` +
+    `💙 *ULTRA GURU MD* appreciates every single one of you!\n` +
+    `Keep thriving — you're doing great! 🚀\n\n` +
+    `> _Reply anytime — we're always listening!_`,
+
+    `💫 *Morning Pulse — ULTRA GURU MD*\n${"═".repeat(32)}\n\n` +
+    `🌤️ Good day, legend!\n\n` +
+    `We hope you're well-rested and fired up! 🔥\n\n` +
+    `📌 *Today's Reminders:*\n` +
+    `🤖 Your bot is running and protecting your chats\n` +
+    `🔄 Check for bot updates: *.update* command\n` +
+    `💬 Invite friends to use ULTRA GURU MD!\n\n` +
+    `${"─".repeat(32)}\n` +
+    `Stay healthy, stay blessed! 🙏\n` +
+    `> _ULTRA GURU MD — Built with love, just for you_`,
+
+    `🎯 *Daily Update Check — ULTRA GURU MD*\n${"═".repeat(32)}\n\n` +
+    `Hi there! 👋\n\n` +
+    `*A gentle reminder:*\n` +
+    `🔄 Have you checked for bot updates today?\n` +
+    `   → Use *.update* to see the latest version\n\n` +
+    `🛡️ Your groups are protected by ULTRA GURU MD\n` +
+    `⚡ All systems are running smoothly!\n\n` +
+    `${"─".repeat(32)}\n` +
+    `We hope your day is going wonderfully! 😊\n` +
+    `Thank you for being part of the GURU family! 💜`,
+
+    `☀️ *ULTRA GURU MD — Daily Wellness*\n${"═".repeat(32)}\n\n` +
+    `Hello beautiful people! 🌺\n\n` +
+    `*How's your bot doing today?*\n\n` +
+    `📊 Quick tips to keep your bot healthy:\n` +
+    `• Run *.ping* to check response speed\n` +
+    `• Run *.update* to stay on latest version\n` +
+    `• Run *.status* for system overview\n\n` +
+    `${"─".repeat(32)}\n` +
+    `Most importantly — how are *YOU* doing? 💙\n` +
+    `Wishing you nothing but great vibes today! ✨`,
+];
+
 let schedulerInterval = null;
-let lastGmSent = null;
-let lastGnSent = null;
+let lastGmSent       = null;
+let lastGnSent       = null;
+let lastWellnessSent = null;
 
 function parseTime(timeStr) {
     const [h, m] = (timeStr || "06:00").split(":").map(Number);
@@ -238,37 +286,88 @@ async function startScheduler(Gifted) {
 
     schedulerInterval = setInterval(async () => {
         try {
-            const enabled = await getSetting("GREETINGS_ENABLED");
-            if (enabled !== "true") return;
-
-            const tz = (await getSetting("TIME_ZONE")) || "Africa/Nairobi";
+            const tz  = (await getSetting("TIME_ZONE")) || "Africa/Nairobi";
             const now = new Date(new Date().toLocaleString("en-US", { timeZone: tz }));
-            const hour = now.getHours();
-            const minute = now.getMinutes();
-            const dateKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+            const hour    = now.getHours();
+            const minute  = now.getMinutes();
+            const dateKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+            const nowMin  = hour * 60 + minute; // current time as total minutes
 
-            const gmTimeStr = (await getSetting("GREETINGS_GM_TIME")) || "06:00";
-            const gnTimeStr = (await getSetting("GREETINGS_GN_TIME")) || "22:00";
-            const { hour: gmH, minute: gmM } = parseTime(gmTimeStr);
-            const { hour: gnH, minute: gnM } = parseTime(gnTimeStr);
+            // ── Good Morning ───────────────────────────────────────────────
+            const greetEnabled = await getSetting("GREETINGS_ENABLED");
+            if (greetEnabled === "true") {
+                const gmTimeStr = (await getSetting("GREETINGS_GM_TIME")) || "06:00";
+                const gnTimeStr = (await getSetting("GREETINGS_GN_TIME")) || "22:00";
+                const { hour: gmH, minute: gmM } = parseTime(gmTimeStr);
+                const { hour: gnH, minute: gnM } = parseTime(gnTimeStr);
+                const gmMin = gmH * 60 + gmM;
+                const gnMin = gnH * 60 + gnM;
 
-            if (hour === gmH && minute === gmM && lastGmSent !== `gm_${dateKey}`) {
-                lastGmSent = `gm_${dateKey}`;
-                console.log("⏰ [Greeter] Sending Good Morning...");
-                await sendGreeting(Gifted, "morning");
+                // 10-minute send window — survives bot restarts within 10 min of schedule
+                if (nowMin >= gmMin && nowMin <= gmMin + 10 && lastGmSent !== `gm_${dateKey}`) {
+                    lastGmSent = `gm_${dateKey}`;
+                    console.log("⏰ [Greeter] Sending Good Morning...");
+                    await sendGreeting(Gifted, "morning");
+                }
+
+                if (nowMin >= gnMin && nowMin <= gnMin + 10 && lastGnSent !== `gn_${dateKey}`) {
+                    lastGnSent = `gn_${dateKey}`;
+                    console.log("⏰ [Greeter] Sending Good Night...");
+                    await sendGreeting(Gifted, "night");
+                }
             }
 
-            if (hour === gnH && minute === gnM && lastGnSent !== `gn_${dateKey}`) {
-                lastGnSent = `gn_${dateKey}`;
-                console.log("⏰ [Greeter] Sending Good Night...");
-                await sendGreeting(Gifted, "night");
+            // ── Daily Wellness Check-In ────────────────────────────────────
+            const wellnessEnabled = await getSetting("DAILY_WELLNESS");
+            if (wellnessEnabled === "true") {
+                const wellnessTimeStr = (await getSetting("WELLNESS_TIME")) || "10:00";
+                const { hour: wH, minute: wM } = parseTime(wellnessTimeStr);
+                const wMin = wH * 60 + wM;
+
+                if (nowMin >= wMin && nowMin <= wMin + 10 && lastWellnessSent !== `wellness_${dateKey}`) {
+                    lastWellnessSent = `wellness_${dateKey}`;
+                    console.log("💙 [Wellness] Sending daily check-in...");
+                    await sendWellness(Gifted);
+                }
             }
         } catch (e) {
             console.error("⏰ [Greeter] Scheduler tick error:", e.message);
         }
-    }, 60000);
+    }, 60_000);
 
     console.log("⏰ Greeting scheduler started (checks every 60s)");
+}
+
+async function sendWellness(Gifted) {
+    try {
+        const chats = await getAllGreetingsChats();
+        if (!chats.length) return 0;
+
+        const msg      = WELLNESS_MESSAGES[Math.floor(Math.random() * WELLNESS_MESSAGES.length)];
+        const botPic   = await getSetting("BOT_PIC").catch(() => null);
+        const footer   = (await getSetting("FOOTER").catch(() => null)) || "Powered by GURUTECH";
+        const fullText = `${msg}\n\n> _${footer}_`;
+
+        let sent = 0;
+        for (const { jid } of chats) {
+            try {
+                if (botPic && botPic.startsWith("http")) {
+                    await Gifted.sendMessage(jid, { image: { url: botPic }, caption: fullText });
+                } else {
+                    await Gifted.sendMessage(jid, { text: fullText });
+                }
+                sent++;
+                await new Promise(r => setTimeout(r, 1_200));
+            } catch (e) {
+                console.error(`💙 [Wellness] Failed to send to ${jid}:`, e.message);
+            }
+        }
+        console.log(`💙 [Wellness] Sent check-in to ${sent}/${chats.length} chats`);
+        return sent;
+    } catch (e) {
+        console.error("💙 [Wellness] sendWellness error:", e.message);
+        return 0;
+    }
 }
 
 function stopScheduler() {
@@ -279,4 +378,4 @@ function stopScheduler() {
     }
 }
 
-module.exports = { startScheduler, stopScheduler, sendGreeting, checkAndGreetUser, getUserTimezone };
+module.exports = { startScheduler, stopScheduler, sendGreeting, sendWellness, checkAndGreetUser, getUserTimezone };

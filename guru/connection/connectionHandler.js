@@ -34,12 +34,11 @@ const startWatchdog = (Gifted, startGifted) => {
     watchdogTimer = setInterval(async () => {
         if (isReconnecting) return;
         try {
-            const result = await Promise.race([
-                Gifted.query("ping"),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error("watchdog timeout")), WATCHDOG_TIMEOUT)
-                ),
-            ]);
+            // Use WebSocket readyState as the health check — avoids false-positive
+            // timeouts caused by Gifted.query("ping") not being valid in all baileys versions
+            const ws = Gifted.ws;
+            const isOpen = ws && (ws.readyState === 1 || ws.isOpen === true);
+            if (!isOpen) throw new Error("WebSocket not open");
         } catch (err) {
             if (isReconnecting) return;
             console.warn(`⚠️ Watchdog: socket unresponsive (${err.message}), forcing reconnect...`);
@@ -49,7 +48,7 @@ const startWatchdog = (Gifted, startGifted) => {
             try { Gifted.end(new Error("watchdog forced reconnect")); } catch (_) {}
             setTimeout(() => {
                 isReconnecting = false;
-                isWatchdogReconnect = false;
+                // NOTE: isWatchdogReconnect stays true until onOpen clears it
                 startGifted();
             }, withJitter(RECONNECT_DELAY));
         }
@@ -411,19 +410,13 @@ const setupAntiViewOnce = (Gifted) => {
 };
 
 // ── Auto-Save View-Once: react with ❤️ or 😂 → silently saved to reactor's own DM ──
-// Uses the SQLite message store (reliable regardless of ANTIVIEWONCE setting).
+// Uses _peekVO (non-destructive) so setupAntiViewOnce still works independently.
 let _autoSaveVOActive = false;
-
-// Normalized emoji set — variation selector \uFE0F stripped for reliable matching
-const _AUTOSAVE_EMOJIS_NORMALIZED = new Set(
-    ["❤️", "❤", "😍", "😂", "🤣", "👀", "🔥", "💯", "😱", "🫣"].map(e => e.replace(/\uFE0F/g, ""))
-);
+const _AUTOSAVE_EMOJIS = new Set(["❤️", "❤", "😍", "😂", "🤣"]);
 
 const setupAutoSaveVO = (Gifted) => {
     if (_autoSaveVOActive) return;
     _autoSaveVOActive = true;
-
-    const { loadMsg } = require('../database/messageStore');
 
     Gifted.ev.on("messages.upsert", async ({ messages }) => {
         for (const msg of messages) {
@@ -432,21 +425,17 @@ const setupAutoSaveVO = (Gifted) => {
                 if (msg.key.remoteJid === "status@broadcast") continue;
 
                 const reaction = msg.message.reactionMessage;
-
-                // Normalize: strip variation selectors so ❤️ == ❤ etc.
-                const emojiNorm = (reaction.text || "").replace(/\uFE0F/g, "").trim();
-                if (!_AUTOSAVE_EMOJIS_NORMALIZED.has(emojiNorm)) continue;
+                if (!_AUTOSAVE_EMOJIS.has(reaction.text)) continue;
 
                 const reactedId = reaction.key?.id;
-                const from = msg.key.remoteJid;
-                if (!reactedId || !from) continue;
+                if (!reactedId) continue;
 
-                // Use the SQLite message store — works even if ANTIVIEWONCE is off
-                const original = loadMsg(from, reactedId);
-                if (!original?.message) continue;
-                if (!isViewOnceMsg(original.message)) continue;
+                // Use the in-memory cache — reliable for view-once (avoids DB miss)
+                const cached = _peekVO(reactedId);
+                if (!cached?.message) continue;
+                if (!isViewOnceMsg(cached.message)) continue;
 
-                const { content, type } = extractViewOnceData(original.message);
+                const { content, type } = extractViewOnceData(cached.message);
                 if (!content || !type) continue;
 
                 // Forward silently to the reactor's own DM
@@ -455,14 +444,13 @@ const setupAutoSaveVO = (Gifted) => {
                 const reactorDmJid = `${reactorNum}@s.whatsapp.net`;
 
                 // Show original sender in the caption
-                const origSenderJid = original.key?.participant || original.key?.remoteJid || "";
+                const origSenderJid = cached.key?.participant || cached.key?.remoteJid || "";
                 const origSenderNum  = origSenderJid.split("@")[0].split(":")[0];
 
                 const settings = await getAllSettings();
                 const botName = settings.BOT_NAME || "ULTRA GURU";
 
                 await sendVVAnonymous(Gifted, content, type, reactorDmJid, botName, origSenderNum);
-                console.log(`[AutoSaveVO] Saved view-once for reactor @${reactorNum}`);
             } catch (e) {
                 console.error("[AutoSaveVO] Error:", e.message);
             }
@@ -498,7 +486,11 @@ const setupConnectionHandler = (
 
             startWatchdog(Gifted, startGifted);
 
-            if (callbacks.onOpen) {
+            // Skip startup message on silent watchdog reconnects
+            const wasWatchdogReconnect = isWatchdogReconnect;
+            isWatchdogReconnect = false;
+
+            if (callbacks.onOpen && !wasWatchdogReconnect) {
                 await callbacks.onOpen(Gifted);
             }
 

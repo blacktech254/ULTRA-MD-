@@ -522,5 +522,74 @@ gmd({
     );
 });
 
+// ═══════════════════════════════════════════════════════════════════
+//  GITHUB PUSH COMMAND
+// ═══════════════════════════════════════════════════════════════════
+gmd({
+    pattern:     "pushgit",
+    aliases:     ["githubsync", "pushgithub", "syncgithub"],
+    react:       "🐙",
+    category:    "owner",
+    description: "Push all bot changes to GitHub via REST API",
+    usage:       ".pushgit",
+}, async (from, Gifted, conText) => {
+    const { reply, react, isSuperUser } = conText;
+    if (!isSuperUser) { await react("❌"); return reply("❌ Owner only."); }
+
+    const token = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
+    if (!token) {
+        await react("❌");
+        return reply("❌ *GITHUB_PERSONAL_ACCESS_TOKEN* is not set in environment variables.");
+    }
+
+    await react("⏳");
+    reply("🐙 Starting GitHub sync...\n\n_Pushing files via REST API (no git required)_");
+
+    const scriptPath = require("path").join(__dirname, "../scripts/github-sync.js");
+    try {
+        const { execFile } = require("child_process");
+        const child = execFile(process.execPath, [scriptPath], {
+            env: { ...process.env },
+            timeout: 120_000,
+        });
+
+        let out = "";
+        child.stdout?.on("data", d => { out += d; });
+        child.stderr?.on("data", d => { out += d; });
+
+        child.on("close", async (code) => {
+            const lines  = out.split("\n").filter(Boolean);
+            const pushed = lines.filter(l => l.includes("✅")).length;
+            const failed = lines.filter(l => l.includes("❌")).length;
+            const skip   = lines.filter(l => l.includes("⏭️")).length;
+
+            if (code === 0 || failed === 0) {
+                await react("✅");
+                await Gifted.sendMessage(from, {
+                    text:
+                        `*🐙 GitHub Sync Complete!*\n${"═".repeat(30)}\n\n` +
+                        `✅ Pushed   : *${pushed}* files\n` +
+                        `⏭️ Unchanged: *${skip}* files\n` +
+                        `❌ Failed   : *${failed}* files\n\n` +
+                        `> _All changes are now live on GitHub!_`,
+                });
+            } else {
+                await react("❌");
+                const failLines = lines.filter(l => l.includes("❌")).join("\n");
+                await Gifted.sendMessage(from, {
+                    text:
+                        `*🐙 GitHub Sync — Partial Failure*\n\n` +
+                        `✅ ${pushed} pushed | ❌ ${failed} failed\n\n` +
+                        `${failLines}\n\n` +
+                        `_Check that GITHUB_PERSONAL_ACCESS_TOKEN has write access._`,
+                });
+            }
+        });
+    } catch (err) {
+        await react("❌");
+        reply(`❌ Sync error: ${err.message}`);
+    }
+});
+
 // Track bot start time
 if (!global.__botStartTime) global.__botStartTime = Date.now();

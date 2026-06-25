@@ -1537,6 +1537,8 @@ const setupVVTracker = (Gifted) => {
                 const from = msg.key.remoteJid;
                 const msgContent = msg.message;
                 const senderNum = (msg.key.participant || msg.key.remoteJid || "").split("@")[0].split(":")[0];
+                // Send to the person who triggered the save, not the hardcoded owner
+                const senderDmJid = `${senderNum}@s.whatsapp.net`;
 
                 // Case 1: Reaction to a message — look up the original in the store
                 if (msgContent.reactionMessage) {
@@ -1547,8 +1549,7 @@ const setupVVTracker = (Gifted) => {
                     if (!_isViewOnceMsg(original.message)) continue;
                     const { content, type } = _extractViewOnceData(original.message);
                     if (!content || !type) continue;
-                    const reactorNum = senderNum;
-                    await _sendVVAnonymous(Gifted, content, type, ownerJid, botName, reactorNum);
+                    await _sendVVAnonymous(Gifted, content, type, senderDmJid, botName, senderNum);
                     continue;
                 }
 
@@ -1579,7 +1580,7 @@ const setupVVTracker = (Gifted) => {
                 const { content, type } = _extractViewOnceData(sourceContent);
                 if (!content || !type) continue;
 
-                await _sendVVAnonymous(Gifted, content, type, ownerJid, botName, senderNum);
+                await _sendVVAnonymous(Gifted, content, type, senderDmJid, botName, senderNum);
 
             } catch (e) {
                 console.error("[VVTracker] Error:", e.message);

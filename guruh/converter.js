@@ -3,6 +3,7 @@ const { gmd, toAudio, toVideo, toPtt, stickerToImage, gmdFancy, gmdRandom, getSe
 const fs = require("fs").promises;
 const { StickerTypes } = require("wa-sticker-formatter");
 const { exec } = require("child_process");
+const axios = require("axios");
 
 function ffmpegRun(cmd) {
     return new Promise((resolve, reject) => {
@@ -11,6 +12,26 @@ function ffmpegRun(cmd) {
             else resolve();
         });
     });
+}
+
+// Check magic bytes to tell WebP from MP4/other
+function detectMediaType(buf) {
+    if (buf.length < 12) return "unknown";
+    const riff = buf.slice(0, 4).toString("ascii");
+    const webp = buf.slice(8, 12).toString("ascii");
+    if (riff === "RIFF" && webp === "WEBP") return "webp";
+    // ftyp box sits at offset 4 in MP4
+    const ftyp = buf.slice(4, 8).toString("ascii");
+    if (ftyp === "ftyp") return "mp4";
+    return "other";
+}
+
+// Convert an emoji string to the Twemoji hex code
+function emojiToCode(emoji) {
+    return [...emoji]
+        .map(c => c.codePointAt(0).toString(16))
+        .filter(cp => cp !== "fe0f")   // strip variation selector-16
+        .join("-");
 }
 
 gmd({
@@ -498,6 +519,152 @@ gmd({
     } finally {
         if (tempMp4) await fs.unlink(tempMp4).catch(() => {});
         if (tempGif) await fs.unlink(tempGif).catch(() => {});
+    }
+});
+
+
+gmd({
+    pattern: "emojisticker",
+    aliases: ["esticker", "emojist", "e2sticker"],
+    category: "converter",
+    react: "😄",
+    description: "Convert an emoji to a sticker. Usage: .emojisticker 😂"
+}, async (from, Gifted, conText) => {
+    const { q, mek, reply, react, packName, packAuthor } = conText;
+
+    const raw = (q || "").trim();
+    if (!raw) {
+        await react("❌");
+        return reply(`Please provide an emoji.\nUsage: *.emojisticker* 😂`);
+    }
+
+    const emojiMatch = raw.match(/\p{Emoji}/u);
+    if (!emojiMatch) {
+        await react("❌");
+        return reply("No emoji detected. Please send a valid emoji. Example: *.emojisticker* 🔥");
+    }
+    const emoji = emojiMatch[0];
+    const code  = emojiToCode(emoji);
+
+    const urls = [
+        `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${code}.png`,
+        `https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/${code}.png`,
+    ];
+
+    let pngBuffer;
+    for (const url of urls) {
+        try {
+            const res = await axios.get(url, { responseType: "arraybuffer", timeout: 10000 });
+            pngBuffer = Buffer.from(res.data);
+            break;
+        } catch (_) {}
+    }
+
+    if (!pngBuffer) {
+        await react("❌");
+        return reply(`❌ Could not find Twemoji image for *${emoji}* (code: \`${code}\`).\nOnly standard emojis are supported.`);
+    }
+
+    let tempPng;
+    try {
+        tempPng = gmdRandom(".png");
+        await fs.writeFile(tempPng, pngBuffer);
+
+        const stickerBuffer = await gmdSticker(tempPng, {
+            pack:   packName   || "ULTRA GURU",
+            author: packAuthor || "GURU-TECH",
+            type:   StickerTypes.FULL,
+            categories: ["🤩", "🎉"],
+            id:     "12345",
+            quality: 90,
+            background: "transparent"
+        });
+
+        await Gifted.sendMessage(from, { sticker: stickerBuffer }, { quoted: mek });
+        await react("✅");
+    } catch (e) {
+        console.error("[emojisticker] Error:", e.message);
+        await react("❌");
+        await reply("Failed to create emoji sticker: " + e.message);
+    } finally {
+        if (tempPng) await fs.unlink(tempPng).catch(() => {});
+    }
+});
+
+
+gmd({
+    pattern: "s2real",
+    aliases: ["sticker2real", "realvideo", "vstickertomp4"],
+    category: "converter",
+    react: "🎬",
+    description: "Convert a video sticker to a real MP4 with original audio (if present). Reply to a sticker."
+}, async (from, Gifted, conText) => {
+    const { mek, reply, react, quotedMsg, botFooter, sender, botName, newsletterJid } = conText;
+
+    if (!quotedMsg) {
+        await react("❌");
+        return reply("Please reply to a sticker message.");
+    }
+
+    const quotedSticker = quotedMsg?.stickerMessage || quotedMsg?.message?.stickerMessage;
+    if (!quotedSticker) {
+        await react("❌");
+        return reply("The quoted message is not a sticker.");
+    }
+
+    let tempInput, tempMp4;
+    try {
+        const filePath = await Gifted.downloadAndSaveMediaMessage(quotedSticker, "temp_media");
+        const rawBuffer = await fs.readFile(filePath);
+        await fs.unlink(filePath).catch(() => {});
+
+        const mediaType = detectMediaType(rawBuffer);
+
+        if (mediaType === "mp4") {
+            // Already an MP4-based video sticker — send directly with original audio intact
+            await Gifted.sendMessage(from, {
+                video: rawBuffer,
+                mimetype: "video/mp4",
+                caption: `🎬 *Video Sticker → Real Video*\n🔊 _Audio preserved_\n\n> _${botFooter}_`,
+                contextInfo: {
+                    mentionedJid: [sender],
+                    forwardingScore: 5,
+                    isForwarded: true,
+                    forwardedNewsletterMessageInfo: { newsletterJid, newsletterName: botName, serverMessageId: 146 }
+                }
+            }, { quoted: mek });
+            return await react("✅");
+        }
+
+        // WebP animated sticker → convert to MP4 via FFmpeg (audio not recoverable)
+        tempInput = gmdRandom(".webp");
+        tempMp4   = gmdRandom(".mp4");
+        await fs.writeFile(tempInput, rawBuffer);
+
+        await ffmpegRun(
+            `ffmpeg -i "${tempInput}" -c:v libx264 -pix_fmt yuv420p -movflags faststart -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -r 15 -t 10 "${tempMp4}" -y`
+        );
+
+        const videoBuffer = await fs.readFile(tempMp4);
+        await Gifted.sendMessage(from, {
+            video: videoBuffer,
+            mimetype: "video/mp4",
+            caption: `🎬 *Animated Sticker → Video*\n⚠️ _WebP sticker — audio is not recoverable_\n\n> _${botFooter}_`,
+            contextInfo: {
+                mentionedJid: [sender],
+                forwardingScore: 5,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: { newsletterJid, newsletterName: botName, serverMessageId: 146 }
+            }
+        }, { quoted: mek });
+        await react("✅");
+    } catch (e) {
+        console.error("[s2real] Error:", e.message);
+        await react("❌");
+        await reply("Failed to convert sticker to real video: " + e.message);
+    } finally {
+        if (tempInput) await fs.unlink(tempInput).catch(() => {});
+        if (tempMp4)   await fs.unlink(tempMp4).catch(() => {});
     }
 });
 

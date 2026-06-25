@@ -411,13 +411,19 @@ const setupAntiViewOnce = (Gifted) => {
 };
 
 // ── Auto-Save View-Once: react with ❤️ or 😂 → silently saved to reactor's own DM ──
-// Uses _peekVO (non-destructive) so setupAntiViewOnce still works independently.
+// Uses the SQLite message store (reliable regardless of ANTIVIEWONCE setting).
 let _autoSaveVOActive = false;
-const _AUTOSAVE_EMOJIS = new Set(["❤️", "❤", "😍", "😂", "🤣"]);
+
+// Normalized emoji set — variation selector \uFE0F stripped for reliable matching
+const _AUTOSAVE_EMOJIS_NORMALIZED = new Set(
+    ["❤️", "❤", "😍", "😂", "🤣", "👀", "🔥", "💯", "😱", "🫣"].map(e => e.replace(/\uFE0F/g, ""))
+);
 
 const setupAutoSaveVO = (Gifted) => {
     if (_autoSaveVOActive) return;
     _autoSaveVOActive = true;
+
+    const { loadMsg } = require('../database/messageStore');
 
     Gifted.ev.on("messages.upsert", async ({ messages }) => {
         for (const msg of messages) {
@@ -426,17 +432,21 @@ const setupAutoSaveVO = (Gifted) => {
                 if (msg.key.remoteJid === "status@broadcast") continue;
 
                 const reaction = msg.message.reactionMessage;
-                if (!_AUTOSAVE_EMOJIS.has(reaction.text)) continue;
+
+                // Normalize: strip variation selectors so ❤️ == ❤ etc.
+                const emojiNorm = (reaction.text || "").replace(/\uFE0F/g, "").trim();
+                if (!_AUTOSAVE_EMOJIS_NORMALIZED.has(emojiNorm)) continue;
 
                 const reactedId = reaction.key?.id;
-                if (!reactedId) continue;
+                const from = msg.key.remoteJid;
+                if (!reactedId || !from) continue;
 
-                // Use the in-memory cache — reliable for view-once (avoids DB miss)
-                const cached = _peekVO(reactedId);
-                if (!cached?.message) continue;
-                if (!isViewOnceMsg(cached.message)) continue;
+                // Use the SQLite message store — works even if ANTIVIEWONCE is off
+                const original = loadMsg(from, reactedId);
+                if (!original?.message) continue;
+                if (!isViewOnceMsg(original.message)) continue;
 
-                const { content, type } = extractViewOnceData(cached.message);
+                const { content, type } = extractViewOnceData(original.message);
                 if (!content || !type) continue;
 
                 // Forward silently to the reactor's own DM
@@ -445,13 +455,14 @@ const setupAutoSaveVO = (Gifted) => {
                 const reactorDmJid = `${reactorNum}@s.whatsapp.net`;
 
                 // Show original sender in the caption
-                const origSenderJid = cached.key?.participant || cached.key?.remoteJid || "";
+                const origSenderJid = original.key?.participant || original.key?.remoteJid || "";
                 const origSenderNum  = origSenderJid.split("@")[0].split(":")[0];
 
                 const settings = await getAllSettings();
                 const botName = settings.BOT_NAME || "ULTRA GURU";
 
                 await sendVVAnonymous(Gifted, content, type, reactorDmJid, botName, origSenderNum);
+                console.log(`[AutoSaveVO] Saved view-once for reactor @${reactorNum}`);
             } catch (e) {
                 console.error("[AutoSaveVO] Error:", e.message);
             }

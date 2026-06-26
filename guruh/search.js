@@ -3,8 +3,8 @@ const { gmd, gmdSticker } = require("../guru"),
   fss = require("fs"),
   os = require("os"),
   path = require("path"),
+  { execSync } = require("child_process"),
   ffmpeg = require("fluent-ffmpeg"),
-  ffmpegPath = require("ffmpeg-static"),
   axios = require("axios"),
   stream = require("stream"),
   { promisify } = require("util"),
@@ -16,6 +16,16 @@ const { gmd, gmdSticker } = require("../guru"),
   { sendButtons } = require("gifted-btns"),
   { StickerTypes } = require("wa-sticker-formatter");
 
+// Resolve ffmpeg binary: prefer ffmpeg-static, fall back to system ffmpeg
+let _srchFfmpegBin;
+try {
+  const sp = require("ffmpeg-static");
+  _srchFfmpegBin = (sp && fss.existsSync(sp)) ? sp : execSync("which ffmpeg").toString().trim();
+} catch (_) {
+  try { _srchFfmpegBin = execSync("which ffmpeg").toString().trim(); } catch (__) { _srchFfmpegBin = "ffmpeg"; }
+}
+ffmpeg.setFfmpegPath(_srchFfmpegBin);
+
 gmd(
   {
     pattern: "yts",
@@ -25,7 +35,7 @@ gmd(
     description: "perform youtube search",
   },
   async (from, Gifted, conText) => {
-    const { q, mek, reply, react, sender, botFooter, gmdBuffer } = conText;
+    const { q, mek, reply, react, sender, botFooter, gmdBuffer, GiftedTechApi, GiftedApiKey } = conText;
 
     if (!q) {
       await react("❌");
@@ -33,8 +43,8 @@ gmd(
     }
 
     try {
-      const apiUrl = `https://res.cloudinary.com/dqxlb29uz/image/upload/v1780267810/bwm_uploads/media-1780267810008.jpg/?q=${encodeURIComponent(q)}`;
-      const res = await axios.get(apiUrl, { timeout: 100000 });
+      const apiUrl = `${GiftedTechApi}/api/search/youtube?apikey=${GiftedApiKey}&q=${encodeURIComponent(q)}`;
+      const res = await axios.get(apiUrl, { timeout: 30000 });
       const results = res.data?.videos;
 
       if (!Array.isArray(results) || results.length === 0) return;
@@ -176,7 +186,6 @@ gmd(
           const tmpOut = path.join(os.tmpdir(), `shazam_out_${Date.now()}.${ext}`);
           fss.writeFileSync(tmpIn, buffer);
           await new Promise((resolve, reject) => {
-            ffmpeg.setFfmpegPath(ffmpegPath);
             ffmpeg(tmpIn)
               .outputOptions(["-t", "20", "-c", "copy"])
               .on("end", resolve)

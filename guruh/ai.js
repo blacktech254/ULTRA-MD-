@@ -1,6 +1,34 @@
 
 const { gmd } = require("../guru");
 const axios = require("axios");
+const Database = require("better-sqlite3");
+const path = require("path");
+const fs = require("fs-extra");
+
+// ── Persistent Meta AI memory (SQLite) ──────────────────────────────────────
+const AI_DB_DIR = path.join(__dirname, "../guru/database");
+fs.ensureDirSync(AI_DB_DIR);
+const _aiDb = new Database(path.join(AI_DB_DIR, "ai_memory.db"));
+_aiDb.pragma("journal_mode = WAL");
+_aiDb.pragma("synchronous = NORMAL");
+_aiDb.exec(`
+    CREATE TABLE IF NOT EXISTS meta_memory (
+        jid   TEXT NOT NULL,
+        role  TEXT NOT NULL,
+        content TEXT NOT NULL,
+        ts    INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_meta_jid ON meta_memory(jid, ts);
+`);
+const _stmtInsert = _aiDb.prepare("INSERT INTO meta_memory (jid, role, content) VALUES (?, ?, ?)");
+const _stmtFetch  = _aiDb.prepare("SELECT role, content FROM meta_memory WHERE jid = ? ORDER BY ts ASC");
+const _stmtCount  = _aiDb.prepare("SELECT COUNT(*) as cnt FROM meta_memory WHERE jid = ?");
+const _stmtDeleteOld = _aiDb.prepare(`
+    DELETE FROM meta_memory WHERE jid = ? AND rowid NOT IN (
+        SELECT rowid FROM meta_memory WHERE jid = ? ORDER BY ts DESC LIMIT 20
+    )
+`);
+const _stmtClear  = _aiDb.prepare("DELETE FROM meta_memory WHERE jid = ?");
 
 const IDENTITY_PATTERNS = [
     /who\s*(made|created|built|programmed|coded|developed)\s*you/i,
@@ -404,19 +432,19 @@ gmd(
     }
 );
 
-// ─── META AI — Real Meta Llama with conversation memory ──────────────────────
-
-const _metaMemory = new Map(); // jid → [{ role, content }]
+// ─── META AI — Real Meta Llama with persistent conversation memory ────────────
 
 function _metaGetHistory(jid) {
-    if (!_metaMemory.has(jid)) _metaMemory.set(jid, []);
-    return _metaMemory.get(jid);
+    return _stmtFetch.all(jid);
 }
 
 function _metaAddHistory(jid, role, content) {
-    const hist = _metaGetHistory(jid);
-    hist.push({ role, content });
-    if (hist.length > 20) hist.splice(0, 2);
+    _stmtInsert.run(jid, role, content);
+    _stmtDeleteOld.run(jid, jid);
+}
+
+function _metaClearHistory(jid) {
+    _stmtClear.run(jid);
 }
 
 async function metaAIQuery(prompt, senderJid) {
@@ -500,8 +528,8 @@ gmd(
     async (from, Gifted, conText) => {
         const { reply, react, sender, botFooter, botName } = conText;
         const footer = buildFooter(botFooter, botName);
-        _metaMemory.delete(sender);
         if (react) await react("✅");
+        _metaClearHistory(sender);
         await reply(`🗑️ *Meta AI memory cleared!*\n\nYour conversation history has been reset. Start a fresh chat with *.metaai*${footer}`);
     }
 );

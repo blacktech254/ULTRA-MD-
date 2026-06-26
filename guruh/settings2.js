@@ -449,11 +449,12 @@ gmd(
     const { reply, react, botName, botFooter } = conText;
     await react("🔗");
     try {
-      let repoUrl = (await getSetting("BOT_REPO")) || "https://github.com/blacktech254/ULTRA-MD-";
-      // Normalize old short-form values (e.g. "User/repo") to full GitHub URL
-      if (repoUrl && !repoUrl.startsWith("http")) {
-        repoUrl = `https://github.com/${repoUrl}`;
-      }
+      const BOT_GITHUB = "https://github.com/blacktech254/ULTRA-MD-";
+      // Use DB only if owner explicitly changed it via .setbotrepo, otherwise hardcoded
+      let repoUrl = (await getSetting("BOT_REPO")) || BOT_GITHUB;
+      if (!repoUrl.startsWith("http")) repoUrl = `https://github.com/${repoUrl}`;
+      // Reset stale old default silently
+      if (repoUrl === "https://github.com/GuruhTech/ULTRA-GURU") repoUrl = BOT_GITHUB;
       const botN     = botName || "ULTRA GURU MD";
       const footer   = botFooter ? `\n\n> *${botFooter}*` : "";
       await reply(

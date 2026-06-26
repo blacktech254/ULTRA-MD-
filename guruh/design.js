@@ -476,9 +476,13 @@ const THEME_KEYS = Object.keys(THEMES);
 
 // ─── shared send helper ───────────────────────────────────────────────────────
 
+const MENU_IMAGE_URL = "https://res.cloudinary.com/dqxlb29uz/image/upload/v1780267810/bwm_uploads/media-1780267810008.jpg";
+
 async function sendMenuMsg(Gifted, from, text, conText) {
     const { mek, botName, newsletterJid, sender } = conText;
-    const picUrl = (await getSetting("BOT_PIC")) || conText.botPic;
+    // Use custom menu pic if owner set one via .setmenupic, otherwise use hardcoded default
+    const customPic = await getSetting("MENU_PIC_CUSTOM");
+    const picUrl = customPic || MENU_IMAGE_URL;
     try {
         await Gifted.sendMessage(from, {
             image: { url: picUrl },
@@ -701,7 +705,7 @@ gmd(
                 if (!finalUrl) throw new Error("Upload to catbox failed — try a URL instead.");
             }
 
-            await setSetting("BOT_PIC", finalUrl);
+            await setSetting("MENU_PIC_CUSTOM", finalUrl);
             await react("✅");
             await reply(`✅ Menu image updated!\n\nURL: ${finalUrl}\n\nSend *.menu* to see the result.`);
         } catch (error) {

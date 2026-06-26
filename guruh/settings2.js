@@ -449,7 +449,11 @@ gmd(
     const { reply, react, botName, botFooter } = conText;
     await react("🔗");
     try {
-      const repoUrl  = (await getSetting("BOT_REPO")) || "https://github.com/blacktech254/ULTRA-MD-";
+      let repoUrl = (await getSetting("BOT_REPO")) || "https://github.com/blacktech254/ULTRA-MD-";
+      // Normalize old short-form values (e.g. "User/repo") to full GitHub URL
+      if (repoUrl && !repoUrl.startsWith("http")) {
+        repoUrl = `https://github.com/${repoUrl}`;
+      }
       const botN     = botName || "ULTRA GURU MD";
       const footer   = botFooter ? `\n\n> *${botFooter}*` : "";
       await reply(

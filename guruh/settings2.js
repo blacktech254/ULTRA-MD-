@@ -439,24 +439,55 @@ gmd(
 
 gmd(
   {
+    pattern: "repo",
+    aliases: ["botrepo", "source", "github"],
+    react: "🔗",
+    category: "general",
+    description: "Show the bot GitHub repository link",
+  },
+  async (from, Gifted, conText) => {
+    const { reply, react, botName, botFooter } = conText;
+    await react("🔗");
+    try {
+      const repoUrl  = (await getSetting("BOT_REPO")) || "https://github.com/blacktech254/ULTRA-MD-";
+      const botN     = botName || "ULTRA GURU MD";
+      const footer   = botFooter ? `\n\n> *${botFooter}*` : "";
+      await reply(
+`🌟 *${botN} — Source Code*
+
+┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+📦 *Repository:*
+${repoUrl}
+┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+⭐ _Star the repo to support development!_
+🍴 _Fork it to deploy your own instance._${footer}`
+      );
+    } catch (error) {
+      await reply(`❌ Error: ${error.message}`);
+    }
+  },
+);
+
+gmd(
+  {
     pattern: "setbotrepo",
-    aliases: ["botrepo", "repo", "setrepo"],
+    aliases: ["setrepo"],
     react: "⚙️",
     category: "owner",
-    description: "Set bot repository",
+    description: "Set bot repository URL. Usage: .setbotrepo <url>",
   },
   async (from, Gifted, conText) => {
     const { q, reply, react, isSuperUser } = conText;
     if (!isSuperUser) return reply("❌ Owner Only Command!");
-    if (!q) return reply("❌ Please provide a repository!");
+    if (!q) return reply(`❌ Please provide a repository URL!\n\nExample:\n*.setbotrepo https://github.com/yourusername/your-repo*`);
     try {
       const current = await getSetting("BOT_REPO");
       if (current === q.trim()) {
-        return reply(`⚠️ Bot repository is already set to: *${q.trim()}*`);
+        return reply(`⚠️ Bot repository is already set to:\n${q.trim()}`);
       }
       await setSetting("BOT_REPO", q.trim());
       await react("✅");
-      await reply(`✅ Bot repository set to: *${q.trim()}*`);
+      await reply(`✅ Bot repository updated!\n\n🔗 ${q.trim()}`);
     } catch (error) {
       await reply(`❌ Error: ${error.message}`);
     }

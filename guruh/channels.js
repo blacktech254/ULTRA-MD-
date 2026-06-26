@@ -273,7 +273,7 @@ gmd(
 );
 
 // ─────────────────────────────────────────────────────────────
-//  BROADCASTDM — broadcast a message to all DM contacts
+//  BROADCASTDM — broadcast a message/media to all DM contacts
 // ─────────────────────────────────────────────────────────────
 gmd(
   {
@@ -281,22 +281,23 @@ gmd(
     aliases: ["bcdm", "dmall", "dmbroadcast"],
     react: "📨",
     category: "owner",
-    description: "Broadcast a message to saved DM chats. Usage: .broadcastdm <message>",
+    description: "Broadcast a message/media to saved DM contacts. Usage: .broadcastdm <message> or quote media",
   },
   async (from, Gifted, conText) => {
-    const { reply, react, isSuperUser, q, botFooter } = conText;
+    const { reply, react, isSuperUser, q, botFooter, quoted } = conText;
     if (!isSuperUser) {
       await react("❌");
       return reply("❌ Owner Only Command!");
     }
-    if (!q) return reply("❌ Provide a message!\nExample: `.broadcastdm Hey! 👋`");
+    if (!q && !quoted) return reply("❌ Provide a message or quote media!\nExample: `.broadcastdm Hey! 👋`");
 
     await react("📨");
+    const text = q || "";
+
     try {
-      const chats = await Gifted.groupFetchAllParticipating(); // get all group jids to exclude
+      const chats = await Gifted.groupFetchAllParticipating();
       const groupJids = new Set(Object.keys(chats));
 
-      // Get all chats from store/contacts
       const contacts = Gifted.store?.contacts || {};
       const dmJids = Object.keys(contacts).filter(
         j => j.endsWith("@s.whatsapp.net") && !groupJids.has(j)
@@ -310,7 +311,12 @@ gmd(
       let failed = 0;
       for (const jid of dmJids) {
         try {
-          await Gifted.sendMessage(jid, { text: q });
+          if (quoted) {
+            await Gifted.sendMessage(jid, { forward: quoted }, { quoted: null });
+            if (text) await Gifted.sendMessage(jid, { text });
+          } else {
+            await Gifted.sendMessage(jid, { text });
+          }
           success++;
           await new Promise(r => setTimeout(r, 800));
         } catch (_) {
@@ -329,6 +335,109 @@ gmd(
     } catch (err) {
       await react("❌");
       await reply(`❌ Error: ${err.message}`);
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────
+//  BROADCASTALL — broadcast to ALL groups + DM contacts
+// ─────────────────────────────────────────────────────────────
+gmd(
+  {
+    pattern: "broadcastall",
+    aliases: ["bcall", "sendeveryone", "massbroadcast"],
+    react: "📢",
+    category: "owner",
+    description: "Broadcast a message to ALL groups and DM contacts. Usage: .broadcastall <message> or quote media",
+  },
+  async (from, Gifted, conText) => {
+    const { reply, react, isSuperUser, q, botFooter, quoted } = conText;
+    if (!isSuperUser) {
+      await react("❌");
+      return reply("❌ Owner Only Command!");
+    }
+    if (!q && !quoted) return reply(
+      "❌ Provide a message or quote media!\n\n" +
+      "Example: `.broadcastall 🔥 Bot update coming soon!`\n\n" +
+      "⚠️ _This sends to every group AND every DM contact — use carefully!_"
+    );
+
+    await react("📢");
+    const text = q || "";
+
+    try {
+      // ── Fetch groups ──────────────────────────────────────
+      const groupsMap  = await Gifted.groupFetchAllParticipating();
+      const groupJids  = Object.keys(groupsMap);
+
+      // ── Fetch DM contacts ─────────────────────────────────
+      const groupSet   = new Set(groupJids);
+      const contacts   = Gifted.store?.contacts || {};
+      const dmJids     = Object.keys(contacts).filter(
+        j => j.endsWith("@s.whatsapp.net") && !groupSet.has(j)
+      );
+
+      const totalTargets = groupJids.length + dmJids.length;
+      if (!totalTargets) return reply("⚠️ No groups or contacts found!");
+
+      await reply(
+        `📢 *Mass Broadcast Starting...*\n\n` +
+        `👥 Groups : ${groupJids.length}\n` +
+        `💬 DMs    : ${dmJids.length}\n` +
+        `📊 Total  : ${totalTargets}\n\n` +
+        `⏳ _Please wait..._`
+      );
+
+      let gSuccess = 0, gFailed = 0;
+      let dSuccess = 0, dFailed = 0;
+
+      // ── Send to groups ────────────────────────────────────
+      for (const jid of groupJids) {
+        try {
+          if (quoted) {
+            await Gifted.sendMessage(jid, { forward: quoted }, { quoted: null });
+            if (text) await Gifted.sendMessage(jid, { text });
+          } else {
+            await Gifted.sendMessage(jid, { text });
+          }
+          gSuccess++;
+          await new Promise(r => setTimeout(r, 500));
+        } catch (_) {
+          gFailed++;
+        }
+      }
+
+      // ── Send to DMs ───────────────────────────────────────
+      for (const jid of dmJids) {
+        try {
+          if (quoted) {
+            await Gifted.sendMessage(jid, { forward: quoted }, { quoted: null });
+            if (text) await Gifted.sendMessage(jid, { text });
+          } else {
+            await Gifted.sendMessage(jid, { text });
+          }
+          dSuccess++;
+          await new Promise(r => setTimeout(r, 800));
+        } catch (_) {
+          dFailed++;
+        }
+      }
+
+      await react("✅");
+      await reply(
+        `📢 *Mass Broadcast Complete!*\n\n` +
+        `👥 *Groups*\n` +
+        `   ✅ Delivered : ${gSuccess}\n` +
+        `   ❌ Failed    : ${gFailed}\n\n` +
+        `💬 *DMs*\n` +
+        `   ✅ Delivered : ${dSuccess}\n` +
+        `   ❌ Failed    : ${dFailed}\n\n` +
+        `📊 *Total Reached : ${gSuccess + dSuccess} / ${totalTargets}*\n\n` +
+        `> _${botFooter}_`
+      );
+    } catch (err) {
+      await react("❌");
+      await reply(`❌ Broadcast error: ${err.message}`);
     }
   }
 );

@@ -2,12 +2,24 @@
 const { gmd, toAudio, toVideo, toPtt, stickerToImage, gmdFancy, gmdRandom, getSetting, runFFmpeg, getVideoDuration, gmdSticker } = require("../guru");
 const fs = require("fs").promises;
 const { StickerTypes } = require("wa-sticker-formatter");
-const { exec } = require("child_process");
+const { exec, execSync } = require("child_process");
 const axios = require("axios");
 
+// Resolve ffmpeg binary: prefer ffmpeg-static, fall back to system ffmpeg
+let _ffmpegBin;
+try {
+    const sp = require('ffmpeg-static');
+    const fss = require('fs');
+    _ffmpegBin = (sp && fss.existsSync(sp)) ? sp : execSync('which ffmpeg').toString().trim();
+} catch (_) {
+    try { _ffmpegBin = execSync('which ffmpeg').toString().trim(); } catch (__) { _ffmpegBin = 'ffmpeg'; }
+}
+
 function ffmpegRun(cmd) {
+    // Replace leading bare 'ffmpeg' with the resolved binary path
+    const resolvedCmd = cmd.replace(/^ffmpeg\b/, `"${_ffmpegBin}"`);
     return new Promise((resolve, reject) => {
-        exec(cmd, (err, _stdout, stderr) => {
+        exec(resolvedCmd, (err, _stdout, stderr) => {
             if (err) reject(new Error(stderr || err.message));
             else resolve();
         });

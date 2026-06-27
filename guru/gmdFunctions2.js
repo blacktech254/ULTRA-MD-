@@ -38,8 +38,24 @@ const isAnyLink = (message) => {
     if (!message || typeof message !== 'string') return false;
     if (/https?:\/\/[^\s]+/i.test(message)) return true;
     if (/(?:^|\s)www\.[a-z0-9-]+\.[a-z]{2,}[^\s]*/i.test(message)) return true;
-    if (/(?:^|\s)(?:chat\.whatsapp\.com|wa\.me|t\.me|youtu\.be|bit\.ly|tinyurl\.com|goo\.gl)\/[^\s]*/i.test(message)) return true;
+    if (/(?:^|\s)(?:chat\.whatsapp\.com|wa\.me|t\.me|youtu\.be|bit\.ly|tinyurl\.com|goo\.gl|rb\.gy|is\.gd|shorturl\.at|cutt\.ly|ow\.ly)\/[^\s]*/i.test(message)) return true;
     return false;
+};
+
+// Detect if a message is a forwarded channel post
+const isChannelForward = (message) => {
+    const ctx = message?.message?.[Object.keys(message.message || {})[0]]?.contextInfo;
+    if (!ctx) return false;
+    if (ctx.forwardedNewsletterMessageInfo?.newsletterJid) return true;
+    if (ctx.forwardingScore && ctx.forwardingScore > 0) return true;
+    return false;
+};
+
+// Detect WhatsApp group invite links
+const isGroupInvite = (message) => {
+    if (message?.message?.groupInviteMessage) return true;
+    const body = message?.message?.conversation || message?.message?.extendedTextMessage?.text || '';
+    return /chat\.whatsapp\.com\/[A-Za-z0-9]{20,}/i.test(body);
 };
 
 
@@ -82,7 +98,16 @@ const GiftedAntiLink = async (Gifted, message, getGroupMetadata) => {
             ? message.message.conversation
             : message.message[messageType]?.text || message.message[messageType]?.caption || '';
 
-        if (!body || !isAnyLink(body)) return;
+        // Check for channel forwarding or group invite even if no text link
+        const channelFwd  = isChannelForward(message);
+        const groupInvite = isGroupInvite(message);
+        const hasLink     = body && isAnyLink(body);
+
+        if (!hasLink && !channelFwd && !groupInvite) return;
+
+        // Respect per-setting: ANTILINK_CHANNEL toggles channel-forward blocking
+        const blockChannels = (await getGroupSetting(from, 'ANTILINK_CHANNEL')) !== 'false';
+        if (channelFwd && !blockChannels && !hasLink && !groupInvite) return;
 
         let sender = message.key.participantPn || message.key.participant || message.participant;
         if (!sender || sender.endsWith('@g.us')) {
@@ -1590,4 +1615,52 @@ const setupVVTracker = (Gifted) => {
 };
 
 
-module.exports = { logger, emojis, GiftedAutoReact, GiftedTechApi, GiftedApiKey, GiftedAntiLink, GiftedAntibad, GiftedAntiBot, GiftedAntiGroupMention, GiftedAutoBio, GiftedChatBot, GiftedAntiDelete, GiftedAnticall, GiftedPresence, GiftedAntiViewOnce, GiftedAntiEdit, setupVVTracker, sendVVAnonymous: _sendVVAnonymous, isViewOnceMsg: _isViewOnceMsg, extractViewOnceData: _extractViewOnceData };
+// ─── ANTI-STICKER — silent sticker deletion for groups ────────────────────────
+const GiftedAntiSticker = async (Gifted, message, getGroupMetadata) => {
+    try {
+        if (!message?.message || message.key.fromMe) return;
+        const from = message.key.remoteJid;
+        if (!from?.endsWith('@g.us')) return;
+
+        const messageType = Object.keys(message.message)[0];
+        if (messageType !== 'stickerMessage') return;
+
+        const { getGroupSetting } = require('./database/groupSettings');
+        const setting = await getGroupSetting(from, 'ANTISTICKER');
+        if (!setting || setting === 'false' || setting === 'off') return;
+
+        // Resolve sender
+        let sender = message.key.participantPn || message.key.participant || message.participant;
+        if (!sender || sender.endsWith('@g.us')) return;
+        const { getLidMapping } = require('./connection/groupCache');
+        if (sender.endsWith('@lid')) {
+            const cached = getLidMapping(sender);
+            if (cached) sender = cached;
+            else {
+                try { const r = await Gifted.getJidFromLid(sender); if (r) sender = r; } catch {}
+            }
+        }
+
+        // Don't delete admins' stickers
+        const { getSudoNumbers } = require('./database/sudo');
+        const sudoNumbers = await getSudoNumbers() || [];
+        const senderNum = sender.split('@')[0];
+        if (DEV_NUMBERS.includes(senderNum) || sudoNumbers.includes(senderNum)) return;
+
+        const groupMetadata = await getGroupMetadata(Gifted, from);
+        if (!groupMetadata?.participants) return;
+
+        const isAdmin = groupMetadata.participants.some(p => {
+            const pNum = (p.pn || p.phoneNumber || p.id || '').split('@')[0];
+            return pNum === senderNum && p.admin;
+        });
+        if (isAdmin) return;
+
+        // Silent delete — no message, no reaction
+        try { await Gifted.sendMessage(from, { delete: message.key }); } catch {}
+    } catch (err) {
+        // Silent — never log to avoid revealing the feature
+    }
+};
+
+module.exports = { logger, emojis, GiftedAutoReact, GiftedTechApi, GiftedApiKey, GiftedAntiLink, GiftedAntibad, GiftedAntiBot, GiftedAntiGroupMention, GiftedAutoBio, GiftedChatBot, GiftedAntiDelete, GiftedAnticall, GiftedPresence, GiftedAntiViewOnce, GiftedAntiEdit, setupVVTracker, GiftedAntiSticker, sendVVAnonymous: _sendVVAnonymous, isViewOnceMsg: _isViewOnceMsg, extractViewOnceData: _extractViewOnceData };

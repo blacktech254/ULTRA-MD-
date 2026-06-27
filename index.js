@@ -638,12 +638,31 @@ function setupStatusHandlers(Gifted) {
 const processedMessages = new Set();
 const BOT_START_TIME = Date.now();
 
+// ── Settings cache — re-read DB at most once every 30 s ──────────────────────
+let _settingsCache = null;
+let _settingsCacheTs = 0;
+const SETTINGS_CACHE_TTL = 30000;
+async function getCachedSettings() {
+    const now = Date.now();
+    if (_settingsCache && (now - _settingsCacheTs) < SETTINGS_CACHE_TTL) {
+        return _settingsCache;
+    }
+    _settingsCache = await getAllSettings();
+    _settingsCacheTs = now;
+    return _settingsCache;
+}
+// Allow commands like .setbotname to bust the cache immediately
+global._bustSettingsCache = () => { _settingsCacheTs = 0; };
+
 function setupCommandHandler(Gifted) {
     Gifted.ev.on("messages.upsert", async ({ messages, type }) => {
         if (type === "append") return;
 
         const ms = messages[0];
         if (!ms?.message || !ms?.key) return;
+
+        // Track last activity for ghost-connection watchdog
+        global._lastMessageActivity = Date.now();
 
         const messageId = ms.key.id;
         if (processedMessages.has(messageId)) return;
@@ -656,7 +675,7 @@ function setupCommandHandler(Gifted) {
         if (messageTimestamp && messageTimestamp < BOT_START_TIME - 5000)
             return;
 
-        const settings = await getAllSettings();
+        const settings = await getCachedSettings();
         const botId = standardizeJid(Gifted.user?.id);
 
         const serialized = await serializeMessage(ms, Gifted, settings);

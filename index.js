@@ -40,6 +40,7 @@ const {
     GiftedAntiBot,
     GiftedAntiGroupMention,
     GiftedAutoBio,
+    GiftedAntiSticker,
     handleGameMessage,
     GiftedChatBot,
     loadSession,
@@ -545,6 +546,7 @@ function setupChatBotAndAntiLink(Gifted) {
                 await GiftedAntiLink(Gifted, message, getGroupMetadata);
                 await GiftedAntibad(Gifted, message, getGroupMetadata);
                 await GiftedAntiBot(Gifted, message, getGroupMetadata);
+                await GiftedAntiSticker(Gifted, message, getGroupMetadata);
             }
             await GiftedAntiGroupMention(Gifted, message, getGroupMetadata);
             await handleGameMessage(Gifted, message);

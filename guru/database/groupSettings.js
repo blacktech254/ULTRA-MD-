@@ -46,6 +46,8 @@ const GROUP_SETTING_DEFAULTS = {
     ANTIPROMOTE: "false",
     ANTIDEMOTE: "false",
     ANTIBOT: "false",
+    ANTISTICKER: "false",
+    ANTILINK_CHANNEL: "true",
 };
 
 const AntilinkWarningsDB = DATABASE.define(

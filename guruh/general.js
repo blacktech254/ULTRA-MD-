@@ -42,7 +42,8 @@ gmd(
         description: "Reply with a category number to browse commands",
     },
     async (from, Gifted, conText) => {
-        const { body, mek, botName, botPrefix, botFooter, newsletterJid, newsletterUrl, botPic, sender } = conText;
+        const HARDCODED_PIC = "https://res.cloudinary.com/dqxlb29uz/image/upload/v1780267810/bwm_uploads/media-1780267810008.jpg";
+        const { body, mek, botName, botPrefix, botFooter, newsletterJid, newsletterUrl, sender } = conText;
 
         const n    = parseInt(body.trim(), 10);
         const cats = getSortedCategories();
@@ -86,9 +87,9 @@ ${cmdList}
                     externalAdReply: {
                         title: botName || "ULTRA GURU",
                         body: botFooter || "Powered by GURUTECH",
-                        thumbnailUrl: botPic,
+                        thumbnailUrl: HARDCODED_PIC,
                         mediaType: 1,
-                        mediaUrl: botPic,
+                        mediaUrl: HARDCODED_PIC,
                         sourceUrl: newsletterUrl || "https://whatsapp.com/channel/0029Vb7jauLHLHQbkcbcHi0e",
                         showAdAttribution: true,
                         renderLargerThumbnail: true,

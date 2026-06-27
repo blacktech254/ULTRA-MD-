@@ -55,12 +55,36 @@ function walkJs(dir, base = dir) {
 
 const ALL_MODE = process.argv.includes("--all");
 
+// Core guru/ files that must always be synced
+const GURU_CORE_FILES = [
+    "guru/index.js",
+    "guru/gmdFunctions2.js",
+    "guru/gmdFunctions3.js",
+    "guru/gmdFunctions.js",
+    "guru/gmdHelpers.js",
+    "guru/gmdCmds.js",
+    "guru/gameHandler.js",
+    "guru/scheduler.js",
+    "guru/expiry.js",
+    "guru/autoUpdater.js",
+    "guru/restrictionManager.js",
+    "guru/connection/connectionHandler.js",
+    "guru/connection/groupCache.js",
+    "guru/database/settings.js",
+    "guru/database/groupSettings.js",
+    "guru/database/database.js",
+    "guru/database/sudo.js",
+    "guru/database/autoUpdate.js",
+    "guru/database/lidMapping.js",
+];
+
 const FILES = ALL_MODE
     ? [
         "index.js",
+        "config.js",
         ...walkJs(path.join(ROOT, "guruh"), ROOT),
-        "guru/scheduler.js",
-        "guru/connection/connectionHandler.js",
+        ...GURU_CORE_FILES,
+        "scripts/github-sync.js",
     ]
     : PRIORITY_FILES;
 

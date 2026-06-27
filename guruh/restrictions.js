@@ -332,6 +332,35 @@ gmd(
 
 gmd(
     {
+        pattern: "antisticker",
+        aliases: ["nosticker"],
+        react: "🎭",
+        description: "Silently delete stickers sent by non-admins",
+        category: "group",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, isGroup, jid, sender, body, args } = conText;
+        if (!isGroup) return reply("❌ This command is for groups only.");
+        if (!(await isGroupAdmin(Gifted, jid, sender))) return reply("❌ You must be an admin to use this.");
+
+        const arg = (args[0] || body.split(" ")[1] || "").toLowerCase();
+        if (!arg || !["on", "off"].includes(arg)) {
+            const current = (await getGroupSetting(jid, "ANTISTICKER")) === "true" ? "*ON* ✅" : "*OFF* ❌";
+            return reply(`🎭 *ANTISTICKER*\nCurrent status: ${current}\n\nUsage: \`.antisticker on\` / \`.antisticker off\`\n\n> When ON, stickers from non-admins are silently deleted.`);
+        }
+
+        const enable = arg === "on";
+        await setGroupSetting(jid, "ANTISTICKER", enable ? "true" : "false");
+        await react(enable ? "✅" : "❌");
+        reply(enable
+            ? "🎭 *Anti-Sticker enabled.*\nStickers from non-admins will be silently deleted."
+            : "🎭 *Anti-Sticker disabled.*\nMembers can send stickers freely."
+        );
+    }
+);
+
+gmd(
+    {
         pattern: "dmstatus",
         aliases: ["pmpermitinfo"],
         react: "📩",

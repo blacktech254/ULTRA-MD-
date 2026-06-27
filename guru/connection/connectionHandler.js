@@ -11,9 +11,8 @@ const { getAllSettings } = require("../database/settings");
 
 const RECONNECT_DELAY = 5000;
 const MAX_RECONNECT_ATTEMPTS = 50;
-const WATCHDOG_INTERVAL = 90000;   // check every 90 s
+const WATCHDOG_INTERVAL = 120000; // check every 2 min
 const WATCHDOG_TIMEOUT = 45000;
-const GHOST_SILENCE_MS = 8 * 60 * 1000; // 8 min silence = ghost connection
 
 let reconnectAttempts = 0;
 let channelReactListenerActive = false;
@@ -45,9 +44,6 @@ const forceReconnect = (Gifted, startGifted, reason) => {
 
 const startWatchdog = (Gifted, startGifted) => {
     clearWatchdog();
-    // Reset activity clock on every fresh connection
-    global._lastMessageActivity = Date.now();
-    const connectedAt = Date.now();
 
     watchdogTimer = setInterval(async () => {
         if (isReconnecting) return;
@@ -63,27 +59,12 @@ const startWatchdog = (Gifted, startGifted) => {
             return forceReconnect(Gifted, startGifted, `WebSocket check error: ${err.message}`);
         }
 
-        // ── 2. Ghost-connection check (socket open but WhatsApp silent) ─────
-        // Only kick in after the bot has been running ≥5 min (avoid false
-        // positives during quiet periods right after startup)
-        const uptime = Date.now() - connectedAt;
-        if (uptime > 5 * 60 * 1000) {
-            const silence = Date.now() - (global._lastMessageActivity || connectedAt);
-            if (silence > GHOST_SILENCE_MS) {
-                return forceReconnect(
-                    Gifted, startGifted,
-                    `Ghost connection — no activity for ${Math.round(silence / 60000)} min`
-                );
-            }
-        }
-
-        // ── 3. Real keepalive — send presence available ─────────────────────
-        // This pushes a packet through WhatsApp's protocol and will error
-        // fast if the connection is actually dead
+        // ── 2. Real keepalive — push a packet through WhatsApp's protocol ───
+        // Errors immediately if the connection is truly dead (not just quiet)
         try {
             await Gifted.sendPresenceUpdate("available");
         } catch (err) {
-            return forceReconnect(Gifted, startGifted, `Keepalive presence failed: ${err.message}`);
+            return forceReconnect(Gifted, startGifted, `Keepalive failed: ${err.message}`);
         }
     }, WATCHDOG_INTERVAL);
 };

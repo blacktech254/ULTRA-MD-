@@ -10,7 +10,7 @@ const { SettingsDB, initializeSettings, getSetting, setSetting, getAllSettings, 
 const { GroupSettingsDB, initializeGroupSettings, getGroupSetting, setGroupSetting, getAllGroupSettings, resetGroupSetting, GROUP_SETTING_DEFAULTS } = require('./database/groupSettings');
 const { createContext, createContext2, createFakeContact } = require('./gmdHelpers');
 const { getMediaBuffer, getFileContentType, bufferToStream, uploadToGiftedCdn, uploadToGithubCdn, uploadToPixhost, uploadToImgBB, uploadToCatbox } = require('./gmdFunctions3');
-const { logger, emojis, GiftedAutoReact, GiftedTechApi, GiftedApiKey, GiftedAntiLink, GiftedAntibad, GiftedAntiBot, GiftedAntiGroupMention, GiftedAutoBio, GiftedChatBot, GiftedPresence, GiftedAntiDelete, GiftedAnticall, GiftedAntiViewOnce, GiftedAntiEdit, setupVVTracker } = require('./gmdFunctions2');
+const { logger, emojis, GiftedAutoReact, GiftedTechApi, GiftedApiKey, GiftedAntiLink, GiftedAntibad, GiftedAntiBot, GiftedAntiGroupMention, GiftedAutoBio, GiftedChatBot, GiftedPresence, GiftedAntiDelete, GiftedAnticall, GiftedAntiViewOnce, GiftedAntiEdit, setupVVTracker, GiftedAntiSticker } = require('./gmdFunctions2');
 const { handleGameMessage } = require('./gameHandler');
 const { toAudio, toVideo, toPtt, formatVideo, formatAudio, monospace, runtime, sleep, gmdFancy, GiftedUploader, stickerToImage, formatBytes, gmdBuffer, webp2mp4File, gmdJson, latestWaVersion, gmdRandom, isUrl, gmdStore, isNumber, loadSession, useSQLiteAuthState, verifyJidState, runFFmpeg, getVideoDuration, gmdSticker, copyFolderSync, gitRepoRegex, MAX_MEDIA_SIZE, getFileSize, getMimeCategory, getMimeFromUrl, MIME_EXTENSIONS, getExtensionFromMime, isTextContent } = require('./gmdFunctions');
 
@@ -36,7 +36,7 @@ module.exports = {
     GroupSettingsDB, initializeGroupSettings, getGroupSetting, setGroupSetting, getAllGroupSettings, resetGroupSetting, GROUP_SETTING_DEFAULTS, 
     GiftedTechApi, GiftedApiKey, 
     getMediaBuffer, getFileContentType, bufferToStream, uploadToPixhost, uploadToImgBB, uploadToCatbox, 
-    GiftedAutoReact, GiftedChatBot, GiftedAntiLink, GiftedAntibad, GiftedAntiBot, GiftedAntiGroupMention, GiftedAntiDelete, GiftedAnticall, GiftedPresence, GiftedAutoBio, GiftedAntiViewOnce, GiftedAntiEdit, setupVVTracker, handleGameMessage, 
+    GiftedAutoReact, GiftedChatBot, GiftedAntiLink, GiftedAntibad, GiftedAntiBot, GiftedAntiGroupMention, GiftedAntiDelete, GiftedAnticall, GiftedPresence, GiftedAutoBio, GiftedAntiViewOnce, GiftedAntiEdit, setupVVTracker, GiftedAntiSticker, handleGameMessage, 
     logger, gmdBuffer, webp2mp4File, gmdJson, latestWaVersion, gmdRandom, isUrl, gmdStore, isNumber, loadSession, useSQLiteAuthState, verifyJidState,
     standardizeJid, serializeMessage, downloadMediaMessage,
     loadPlugins, findCommand, findBodyCommand, createHelpers, getGroupInfo, buildSuperUsers,

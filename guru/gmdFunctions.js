@@ -14,8 +14,22 @@ const FormData = require('form-data');
 const { fromBuffer } = require('file-type');
 const fs = require('fs');
 const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('ffmpeg-static');
 const { Readable } = require('stream');
+const { execSync } = require('child_process');
+
+// Resolve ffmpeg binary: prefer ffmpeg-static, fall back to system ffmpeg
+let ffmpegPath;
+try {
+    const staticPath = require('ffmpeg-static');
+    const fs_sync = require('fs');
+    if (staticPath && fs_sync.existsSync(staticPath)) {
+        ffmpegPath = staticPath;
+    } else {
+        ffmpegPath = execSync('which ffmpeg').toString().trim();
+    }
+} catch (_) {
+    try { ffmpegPath = execSync('which ffmpeg').toString().trim(); } catch (__) { ffmpegPath = 'ffmpeg'; }
+}
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 const sessionDir = path.join(__dirname, "session");

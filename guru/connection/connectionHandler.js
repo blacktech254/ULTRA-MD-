@@ -11,8 +11,9 @@ const { getAllSettings } = require("../database/settings");
 
 const RECONNECT_DELAY = 5000;
 const MAX_RECONNECT_ATTEMPTS = 50;
-const WATCHDOG_INTERVAL = 120000;
+const WATCHDOG_INTERVAL = 90000;   // check every 90 s
 const WATCHDOG_TIMEOUT = 45000;
+const GHOST_SILENCE_MS = 8 * 60 * 1000; // 8 min silence = ghost connection
 
 let reconnectAttempts = 0;
 let channelReactListenerActive = false;
@@ -29,28 +30,60 @@ const clearWatchdog = () => {
     }
 };
 
+const forceReconnect = (Gifted, startGifted, reason) => {
+    if (isReconnecting) return;
+    console.warn(`⚠️ Watchdog: ${reason} — forcing reconnect...`);
+    clearWatchdog();
+    isReconnecting = true;
+    isWatchdogReconnect = true;
+    try { Gifted.end(new Error(reason)); } catch (_) {}
+    setTimeout(() => {
+        isReconnecting = false;
+        startGifted();
+    }, withJitter(RECONNECT_DELAY));
+};
+
 const startWatchdog = (Gifted, startGifted) => {
     clearWatchdog();
+    // Reset activity clock on every fresh connection
+    global._lastMessageActivity = Date.now();
+    const connectedAt = Date.now();
+
     watchdogTimer = setInterval(async () => {
         if (isReconnecting) return;
+
+        // ── 1. WebSocket state check ────────────────────────────────────────
         try {
-            // Use WebSocket readyState as the health check — avoids false-positive
-            // timeouts caused by Gifted.query("ping") not being valid in all baileys versions
             const ws = Gifted.ws;
             const isOpen = ws && (ws.readyState === 1 || ws.isOpen === true);
-            if (!isOpen) throw new Error("WebSocket not open");
+            if (!isOpen) {
+                return forceReconnect(Gifted, startGifted, "WebSocket not open");
+            }
         } catch (err) {
-            if (isReconnecting) return;
-            console.warn(`⚠️ Watchdog: socket unresponsive (${err.message}), forcing reconnect...`);
-            clearWatchdog();
-            isReconnecting = true;
-            isWatchdogReconnect = true;
-            try { Gifted.end(new Error("watchdog forced reconnect")); } catch (_) {}
-            setTimeout(() => {
-                isReconnecting = false;
-                // NOTE: isWatchdogReconnect stays true until onOpen clears it
-                startGifted();
-            }, withJitter(RECONNECT_DELAY));
+            return forceReconnect(Gifted, startGifted, `WebSocket check error: ${err.message}`);
+        }
+
+        // ── 2. Ghost-connection check (socket open but WhatsApp silent) ─────
+        // Only kick in after the bot has been running ≥5 min (avoid false
+        // positives during quiet periods right after startup)
+        const uptime = Date.now() - connectedAt;
+        if (uptime > 5 * 60 * 1000) {
+            const silence = Date.now() - (global._lastMessageActivity || connectedAt);
+            if (silence > GHOST_SILENCE_MS) {
+                return forceReconnect(
+                    Gifted, startGifted,
+                    `Ghost connection — no activity for ${Math.round(silence / 60000)} min`
+                );
+            }
+        }
+
+        // ── 3. Real keepalive — send presence available ─────────────────────
+        // This pushes a packet through WhatsApp's protocol and will error
+        // fast if the connection is actually dead
+        try {
+            await Gifted.sendPresenceUpdate("available");
+        } catch (err) {
+            return forceReconnect(Gifted, startGifted, `Keepalive presence failed: ${err.message}`);
         }
     }, WATCHDOG_INTERVAL);
 };

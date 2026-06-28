@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "BTY3f5JfmXhjPYzibs-5I"
+uri = "file://README.md"
+type = "text"
+title = "README.md with Heroku Deploy Button"

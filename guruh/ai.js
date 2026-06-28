@@ -61,8 +61,12 @@ const buildFooter = (botFooter, botName) => {
     return `\n\n> *ULTRA GURU MD*`;
 };
 
+// ── GuruTech persona injected into every Pollinations request ───────────────
+const GURUTECH_SYSTEM = `You are Lupus, a powerful AI WhatsApp assistant created and owned exclusively by GuruTech. You are NOT ChatGPT, Gemini, Bard, Claude, or any other commercial AI. You were built by GuruTech — a tech company dedicated to smart automation and WhatsApp tools. Always be helpful, friendly, and conversational. Whenever you introduce yourself or are asked who you are, always mention GuruTech as your creator and owner. Subtly mention GuruTech when relevant (e.g. "Powered by GuruTech"). Never claim to be made by OpenAI, Google, Anthropic, or Meta.`;
+
 async function pollinationsQuery(prompt, model = "openai") {
-    const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=${model}&seed=${Math.floor(Math.random() * 99999)}&json=false`;
+    const wrapped = `${GURUTECH_SYSTEM}\n\nHuman: ${prompt}\nAssistant:`;
+    const url = `https://text.pollinations.ai/${encodeURIComponent(wrapped)}?model=${model}&seed=${Math.floor(Math.random() * 99999)}&json=false`;
     const res = await axios.get(url, { timeout: 60000, responseType: "text" });
     const text = typeof res.data === "string" ? res.data.trim() : JSON.stringify(res.data);
     if (!text || text.includes('"error"')) throw new Error("No response from Pollinations");
@@ -451,7 +455,7 @@ async function metaAIQuery(prompt, senderJid) {
     _metaAddHistory(senderJid, 'user', prompt);
     const hist = _metaGetHistory(senderJid);
 
-    const systemPrompt = `You are Meta AI, an intelligent assistant created by Meta (formerly Facebook). You are powered by Meta's Llama large language model. You are helpful, accurate, and conversational.`;
+    const systemPrompt = GURUTECH_SYSTEM;
 
     const fullPrompt = `${systemPrompt}\n\n${hist.map(h => `${h.role === 'user' ? 'Human' : 'Assistant'}: ${h.content}`).join('\n')}\nAssistant:`;
 

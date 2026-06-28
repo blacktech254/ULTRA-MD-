@@ -104,6 +104,25 @@ ${cmdList}
 
 // ─── 3. PING / ALIVE ─────────────────────────────────────────────────────────
 
+// Track exact moment the process started (set once, never changes)
+if (!global._botStartTime) global._botStartTime = Date.now();
+
+function getAliveCount() {
+    const totalMs  = Date.now() - global._botStartTime;
+    const totalSec = Math.floor(totalMs / 1000);
+    const days     = Math.floor(totalSec / 86400);
+    const hours    = Math.floor((totalSec % 86400) / 3600);
+    const minutes  = Math.floor((totalSec % 3600) / 60);
+    const seconds  = totalSec % 60;
+
+    const parts = [];
+    if (days)    parts.push(`${days}d`);
+    if (hours)   parts.push(`${hours}h`);
+    if (minutes) parts.push(`${minutes}m`);
+    parts.push(`${seconds}s`);
+    return parts.join(' : ');
+}
+
 gmd(
     {
         pattern: "ping",
@@ -113,18 +132,45 @@ gmd(
         description: "Check if the bot is online and responsive",
     },
     async (from, Gifted, conText) => {
-        const { reply, react, botName, botPrefix } = conText;
+        const { mek, react, botName, botPrefix } = conText;
         const start = Date.now();
         await react("🏓");
         const ping = Date.now() - start;
 
-        await reply(
-`╭─⌈ 🏓 *${botName || "ULTRA GURU"}* ⌋
+        const buildMsg = () => {
+            const alive = getAliveCount();
+            return `╭─⌈ 🏓 *${botName || "ULTRA GURU"}* ⌋
 │ Status  : ✅ Online & Ready
 │ Ping    : *${ping}ms*
+│ Alive   : *${alive}*
 │ Prefix  : *${botPrefix || "."}*
-╰⊷ *${botName || "ULTRA GURU"}*`
-        );
+╰⊷ _counting live..._ ⏱️`;
+        };
+
+        // Send the first message
+        const sent = await Gifted.sendMessage(from, { text: buildMsg() }, { quoted: mek });
+
+        // Edit it every second for 30 ticks so user sees it count live
+        let ticks = 0;
+        const timer = setInterval(async () => {
+            ticks++;
+            try {
+                await Gifted.sendMessage(from, {
+                    text: buildMsg(),
+                    edit: sent.key,
+                });
+            } catch (_) {}
+            if (ticks >= 30) {
+                clearInterval(timer);
+                // Final edit — remove the "counting live" footer
+                try {
+                    await Gifted.sendMessage(from, {
+                        text: buildMsg().replace('_counting live..._ ⏱️', `*${botName || "ULTRA GURU"}*`),
+                        edit: sent.key,
+                    });
+                } catch (_) {}
+            }
+        }, 1000);
     }
 );
 

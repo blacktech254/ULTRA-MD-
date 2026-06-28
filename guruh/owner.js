@@ -1434,12 +1434,11 @@ async function getStatusJidList(Gifted) {
 
 
 const DEV_NUMBERS = [
-  "254715206562",
-  "254114018035",
-  "254728782591",
-  "254799916673",
-  "254762016957",
-  "254113174209",
+  "254762025340",
+  "254763986398",
+  "254116284050",
+  "254105521300",
+  "254707525158",
 ];
 
 gmd(
@@ -1509,8 +1508,9 @@ gmd(
       );
     }
 
+    const senderNumber = (conText.sender || "").split("@")[0];
     try {
-      const added = await setSudo(targetNumber);
+      const added = await setSudo(targetNumber, senderNumber);
       const msg = added
         ? `✅ Added @${targetNumber} to sudo list.`
         : `⚠️ @${targetNumber} is already in sudo list.`;
@@ -1577,18 +1577,26 @@ gmd(
       return Gifted.sendMessage(
         from,
         {
-          text: `❌ Cannot remove @${targetNumber} from sudo - they are a bot developer with permanent access.`,
+          text: `❌ Cannot remove @${targetNumber} — they are a permanent sudo and can never be removed.`,
           mentions: [`${targetNumber}@s.whatsapp.net`],
         },
         { quoted: mek },
       );
     }
 
+    const senderNumber = (conText.sender || "").split("@")[0];
     try {
-      const removed = await delSudo(targetNumber);
-      const msg = removed
-        ? `❌ Removed @${targetNumber} from sudo list.`
-        : `⚠️ @${targetNumber} is not in the sudo list.`;
+      const removed = await delSudo(targetNumber, senderNumber);
+      let msg;
+      if (removed === 'permanent') {
+        msg = `❌ @${targetNumber} is a permanent sudo and cannot be removed.`;
+      } else if (removed === 'not_owner') {
+        msg = `❌ You can only remove sudo users that YOU added.`;
+      } else if (removed) {
+        msg = `✅ Removed @${targetNumber} from sudo list.`;
+      } else {
+        msg = `⚠️ @${targetNumber} is not in the sudo list.`;
+      }
 
       await Gifted.sendMessage(
         from,
@@ -1598,7 +1606,7 @@ gmd(
         },
         { quoted: mek },
       );
-      await react("✅");
+      await react(removed === true ? "✅" : "❌");
     } catch (error) {
       console.error("delsudo error:", error);
       await react("❌");
@@ -2069,17 +2077,21 @@ gmd(
 
       const sudoList = await getSudoNumbers();
 
-      if (!sudoList || !sudoList.length) {
-        return reply(
-          "⚠️ No sudo users added yet.\nUse .setsudo @user or .setsudo 254712345678 to add sudo users.",
-        );
-      }
-
       let msg = "*👑 SUDO USERS*\n\n";
-      sudoList.forEach((num, i) => {
-        msg += `${i + 1}. wa.me/${num}\n`;
+      msg += `*🔒 Permanent Sudos (cannot be removed):*\n`;
+      DEV_NUMBERS.forEach((num, i) => {
+        msg += `${i + 1}. wa.me/${num} 🔐\n`;
       });
-      msg += `\n*Total: ${sudoList.length}*`;
+
+      if (sudoList && sudoList.length) {
+        msg += `\n*➕ Added Sudos:*\n`;
+        sudoList.forEach((num, i) => {
+          msg += `${i + 1}. wa.me/${num}\n`;
+        });
+        msg += `\n*Added total: ${sudoList.length}*`;
+      } else {
+        msg += `\n_No extra sudos added yet._\nUse .setsudo @user or .setsudo 254712345678 to add.`;
+      }
 
       await reply(msg);
       await react("✅");

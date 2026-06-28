@@ -638,6 +638,36 @@ function setupStatusHandlers(Gifted) {
 const processedMessages = new Set();
 const BOT_START_TIME = Date.now();
 
+// ── Chat message logger ───────────────────────────────────────────────────────
+function logChatMessage({ from, pushName, body, isGroup, sender }) {
+    try {
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const time = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+        const date = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${String(now.getFullYear()).slice(2)}`;
+        const type = isGroup ? '👥 GROUP' : '👤 DM   ';
+        const jid  = (from || '').replace('@s.whatsapp.net', '').replace('@g.us', '');
+        const name = (pushName || sender || 'Unknown').slice(0, 18).padEnd(18);
+        const msg  = (body || '(media/sticker)').slice(0, 35).padEnd(35);
+
+        const row =
+            `║ ${time} ║ ${date} ║ ${type} ║ ${jid.slice(0,20).padEnd(20)} ║ ${name} ║ ${msg} ║`;
+        const sep =
+            `╠═════════╪══════════╪═════════╪══════════════════════╪════════════════════╪═════════════════════════════════════╣`;
+
+        if (!logChatMessage._headerPrinted) {
+            console.log(`╔═════════╦══════════╦═════════╦══════════════════════╦════════════════════╦═════════════════════════════════════╗`);
+            console.log(`║ Time    ║ Date     ║ Type    ║ JID                  ║ Name               ║ Message                             ║`);
+            console.log(`╠═════════╪══════════╪═════════╪══════════════════════╪════════════════════╪═════════════════════════════════════╣`);
+            logChatMessage._headerPrinted = true;
+        } else {
+            console.log(sep);
+        }
+        console.log(row);
+    } catch (_) {}
+}
+logChatMessage._headerPrinted = false;
+
 // ── Settings cache — re-read DB at most once every 30 s ──────────────────────
 let _settingsCache = null;
 let _settingsCacheTs = 0;
@@ -700,6 +730,11 @@ function setupCommandHandler(Gifted) {
             quotedKey,
             quotedUser,
         } = serialized;
+
+        // ── Log every incoming message as a table row ─────────────────────────
+        if (!ms.key.fromMe) {
+            logChatMessage({ from, pushName, body, isGroup, sender: rawSender });
+        }
 
         // ── Personal time-based greeting (non-blocking, DMs only) ─────────────
         if (!ms.key.fromMe && !isGroup) {

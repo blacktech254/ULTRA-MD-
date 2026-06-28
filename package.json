@@ -6,12 +6,12 @@
   "type": "commonjs",
   "engines": {
     "node": "22.x",
-    "npm": "10.x"
+    "npm": "11.x"
   },
   "scripts": {
     "start": "node --max-old-space-size=512 index.js",
     "dev": "node --max-old-space-size=512 index.js",
-    "heroku-prebuild": "npm install --legacy-peer-deps"
+    "heroku-prebuild": "npm install --legacy-peer-deps --no-audit --no-fund"
   },
   "keywords": [
     "gurutech",

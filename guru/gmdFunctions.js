@@ -87,7 +87,7 @@ async function loadSession() {
 ║           📱  ULTRA GURU MD — SESSION SETUP                  ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  Paste your SESSION_ID below and press Enter.                ║
-║  Format:  GURU~xxxxxxxx...  or  Gifted~xxxxxxxx...           ║
+║  Format:  GURU~xxxxxxxx...                                   ║
 ╚══════════════════════════════════════════════════════════════╝`);
                 sessionId = await new Promise((resolve) => {
                     rl.question('\n> SESSION_ID: ', (answer) => {
@@ -139,11 +139,11 @@ function validateCreds(credsPath) {
 
 async function processSessionId(sessionId) {
     try {
-        // Support both Gifted~ and GURU~ formats
-        const isValidFormat = sessionId.startsWith('Gifted~') || sessionId.startsWith('GURU~');
+        // Only GURU~ format is supported
+        const isValidFormat = sessionId.startsWith('GURU~');
         
         if (!isValidFormat) {
-            throw new Error("❌ Invalid session format. Expected 'Gifted~.....' or 'GURU~.....'");
+            throw new Error("❌ Invalid session format. Expected 'GURU~.....'");
         }
 
         const [header, b64data] = sessionId.split('~');

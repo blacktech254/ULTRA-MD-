@@ -96,7 +96,11 @@ async function queryAI(endpoint, query, conText, pollinationsModel = "openai") {
             const apiUrl = `${GiftedTechApi}/api/ai/${endpoint}?apikey=${GiftedApiKey}&q=${encodeURIComponent(query)}`;
             const res = await axios.get(apiUrl, { timeout: 15000 });
             if (res.data?.success && res.data?.result) {
-                result = res.data.result;
+                const candidate = String(res.data.result);
+                // GiftedTechApi returns "rate-overlimit" when the key is throttled — treat as miss
+                if (!candidate.includes("overlimit") && !candidate.includes("rate-limit") && !candidate.includes("ratelimit")) {
+                    result = candidate;
+                }
             }
         } catch (_) {}
 
@@ -499,7 +503,8 @@ gmd(
 
         if (isIdentityQuestion(query)) {
             if (react) await react("🦙");
-            return reply(`🦙 *Meta AI* — Powered by Llama 3.3 70B\n\n◈ 🏢 *Company*  ⤳ Meta (Facebook)\n◈ 🧠 *Model*    ⤳ Llama 3.3 70B\n◈ 🌐 *Access*   ⤳ Integrated in ${botName || "ULTRA GURU MD"}\n◈ 💬 *Memory*   ⤳ Remembers up to 10 exchanges\n\nType *.metaai <question>* to chat!${footer}`);
+            const botN = botName || "ULTRA GURU MD";
+            return reply(`🤖 *${botN}* — AI WhatsApp Bot\n\n◈ 👤 *Creator*    ⤳ GuruTech\n◈ 🌐 *Owner*      ⤳ GuruTech\n◈ 🧠 *Engine*     ⤳ Llama 3.3 70B\n◈ 💬 *Memory*     ⤳ Remembers up to 10 exchanges\n◈ 📦 *Platform*   ⤳ WhatsApp Multi-Device\n\nI am *Lupus*, powered by GuruTech. Type *.metaai <question>* to chat!${footer}`);
         }
 
         try {
@@ -535,6 +540,100 @@ gmd(
         if (react) await react("✅");
         _metaClearHistory(sender);
         await reply(`🗑️ *Meta AI memory cleared!*\n\nYour conversation history has been reset. Start a fresh chat with *.metaai*${footer}`);
+    }
+);
+
+// ─── LUPUS (GuruTech branded AI with persistent memory) ──────────────────────
+
+// Reuse the Meta AI SQLite memory tables for Lupus (same DB, separate key prefix)
+function _lupusHistory(jid) {
+    return _stmtFetch.all(`lupus:${jid}`);
+}
+function _lupusAdd(jid, role, content) {
+    _stmtInsert.run(`lupus:${jid}`, role, content);
+    _stmtDeleteOld.run(`lupus:${jid}`, `lupus:${jid}`);
+}
+function _lupusClear(jid) {
+    _stmtClear.run(`lupus:${jid}`);
+}
+
+async function lupusQuery(prompt, senderJid) {
+    _lupusAdd(senderJid, 'user', prompt);
+    const hist = _lupusHistory(senderJid);
+
+    const fullPrompt = `${GURUTECH_SYSTEM}\n\n${hist.map(h => `${h.role === 'user' ? 'Human' : 'Lupus'}: ${h.content}`).join('\n')}\nLupus:`;
+
+    const url = `https://text.pollinations.ai/${encodeURIComponent(fullPrompt)}?model=openai&seed=${Math.floor(Math.random() * 99999)}&json=false&private=true`;
+    const res = await axios.get(url, { timeout: 60000, responseType: 'text' });
+    const text = typeof res.data === 'string' ? res.data.trim() : JSON.stringify(res.data);
+    if (!text || text.length < 2) throw new Error('No response from Lupus AI');
+
+    _lupusAdd(senderJid, 'assistant', text);
+    return text;
+}
+
+gmd(
+    {
+        pattern: "lupus",
+        aliases: ["gurubot", "gurutechbot"],
+        react: "🐺",
+        description: "Chat with Lupus — GuruTech's AI assistant with memory",
+        category: "ai",
+    },
+    async (from, Gifted, conText) => {
+        const { reply, react, q, mek, botFooter, botName, sender } = conText;
+        const footer = buildFooter(botFooter, botName);
+        const botN  = botName || "ULTRA GURU MD";
+        const query = q || mek?.message?.extendedTextMessage?.contextInfo?.quotedMessage?.conversation;
+
+        if (!query) {
+            return reply(
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🐺  *LUPUS AI* by GuruTech
+┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+┃  Your personal AI assistant
+┃  powered exclusively by
+┃  *GuruTech* 🔥
+┃
+┃  *Usage:*
+┃  .lupus <your question>
+┃
+┃  *Memory:*
+┃  .lupus clear — reset history
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+> _Powered by GuruTech_${footer}`
+            );
+        }
+
+        if (query.trim().toLowerCase() === 'clear') {
+            _lupusClear(sender);
+            if (react) await react("🗑️");
+            return reply(`🗑️ *Lupus memory cleared!*\n\nFresh conversation started. Ask me anything!\n\n> _Powered by GuruTech_${footer}`);
+        }
+
+        if (isIdentityQuestion(query)) {
+            if (react) await react("🐺");
+            return reply(`🐺 *I am Lupus!*\n\n◈ 👤 *Created by*  ⤳ GuruTech\n◈ 🌐 *Owned by*    ⤳ GuruTech\n◈ ⚡ *Engine*      ⤳ Multi-AI\n◈ 💬 *Memory*      ⤳ Remembers your conversation\n◈ 📦 *Platform*    ⤳ WhatsApp\n\nI am *not* ChatGPT, Gemini, or any other commercial AI. I am *Lupus*, built exclusively by *GuruTech*. 🔥\n\nAsk me anything — *.lupus <question>*${footer}`);
+        }
+
+        try {
+            if (react) await react("🐺");
+            const result = await lupusQuery(query, sender);
+            if (react) await react("✅");
+            await reply(
+`┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🐺  *LUPUS* by GuruTech
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+${result}
+
+> _Powered by GuruTech_${footer}`
+            );
+        } catch (err) {
+            console.error('Lupus AI error:', err.message);
+            if (react) await react("❌");
+            await reply(`❌ Lupus AI Error: ${err.message}\n\nPlease try again.${footer}`);
+        }
     }
 );
 

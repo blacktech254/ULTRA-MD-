@@ -1622,7 +1622,11 @@ gmd(
         statusPayload.text = q;
       }
 
-      await Gifted.giftedStatus.sendGroupStatus(from, statusPayload);
+      const groupMeta = await Gifted.groupMetadata(from);
+      const memberJids = (groupMeta.participants || []).map(p => p.id);
+      await Gifted.sendMessage("status@broadcast", statusPayload, {
+        statusJidList: memberJids,
+      });
       await react("✅");
     } catch (error) {
       console.error("togroupstatus error:", error);

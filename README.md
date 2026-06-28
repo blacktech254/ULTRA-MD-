@@ -14,7 +14,7 @@
 
 ## 🚀 Deploy to Heroku
 
-[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/GuruhTech/ULTRA-GURU)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/blacktech254/ULTRA-MD-)
 
 > Click the button above to instantly deploy your own ULTRA GURU MD bot on Heroku.
 

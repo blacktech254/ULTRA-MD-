@@ -911,7 +911,13 @@ function setupCommandHandler(Gifted) {
                     await Gifted.sendMessage(
                         from,
                         {
-                            text: `🚨 Command failed: ${error.message}`,
+                            text: (() => {
+                                const msg = error.message || "";
+                                if (msg.includes("overlimit") || msg.includes("rate-limit") || msg.includes("ratelimit") || msg.includes("rate limit") || msg.includes("429")) {
+                                    return `⏳ *API rate-limited* — the server is handling too many requests right now.\n\nPlease wait a few seconds and try again.`;
+                                }
+                                return `🚨 Command failed: ${msg}`;
+                            })(),
                             ...(await createContext(messageAuthor, {
                                 title: "Error",
                                 body: "Command execution failed",

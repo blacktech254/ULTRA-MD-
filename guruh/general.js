@@ -212,28 +212,50 @@ gmd(
         description: "Check how long the bot has been running",
     },
     async (from, Gifted, conText) => {
-        const { reply, react, botName, timeZone } = conText;
+        const { react, botName, timeZone, mek } = conText;
         await react("⏱️");
 
-        const up      = process.uptime();
-        const days    = Math.floor(up / 86400);
-        const hours   = Math.floor((up % 86400) / 3600);
-        const minutes = Math.floor((up % 3600) / 60);
-        const seconds = Math.floor(up % 60);
+        const tz = timeZone || process.env.TIME_ZONE || "Africa/Nairobi";
+        const bn = botName || "ULTRA GURU";
 
-        let uptimeStr = "";
-        if (days > 0) uptimeStr += `${days}days : `;
-        uptimeStr += `${hours}hrs : ${minutes}mins : ${seconds}secs`;
+        const buildMsg = () => {
+            const t     = moment().tz(tz);
+            const time  = t.format("hh:mm:ss A");
+            const date  = t.format("ddd, DD MMM YYYY");
+            const total = Math.floor((Date.now() - (global._botStartTime || Date.now())) / 1000);
+            const d     = Math.floor(total / 86400);
+            const h     = Math.floor((total % 86400) / 3600);
+            const m     = Math.floor((total % 3600) / 60);
+            const s     = total % 60;
+            const parts = [d && `${d}d`, h && `${h}h`, m && `${m}m`, `${s}s`].filter(Boolean);
+            return (
+`╭─⌈ ⏱️ *${bn}* ⌋
+│ Uptime  : *${parts.join(' : ')}*
+│ Time    : ${time}
+│ Date    : ${date}
+╰⊷ *${bn}* _counting live..._ ⏱️`
+            );
+        };
 
-        const tz  = timeZone || "Africa/Nairobi";
-        const now = moment().tz(tz).format("ddd, DD MMM YYYY HH:mm:ss z");
+        const sent = await Gifted.sendMessage(from, { text: buildMsg() }, { quoted: mek });
 
-        await reply(
-`╭─⌈ ⏱️ *${botName || "ULTRA GURU"}* ⌋
-│ Uptime  : *${uptimeStr}*
-│ Time    : ${now}
-╰⊷ *${botName || "ULTRA GURU"}*`
-        );
+        let ticks = 0;
+        const timer = setInterval(async () => {
+            ticks++;
+            try {
+                await Gifted.sendMessage(from, { text: buildMsg(), edit: sent.key });
+            } catch (_) {}
+            if (ticks >= 30) {
+                clearInterval(timer);
+                try {
+                    await Gifted.sendMessage(from, {
+                        text: buildMsg().replace("_counting live..._ ⏱️", `*${bn}*`),
+                        edit: sent.key,
+                    });
+                } catch (_) {}
+            }
+        }, 1000);
+        await react("✅");
     }
 );
 

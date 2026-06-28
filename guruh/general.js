@@ -21,11 +21,38 @@ gmd(
         description: "Show the bot command menu",
     },
     async (from, Gifted, conText) => {
-        const { react } = conText;
+        const { react, mek } = conText;
         await react("📋");
         const text = await buildThemedMenu(conText, Gifted);
         await sendMenuMsg(Gifted, from, text, conText);
         await react("✅");
+
+        // ── Live clock below the menu — ticks every second for 60s ──────────
+        const tz = process.env.TIME_ZONE || 'Africa/Nairobi';
+        const buildClock = () => {
+            const t     = moment().tz(tz);
+            const time  = t.format('hh:mm:ss A');
+            const date  = t.format('ddd, DD MMM YYYY');
+            const total = Math.floor((Date.now() - (global._botStartTime || Date.now())) / 1000);
+            const d     = Math.floor(total / 86400);
+            const h     = Math.floor((total % 86400) / 3600);
+            const m     = Math.floor((total % 3600) / 60);
+            const s     = total % 60;
+            const alive = [d && `${d}d`, h && `${h}h`, m && `${m}m`, `${s}s`].filter(Boolean).join(' : ');
+            return `🕐 *${time}*\n📅 ${date}\n⏱️ Alive: *${alive}*`;
+        };
+
+        try {
+            const clockMsg = await Gifted.sendMessage(from, { text: buildClock() }, { quoted: mek });
+            let ticks = 0;
+            const timer = setInterval(async () => {
+                ticks++;
+                try {
+                    await Gifted.sendMessage(from, { text: buildClock(), edit: clockMsg.key });
+                } catch (_) {}
+                if (ticks >= 60) clearInterval(timer);
+            }, 1000);
+        } catch (_) {}
     }
 );
 

@@ -5,12 +5,13 @@
   "main": "./index.js",
   "type": "commonjs",
   "engines": {
-    "node": "20.x",
+    "node": "22.x",
     "npm": "10.x"
   },
   "scripts": {
     "start": "node --max-old-space-size=512 index.js",
-    "dev": "node --max-old-space-size=512 index.js"
+    "dev": "node --max-old-space-size=512 index.js",
+    "heroku-prebuild": "npm install --legacy-peer-deps"
   },
   "keywords": [
     "gurutech",
@@ -63,10 +64,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GuruhTech/ULTRA-GURU.git"
+    "url": "git+https://github.com/blacktech254/ULTRA-MD-.git"
   },
   "bugs": {
-    "url": "https://github.com/GuruhTech/ULTRA-GURU/issues"
+    "url": "https://github.com/blacktech254/ULTRA-MD-/issues"
   },
-  "homepage": "https://github.com/GuruhTech/ULTRA-GURU#readme"
+  "homepage": "https://github.com/blacktech254/ULTRA-MD-#readme"
 }

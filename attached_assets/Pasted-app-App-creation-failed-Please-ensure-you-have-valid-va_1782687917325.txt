@@ -1,0 +1,63 @@
+app
+App creation failed. Please ensure you have valid values in the above form fields.
+
+Configure environment
+Build app Hide build log
+There was an issue building your app. This can mean your app.json's project is not a valid Heroku application. Please ensure your app is deployable to Heroku and try again.
+
+-----> Building on the Heroku-22 stack
+-----> Using buildpacks:
+       1. heroku/nodejs
+       2. https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest
+-----> Node.js app detected
+       
+-----> Creating runtime environment
+       
+       NPM_CONFIG_LOGLEVEL=error
+       NODE_VERBOSE=false
+       NODE_ENV=production
+       NODE_MODULES_CACHE=true
+-----> Installing binaries
+       engines.node (package.json):   20.x
+       engines.npm (package.json):    10.x
+       
+       Resolving node version 20.x...
+ !     Node.js 20.20.2 is now End-of-Life (EOL). It no longer receives security
+ !     updates, bug fixes, or support from the Node.js project and is no longer
+ !     supported on Heroku.
+ !     
+ !     In a future buildpack release, this warning will become a build error. Please
+ !     upgrade to a supported version as soon as possible to avoid build failures.
+ !     
+ !     https://devcenter.heroku.com/articles/nodejs-support#supported-node-js-versions
+       Downloading and installing node 20.20.2...
+       Validating checksum
+       Bootstrapping npm 10.x (replacing 10.8.2)...
+       npm 10.9.8 installed
+       
+-----> Installing dependencies
+       Installing node modules
+       npm notice
+       npm notice New major version of npm available! 10.9.8 -> 11.17.0
+       npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.17.0
+       npm notice To update run: npm install -g npm@11.17.0
+       npm notice
+       npm error Exit handler never called!
+       npm error This is an error with npm itself. Please report this error at:
+       npm error   <https://github.com/npm/cli/issues>
+       npm error A complete log of this run can be found in: /tmp/npmcache.YtiFT/_logs/2026-06-28T23_02_14_186Z-debug-0.log
+-----> Build failed
+       
+       We're sorry this build is failing! You can troubleshoot common issues here:
+       https://devcenter.heroku.com/articles/troubleshooting-node-deploys
+       
+       If you're stuck, please submit a ticket so we can help:
+       https://help.heroku.com/
+       
+       Love,
+       Heroku
+       
+ !     Push rejected, failed to compile Node.js app.
+ !     Push failed
+Build finished
+Run scripts & scale dynos

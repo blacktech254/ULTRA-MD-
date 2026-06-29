@@ -27,12 +27,12 @@
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@hapi/boom": "^10.0.1",
     "@vitalets/google-translate-api": "^9.2.1",
-    "@whiskeysockets/baileys": "github:WhiskeySockets/Baileys",
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "acrcloud": "^1.4.0",
     "adm-zip": "^0.5.17",
     "audio-decode": "^2.2.3",
     "axios": "^1.15.2",
-    "baileys": "github:WhiskeySockets/Baileys",
+    "baileys": "npm:@whiskeysockets/baileys@^7.0.0-rc.9",
     "better-sqlite3": "^12.9.0",
     "body-parser": "^2.2.2",
     "buffer": "^6.0.3",
@@ -64,10 +64,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/blacktech254/ULTRA-MD-.git"
+    "url": "git+https://github.com/GuruhTech/ULTRA-GURU.git"
   },
   "bugs": {
-    "url": "https://github.com/blacktech254/ULTRA-MD-/issues"
+    "url": "https://github.com/GuruhTech/ULTRA-GURU/issues"
   },
-  "homepage": "https://github.com/blacktech254/ULTRA-MD-#readme"
+  "homepage": "https://github.com/GuruhTech/ULTRA-GURU#readme"
 }

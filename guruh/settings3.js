@@ -507,7 +507,7 @@ gmd(
         const botVersion = (await getSetting("BOT_VERSION")) || "5.0.0";
         const botMode    = (await getSetting("MODE"))        || "Public";
         const botLang    = (await getSetting("BOT_LANG"))    || "en";
-        const botRepo    = (await getSetting("BOT_REPO"))    || "GuruhTech/ULTRA-GURU";
+        const botRepo    = (await getSetting("BOT_REPO"))    || "blacktech254/ULTRA-MD-";
         const botPrefix  = (await getSetting("PREFIX"))      || ".";
         const warnLimit  = (await getSetting("WARN_LIMIT"))  || "3";
 

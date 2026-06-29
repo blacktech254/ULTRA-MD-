@@ -115,7 +115,7 @@ const checkAndAutoUpdate = async (Gifted) => {
             return;
         }
 
-        const repo = (await getSetting("BOT_REPO")) || "GuruhTech/ULTRA-GURU";
+        const repo = (await getSetting("BOT_REPO")) || "blacktech254/ULTRA-MD-";
 
         let ownerJid = null;
         try {

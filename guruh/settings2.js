@@ -453,8 +453,6 @@ gmd(
       // Use DB only if owner explicitly changed it via .setbotrepo, otherwise hardcoded
       let repoUrl = (await getSetting("BOT_REPO")) || BOT_GITHUB;
       if (!repoUrl.startsWith("http")) repoUrl = `https://github.com/${repoUrl}`;
-      // Reset stale old default silently
-      if (repoUrl === "https://github.com/GuruhTech/ULTRA-GURU") repoUrl = BOT_GITHUB;
       const botN     = botName || "ULTRA GURU MD";
       const footer   = botFooter ? `\n\n> *${botFooter}*` : "";
       await reply(

@@ -23,7 +23,7 @@ gmd(
 
         try {
             await react("🔍");
-            const repo = giftedRepo || (await getSetting("BOT_REPO")) || "GuruhTech/ULTRA-GURU";
+            const repo = giftedRepo || (await getSetting("BOT_REPO")) || "blacktech254/ULTRA-MD-";
             await reply(`🔍 Checking for updates on \`${repo}\`...`);
 
             const currentHash = await getCommitHash();
@@ -92,7 +92,7 @@ gmd(
 
         try {
             await react("🔍");
-            const repo = giftedRepo || (await getSetting("BOT_REPO")) || "GuruhTech/ULTRA-GURU";
+            const repo = giftedRepo || (await getSetting("BOT_REPO")) || "blacktech254/ULTRA-MD-";
             const autoUpdate = await getSetting("AUTO_UPDATE");
             const currentHash = await getCommitHash();
 

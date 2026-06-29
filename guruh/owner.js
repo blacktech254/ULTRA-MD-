@@ -2203,11 +2203,11 @@ gmd(
   async (from, Gifted, conText) => {
     const {
       reply, react, isSuperUser,
-      q, mek, quotedMsg, quoted,
+      q, mek, quotedMsg,
       botName, botFooter, botPrefix,
-      isGroup, formatAudio, formatVideo,
+      isGroup,
     } = conText;
-    const { downloadMediaMessage } = require("@whiskeysockets/baileys");
+    const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
 
     if (!isSuperUser) {
       await react("❌");
@@ -2247,53 +2247,60 @@ gmd(
 
     await react("⏳");
 
-    // ── Build the status payload from quoted message or plain text ────────────
+    // ── Helper: download media from quotedMsg using downloadContentFromMessage ─
+    const downloadQuotedMedia = async (mediaType) => {
+      const mediaMsg = quotedMsg[`${mediaType}Message`];
+      const stream   = await downloadContentFromMessage(mediaMsg, mediaType);
+      const chunks   = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      return { buffer: Buffer.concat(chunks), mediaMsg };
+    };
+
+    // ── Build the status payload ──────────────────────────────────────────────
+    // quotedMsg = contextInfo.quotedMessage = { imageMessage:{...} } etc.
     let statusPayload = {};
 
     try {
-      if (quotedMsg) {
-        if (quoted?.imageMessage) {
-          const buffer = await downloadMediaMessage(
-            { message: quotedMsg }, "buffer", {}
-          );
-          statusPayload = { image: buffer, mimetype: "image/jpeg" };
-          if (caption) statusPayload.caption = caption;
-          else if (quoted.imageMessage.caption) statusPayload.caption = quoted.imageMessage.caption;
+      if (quotedMsg?.imageMessage) {
+        const { buffer, mediaMsg } = await downloadQuotedMedia("image");
+        statusPayload = { image: buffer, mimetype: "image/jpeg" };
+        const cap = caption || mediaMsg.caption || "";
+        if (cap) statusPayload.caption = cap;
 
-        } else if (quoted?.videoMessage) {
-          let buffer = await downloadMediaMessage(
-            { message: quotedMsg }, "buffer", {}
-          );
-          if (formatVideo) buffer = await formatVideo(buffer);
-          statusPayload = { video: buffer, mimetype: "video/mp4" };
-          if (caption) statusPayload.caption = caption;
-          else if (quoted.videoMessage.caption) statusPayload.caption = quoted.videoMessage.caption;
+      } else if (quotedMsg?.videoMessage) {
+        const { buffer, mediaMsg } = await downloadQuotedMedia("video");
+        statusPayload = { video: buffer, mimetype: "video/mp4" };
+        const cap = caption || mediaMsg.caption || "";
+        if (cap) statusPayload.caption = cap;
 
-        } else if (quoted?.audioMessage) {
-          let buffer = await downloadMediaMessage(
-            { message: quotedMsg }, "buffer", {}
-          );
-          if (formatAudio) buffer = await formatAudio(buffer);
-          statusPayload = { audio: buffer, mimetype: "audio/mp4", ptt: false };
+      } else if (quotedMsg?.audioMessage) {
+        const { buffer } = await downloadQuotedMedia("audio");
+        statusPayload = { audio: buffer, mimetype: "audio/mp4", ptt: false };
 
-        } else if (quoted?.conversation || quoted?.extendedTextMessage?.text) {
-          statusPayload = {
-            text: caption || quoted.conversation || quoted.extendedTextMessage?.text || "",
-            backgroundColor: "#1a1a2e",
-            font: 2,
-          };
+      } else if (quotedMsg?.stickerMessage) {
+        const { buffer } = await downloadQuotedMedia("sticker");
+        // Stickers can't be status directly — send as image
+        statusPayload = { image: buffer };
+        if (caption) statusPayload.caption = caption;
 
-        } else {
-          await react("❌");
-          return reply("❌ Quoted message type not supported for status.\nSupported: image, video, audio, text.");
-        }
-      } else {
-        // Plain text mode — no quoted message
+      } else if (quotedMsg?.conversation || quotedMsg?.extendedTextMessage?.text) {
+        statusPayload = {
+          text: caption || quotedMsg.conversation || quotedMsg.extendedTextMessage?.text || "",
+          backgroundColor: "#1a1a2e",
+          font: 2,
+        };
+
+      } else if (caption) {
+        // Plain text — no quoted message
         statusPayload = { text: caption, backgroundColor: "#1a1a2e", font: 2 };
+
+      } else {
+        await react("❌");
+        return reply("❌ Reply to an image, video, audio, or text — or type a caption after the command.");
       }
     } catch (err) {
       await react("❌");
-      return reply(`❌ Failed to prepare media: ${err.message}`);
+      return reply(`❌ Failed to download quoted media: ${err.message}`);
     }
 
     // ── Gather participant JIDs to post status to ─────────────────────────────

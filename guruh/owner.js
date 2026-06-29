@@ -2187,3 +2187,160 @@ gmd(
     await reply(summary);
   },
 );
+
+// ─── GADVERT — Post to all groups where bot is admin ──────────────────────────
+
+gmd(
+  {
+    pattern: "gadvert",
+    aliases: ["groupadvert", "grouppost", "gpost", "adminpost"],
+    react: "📣",
+    category: "owner",
+    description:
+      "Post an image+caption (or text) to every group where bot is admin. " +
+      "Quote an image and run .gadvert [caption], OR just .gadvert <text>.",
+  },
+  async (from, Gifted, conText) => {
+    const {
+      reply, react, isSuperUser,
+      q, mek, quotedMsg,
+      botName, botFooter, newsletterJid,
+    } = conText;
+
+    if (!isSuperUser) {
+      await react("❌");
+      return reply("❌ Owner Only Command!");
+    }
+
+    const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
+
+    const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    // ── Determine what to send ──────────────────────────────────────────────
+    const customCaption = q ? q.trim() : null;
+
+    let mediaBuffer  = null;
+    let mediaType    = null;   // "image" | "video"
+    let originalCaption = "";
+
+    if (quotedMsg) {
+      const msgType = Object.keys(quotedMsg)[0];
+      if (["imageMessage", "videoMessage"].includes(msgType)) {
+        mediaType       = msgType.replace("Message", ""); // "image" | "video"
+        const mediaMsg  = quotedMsg[msgType];
+        originalCaption = mediaMsg.caption || "";
+
+        try {
+          const stream = await downloadContentFromMessage(mediaMsg, mediaType);
+          const chunks = [];
+          for await (const chunk of stream) chunks.push(chunk);
+          mediaBuffer = Buffer.concat(chunks);
+        } catch {
+          await react("❌");
+          return reply("❌ Failed to download the quoted media. Try again.");
+        }
+
+        if (!mediaBuffer || mediaBuffer.length === 0) {
+          await react("❌");
+          return reply("❌ Downloaded media is empty. Please re-send the image and try again.");
+        }
+      }
+    }
+
+    const caption = customCaption ?? originalCaption;
+
+    if (!mediaBuffer && !caption) {
+      await react("❌");
+      return reply(
+        `╭─⌈ 📣 *GROUP ADVERTISE* ⌋\n` +
+        `│ Usage:\n` +
+        `│  • Quote an image + *.gadvert [caption]*\n` +
+        `│  • Or just *.gadvert <text>* for text-only\n` +
+        `│\n` +
+        `│ Posts to every group where the bot is admin.\n` +
+        `╰⊷ _${botFooter || botName}_`
+      );
+    }
+
+    // ── Fetch all groups where bot is admin ─────────────────────────────────
+    await react("⏳");
+
+    let adminGroups = [];
+    try {
+      const all = await Gifted.groupFetchAllParticipating();
+      const botJid = Gifted.user?.id?.replace(/:.*@/, "@") || "";
+
+      for (const group of Object.values(all)) {
+        const botParticipant = (group.participants || []).find(
+          (p) => p.id === botJid || p.id.split(":")[0] + "@s.whatsapp.net" === botJid
+        );
+        if (botParticipant && (botParticipant.admin === "admin" || botParticipant.admin === "superadmin")) {
+          adminGroups.push(group);
+        }
+      }
+    } catch (err) {
+      await react("❌");
+      return reply(`❌ Failed to fetch groups: ${err.message}`);
+    }
+
+    if (!adminGroups.length) {
+      await react("❌");
+      return reply("📭 Bot is not an admin in any group.");
+    }
+
+    const contextInfo = {
+      forwardingScore: 5,
+      isForwarded: true,
+      forwardedNewsletterMessageInfo: {
+        newsletterJid: newsletterJid || "120363406466294627@newsletter",
+        newsletterName: botName || "ULTRA GURU MD",
+        serverMessageId: 143,
+      },
+    };
+
+    await reply(
+      `📣 *Posting to ${adminGroups.length} admin group${adminGroups.length !== 1 ? "s" : ""}…*\n` +
+      `_Sit tight — 2 s gap between posts to stay safe._`
+    );
+
+    let sent   = 0;
+    let failed = 0;
+    const errors = [];
+
+    for (const group of adminGroups) {
+      try {
+        if (mediaBuffer) {
+          await Gifted.sendMessage(
+            group.id,
+            { [mediaType]: mediaBuffer, caption, contextInfo },
+            { quoted: mek }
+          );
+        } else {
+          await Gifted.sendMessage(
+            group.id,
+            { text: caption, contextInfo },
+            { quoted: mek }
+          );
+        }
+        sent++;
+      } catch (err) {
+        failed++;
+        errors.push(`${group.subject}: ${err.message}`);
+      }
+      await delay(2000);
+    }
+
+    const summary =
+      `╭─⌈ 📣 *GADVERT DONE* ⌋\n` +
+      `│ ✅ Posted  : *${sent}*\n` +
+      `│ ❌ Failed  : *${failed}*\n` +
+      `│ 📊 Total   : *${adminGroups.length}*\n` +
+      (errors.length
+        ? `│\n│ *Errors:*\n${errors.slice(0, 5).map((e) => `│ • ${e}`).join("\n")}\n`
+        : "") +
+      `╰⊷ *${botName || "ULTRA GURU MD"}*`;
+
+    await react(failed === 0 ? "✅" : "⚠️");
+    await reply(summary);
+  }
+);

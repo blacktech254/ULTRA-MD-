@@ -2217,26 +2217,38 @@ gmd(
       return reply(
         `╭─⌈ 📣 *TOGSTATUS* ⌋\n` +
         `│ *How to use:*\n` +
-        `│  1. Find any message in chat\n` +
-        `│     (image, video, text, sticker…)\n` +
-        `│  2. *Reply* to it with *.togstatus*\n` +
-        `│  3. Bot sends it into every group\n` +
-        `│     where it is an admin.\n` +
+        `│  Reply to any message then:\n` +
         `│\n` +
-        `│ *Tip:* Add a caption override:\n` +
-        `│  *.togstatus Check this out!*\n` +
+        `│  *.togstatus*\n` +
+        `│   → Posts in this group only\n` +
+        `│\n` +
+        `│  *.togstatus all*\n` +
+        `│   → Posts in ALL groups bot is in\n` +
+        `│\n` +
+        `│  *.togstatus Your caption here*\n` +
+        `│   → Posts here with custom caption\n` +
+        `│\n` +
+        `│  *.togstatus all Your caption*\n` +
+        `│   → All groups + custom caption\n` +
         `╰⊷ _${botFooter || botName}_`
       );
     }
 
     const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
     const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-    const customCaption = q ? q.trim() : null;
+
+    // ── Parse: "all" flag and optional caption ───────────────────────────────
+    const rawQ       = (q || "").trim();
+    const broadcastAll = rawQ.toLowerCase().startsWith("all");
+    const customCaption = broadcastAll
+      ? (rawQ.slice(3).trim() || null)   // strip "all" then take the rest
+      : (rawQ || null);
+
     const msgType = Object.keys(quotedMsg)[0];
 
     // ── Download media once if needed ────────────────────────────────────────
-    let buffer    = null;
-    let mediaMsg  = null;
+    let buffer   = null;
+    let mediaMsg = null;
 
     const MEDIA_TYPES = ["imageMessage","videoMessage","audioMessage","stickerMessage","documentMessage"];
     if (MEDIA_TYPES.includes(msgType)) {
@@ -2258,20 +2270,29 @@ gmd(
       }
     }
 
-    // ── Fetch all groups the bot is participating in ─────────────────────────
+    // ── Decide target groups ─────────────────────────────────────────────────
     await react("⏳");
-    let adminGroups = [];
-    try {
-      const all = await Gifted.groupFetchAllParticipating();
-      adminGroups = Object.values(all);
-    } catch (err) {
-      await react("❌");
-      return reply(`❌ Could not fetch groups: ${err.message}`);
-    }
+    let targets = [];
 
-    if (!adminGroups.length) {
-      await react("❌");
-      return reply("📭 Bot is not in any group.");
+    if (broadcastAll) {
+      try {
+        const all = await Gifted.groupFetchAllParticipating();
+        targets = Object.values(all);
+      } catch (err) {
+        await react("❌");
+        return reply(`❌ Could not fetch groups: ${err.message}`);
+      }
+      if (!targets.length) {
+        await react("❌");
+        return reply("📭 Bot is not in any group.");
+      }
+    } else {
+      // Current group only
+      if (!from.endsWith("@g.us")) {
+        await react("❌");
+        return reply("❌ Use this command inside a group, or add *all* to post everywhere.\nExample: *.togstatus all*");
+      }
+      targets = [{ id: from, subject: "this group" }];
     }
 
     const contextInfo = newsletterJid ? {
@@ -2284,15 +2305,17 @@ gmd(
       },
     } : undefined;
 
-    await reply(
-      `📣 *Posting to ${adminGroups.length} group${adminGroups.length !== 1 ? "s" : ""}…*\n` +
-      `_2 s gap between sends to stay safe._`
-    );
+    if (broadcastAll) {
+      await reply(
+        `📣 *Posting to ${targets.length} group${targets.length !== 1 ? "s" : ""}…*\n` +
+        `_2 s gap between sends to stay safe._`
+      );
+    }
 
     let sent = 0, failed = 0;
     const errors = [];
 
-    for (const group of adminGroups) {
+    for (const group of targets) {
       try {
         let payload;
 
@@ -2337,7 +2360,7 @@ gmd(
 
         } else {
           failed++;
-          errors.push(`${group.subject}: unsupported type ${msgType}`);
+          errors.push(`${group.subject}: unsupported type`);
           continue;
         }
 
@@ -2347,18 +2370,19 @@ gmd(
         failed++;
         errors.push(`${group.subject}: ${err.message}`);
       }
-      await delay(2000);
+      if (broadcastAll) await delay(2000);
     }
 
-    const summary =
-      `╭─⌈ 📣 *TOGSTATUS DONE* ⌋\n` +
-      `│ ✅ Sent    : *${sent}*\n` +
-      `│ ❌ Failed  : *${failed}*\n` +
-      `│ 📊 Groups  : *${adminGroups.length}*\n` +
-      (errors.length
-        ? `│\n│ *Errors:*\n${errors.slice(0, 5).map((e) => `│ • ${e}`).join("\n")}\n`
-        : "") +
-      `╰⊷ *${botName || "ULTRA GURU MD"}*`;
+    const summary = broadcastAll
+      ? `╭─⌈ 📣 *TOGSTATUS DONE* ⌋\n` +
+        `│ ✅ Sent   : *${sent}*\n` +
+        `│ ❌ Failed : *${failed}*\n` +
+        `│ 📊 Groups : *${targets.length}*\n` +
+        (errors.length ? `│\n│ *Errors:*\n${errors.slice(0, 5).map((e) => `│ • ${e}`).join("\n")}\n` : "") +
+        `╰⊷ *${botName || "ULTRA GURU MD"}*`
+      : failed === 0
+        ? `✅ Posted in this group!`
+        : `❌ Failed to post: ${errors[0]}`;
 
     await react(failed === 0 ? "✅" : "⚠️");
     await reply(summary);

@@ -2188,203 +2188,158 @@ gmd(
   },
 );
 
-// ─── TOGSTATUS — Post quoted message into all groups where bot is admin ───────
+// ─── TOGSTATUS — Post quoted message as GROUP STATUS (green ring) ─────────────
 
 gmd(
   {
     pattern: "togstatus",
-    aliases: ["tostatus", "gstatus", "groupstatus", "postgroups"],
-    react: "📣",
+    aliases: ["tostatus", "postgroups"],
+    react: "📢",
     category: "owner",
     description:
-      "Reply to any message (text, image, video, sticker, audio) and type .togstatus — " +
-      "bot forwards it into every group where it is admin.",
+      "Reply to any message and type .togstatus to post it as this group's status (green ring). " +
+      "Use .togstatus all to post to every group's status at once.",
   },
   async (from, Gifted, conText) => {
     const {
       reply, react, isSuperUser,
-      q, mek, quotedMsg,
-      botName, botFooter, newsletterJid,
+      q, mek, quotedMsg, quoted,
+      botName, botFooter, botPrefix,
+      isGroup, formatAudio, formatVideo,
     } = conText;
+    const { downloadMediaMessage } = require("@whiskeysockets/baileys");
 
     if (!isSuperUser) {
       await react("❌");
       return reply("❌ Owner Only Command!");
     }
 
-    if (!quotedMsg) {
+    if (!isGroup) {
+      await react("❌");
+      return reply("❌ Use this command inside a group.");
+    }
+
+    if (!q && !quotedMsg) {
       await react("❌");
       return reply(
-        `╭─⌈ 📣 *TOGSTATUS* ⌋\n` +
-        `│ *How to use:*\n` +
-        `│  Reply to any message then:\n` +
+        `╭─⌈ 📢 *GROUP STATUS POSTER* ⌋\n` +
+        `│ Posts to group status = green ring\n` +
+        `│ around the group profile picture.\n` +
         `│\n` +
-        `│  *.togstatus*\n` +
-        `│   → Posts in this group only\n` +
+        `│ *Usage:*\n` +
+        `│  • Reply to any message:\n` +
+        `│    *${botPrefix}togstatus*\n` +
+        `│    → green ring on THIS group\n` +
         `│\n` +
-        `│  *.togstatus all*\n` +
-        `│   → Posts in ALL groups bot is in\n` +
+        `│  • *${botPrefix}togstatus all*\n` +
+        `│    → green ring on ALL groups\n` +
         `│\n` +
-        `│  *.togstatus Your caption here*\n` +
-        `│   → Posts here with custom caption\n` +
-        `│\n` +
-        `│  *.togstatus all Your caption*\n` +
-        `│   → All groups + custom caption\n` +
+        `│  • Add caption after command\n` +
+        `│    *${botPrefix}togstatus My caption*\n` +
         `╰⊷ _${botFooter || botName}_`
       );
     }
 
-    const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
-    const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-
-    // ── Parse: "all" flag and optional caption ───────────────────────────────
-    const rawQ       = (q || "").trim();
+    // ── Parse "all" flag + caption ───────────────────────────────────────────
+    const rawQ        = (q || "").trim();
     const broadcastAll = rawQ.toLowerCase().startsWith("all");
-    const customCaption = broadcastAll
-      ? (rawQ.slice(3).trim() || null)   // strip "all" then take the rest
-      : (rawQ || null);
+    const caption      = broadcastAll ? rawQ.slice(3).trim() : rawQ;
 
-    const msgType = Object.keys(quotedMsg)[0];
+    await react("⏳");
 
-    // ── Download media once if needed ────────────────────────────────────────
-    let buffer   = null;
-    let mediaMsg = null;
+    // ── Build the status payload from quoted message or plain text ────────────
+    let statusPayload = {};
 
-    const MEDIA_TYPES = ["imageMessage","videoMessage","audioMessage","stickerMessage","documentMessage"];
-    if (MEDIA_TYPES.includes(msgType)) {
-      mediaMsg = quotedMsg[msgType];
-      const kind = msgType.replace("Message", "");
-      await react("⏳");
-      try {
-        const stream = await downloadContentFromMessage(mediaMsg, kind);
-        const chunks = [];
-        for await (const chunk of stream) chunks.push(chunk);
-        buffer = Buffer.concat(chunks);
-      } catch {
-        await react("❌");
-        return reply("❌ Could not download the quoted media. Try again.");
+    try {
+      if (quotedMsg) {
+        if (quoted?.imageMessage) {
+          const buffer = await downloadMediaMessage(
+            { message: quotedMsg }, "buffer", {}
+          );
+          statusPayload = { image: buffer, mimetype: "image/jpeg" };
+          if (caption) statusPayload.caption = caption;
+          else if (quoted.imageMessage.caption) statusPayload.caption = quoted.imageMessage.caption;
+
+        } else if (quoted?.videoMessage) {
+          let buffer = await downloadMediaMessage(
+            { message: quotedMsg }, "buffer", {}
+          );
+          if (formatVideo) buffer = await formatVideo(buffer);
+          statusPayload = { video: buffer, mimetype: "video/mp4" };
+          if (caption) statusPayload.caption = caption;
+          else if (quoted.videoMessage.caption) statusPayload.caption = quoted.videoMessage.caption;
+
+        } else if (quoted?.audioMessage) {
+          let buffer = await downloadMediaMessage(
+            { message: quotedMsg }, "buffer", {}
+          );
+          if (formatAudio) buffer = await formatAudio(buffer);
+          statusPayload = { audio: buffer, mimetype: "audio/mp4", ptt: false };
+
+        } else if (quoted?.conversation || quoted?.extendedTextMessage?.text) {
+          statusPayload = {
+            text: caption || quoted.conversation || quoted.extendedTextMessage?.text || "",
+            backgroundColor: "#1a1a2e",
+            font: 2,
+          };
+
+        } else {
+          await react("❌");
+          return reply("❌ Quoted message type not supported for status.\nSupported: image, video, audio, text.");
+        }
+      } else {
+        // Plain text mode — no quoted message
+        statusPayload = { text: caption, backgroundColor: "#1a1a2e", font: 2 };
       }
-      if (!buffer || buffer.length === 0) {
-        await react("❌");
-        return reply("❌ Downloaded media was empty. Re-send the file and retry.");
-      }
+    } catch (err) {
+      await react("❌");
+      return reply(`❌ Failed to prepare media: ${err.message}`);
     }
 
-    // ── Decide target groups ─────────────────────────────────────────────────
-    await react("⏳");
-    let targets = [];
+    // ── Gather participant JIDs to post status to ─────────────────────────────
+    let statusJidList = [];
+    const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
     if (broadcastAll) {
       try {
-        const all = await Gifted.groupFetchAllParticipating();
-        targets = Object.values(all);
+        const allGroups = await Gifted.groupFetchAllParticipating();
+        for (const group of Object.values(allGroups)) {
+          for (const p of (group.participants || [])) {
+            if (!statusJidList.includes(p.id)) statusJidList.push(p.id);
+          }
+        }
       } catch (err) {
         await react("❌");
         return reply(`❌ Could not fetch groups: ${err.message}`);
       }
-      if (!targets.length) {
+      if (!statusJidList.length) {
         await react("❌");
-        return reply("📭 Bot is not in any group.");
+        return reply("📭 No participants found across groups.");
       }
+      await reply(`📢 *Posting group status to ${statusJidList.length} contacts across all groups…*`);
     } else {
       // Current group only
-      if (!from.endsWith("@g.us")) {
-        await react("❌");
-        return reply("❌ Use this command inside a group, or add *all* to post everywhere.\nExample: *.togstatus all*");
-      }
-      targets = [{ id: from, subject: "this group" }];
-    }
-
-    const contextInfo = newsletterJid ? {
-      forwardingScore: 5,
-      isForwarded: true,
-      forwardedNewsletterMessageInfo: {
-        newsletterJid,
-        newsletterName: botName || "ULTRA GURU MD",
-        serverMessageId: 143,
-      },
-    } : undefined;
-
-    if (broadcastAll) {
-      await reply(
-        `📣 *Posting to ${targets.length} group${targets.length !== 1 ? "s" : ""}…*\n` +
-        `_2 s gap between sends to stay safe._`
-      );
-    }
-
-    let sent = 0, failed = 0;
-    const errors = [];
-
-    for (const group of targets) {
       try {
-        let payload;
-
-        if (msgType === "conversation" || msgType === "extendedTextMessage") {
-          const text = customCaption ||
-            quotedMsg.conversation ||
-            quotedMsg.extendedTextMessage?.text || "";
-          payload = { text, ...(contextInfo ? { contextInfo } : {}) };
-
-        } else if (msgType === "imageMessage") {
-          payload = {
-            image: buffer,
-            caption: customCaption ?? (mediaMsg.caption || ""),
-            ...(contextInfo ? { contextInfo } : {}),
-          };
-
-        } else if (msgType === "videoMessage") {
-          payload = {
-            video: buffer,
-            caption: customCaption ?? (mediaMsg.caption || ""),
-            mimetype: mediaMsg.mimetype,
-            ...(contextInfo ? { contextInfo } : {}),
-          };
-
-        } else if (msgType === "audioMessage") {
-          payload = {
-            audio: buffer,
-            mimetype: mediaMsg.mimetype || "audio/mp4",
-            ptt: mediaMsg.ptt || false,
-          };
-
-        } else if (msgType === "stickerMessage") {
-          payload = { sticker: buffer };
-
-        } else if (msgType === "documentMessage") {
-          payload = {
-            document: buffer,
-            mimetype: mediaMsg.mimetype,
-            fileName: mediaMsg.fileName || "file",
-            caption: customCaption ?? (mediaMsg.caption || ""),
-          };
-
-        } else {
-          failed++;
-          errors.push(`${group.subject}: unsupported type`);
-          continue;
-        }
-
-        await Gifted.sendMessage(group.id, payload);
-        sent++;
+        const meta = await Gifted.groupMetadata(from);
+        statusJidList = (meta.participants || []).map((p) => p.id);
       } catch (err) {
-        failed++;
-        errors.push(`${group.subject}: ${err.message}`);
+        await react("❌");
+        return reply(`❌ Could not get group info: ${err.message}`);
       }
-      if (broadcastAll) await delay(2000);
     }
 
-    const summary = broadcastAll
-      ? `╭─⌈ 📣 *TOGSTATUS DONE* ⌋\n` +
-        `│ ✅ Sent   : *${sent}*\n` +
-        `│ ❌ Failed : *${failed}*\n` +
-        `│ 📊 Groups : *${targets.length}*\n` +
-        (errors.length ? `│\n│ *Errors:*\n${errors.slice(0, 5).map((e) => `│ • ${e}`).join("\n")}\n` : "") +
-        `╰⊷ *${botName || "ULTRA GURU MD"}*`
-      : failed === 0
-        ? `✅ Posted in this group!`
-        : `❌ Failed to post: ${errors[0]}`;
-
-    await react(failed === 0 ? "✅" : "⚠️");
-    await reply(summary);
+    // ── Send to status@broadcast with group participants as audience ───────────
+    try {
+      await Gifted.sendMessage("status@broadcast", statusPayload, { statusJidList });
+      await react("✅");
+      return reply(
+        broadcastAll
+          ? `╭─⌈ 📢 *GROUP STATUS POSTED* ⌋\n│ ✅ Green ring posted to all groups!\n│ 👁 Members will see it on the\n│    group profile picture.\n╰⊷ *${botName || "ULTRA GURU MD"}*`
+          : `✅ *Group status posted!*\nMembers will see a green ring on the group profile.`
+      );
+    } catch (err) {
+      await react("❌");
+      return reply(`❌ Failed to post group status: ${err.message}`);
+    }
   }
 );

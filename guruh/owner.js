@@ -2258,21 +2258,12 @@ gmd(
       }
     }
 
-    // ── Fetch all groups where bot is admin ──────────────────────────────────
+    // ── Fetch all groups the bot is participating in ─────────────────────────
     await react("⏳");
     let adminGroups = [];
     try {
-      const all    = await Gifted.groupFetchAllParticipating();
-      const botJid = (Gifted.user?.id || "").replace(/:.*@/, "@");
-      for (const group of Object.values(all)) {
-        const me = (group.participants || []).find(
-          (p) => p.id === botJid ||
-                 p.id.split(":")[0] + "@s.whatsapp.net" === botJid
-        );
-        if (me && (me.admin === "admin" || me.admin === "superadmin")) {
-          adminGroups.push(group);
-        }
-      }
+      const all = await Gifted.groupFetchAllParticipating();
+      adminGroups = Object.values(all);
     } catch (err) {
       await react("❌");
       return reply(`❌ Could not fetch groups: ${err.message}`);
@@ -2280,7 +2271,7 @@ gmd(
 
     if (!adminGroups.length) {
       await react("❌");
-      return reply("📭 Bot is not an admin in any group.");
+      return reply("📭 Bot is not in any group.");
     }
 
     const contextInfo = newsletterJid ? {

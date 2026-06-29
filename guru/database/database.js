@@ -1,4 +1,4 @@
-const config = require("../../config");
+const config = require("../config");
 const Sequelize = require("sequelize");
 const fs = require("fs");
 const path = require("path");
@@ -74,8 +74,16 @@ async function syncDatabase(force = false) {
             `).catch(() => {});
             console.log("✅ Old tables dropped");
         }
-        
-        await DATABASE.sync({ alter: !force, force: force });
+
+        try {
+            await DATABASE.sync({ alter: !force, force: force });
+        } catch (alterErr) {
+            // PostgreSQL catalog cache errors can occur when using alter: true.
+            // Fall back to non-alter sync which just creates missing tables.
+            console.warn("⚠️  alter sync failed, retrying without alter:", alterErr.message);
+            await DATABASE.sync({ alter: false, force: false });
+        }
+
         console.log("✅ Database Synchronized.");
         return true;
     } catch (error) {
@@ -88,7 +96,7 @@ async function syncDatabase(force = false) {
                 await DATABASE.query(`ALTER TABLE "bad_words" ADD COLUMN "groupJid" VARCHAR(255);`).catch(() => {});
                 await DATABASE.query(`ALTER TABLE "bad_words" ADD COLUMN "word" VARCHAR(255);`).catch(() => {});
                 console.log("✅ Fixed missing columns");
-                await DATABASE.sync({ alter: true });
+                await DATABASE.sync({ alter: false });
                 return true;
             } catch (fixError) {
                 console.error("❌ Could not fix automatically:", fixError.message);

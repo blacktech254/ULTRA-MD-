@@ -1,6 +1,6 @@
 
 const { evt, gmd, commands } = require('./gmdCmds');
-const config = require('../config');
+const config = require('./config');
 
 const { DATABASE, syncDatabase } = require('./database/database');
 const { loadPersistedLidMappings, persistLidMapping } = require('./database/lidMapping');

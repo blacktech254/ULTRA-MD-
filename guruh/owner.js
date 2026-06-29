@@ -2188,17 +2188,17 @@ gmd(
   },
 );
 
-// ─── GADVERT — Post to all groups where bot is admin ──────────────────────────
+// ─── TOGSTATUS — Post quoted message to WhatsApp Status ──────────────────────
 
 gmd(
   {
-    pattern: "gadvert",
-    aliases: ["groupadvert", "grouppost", "gpost", "adminpost"],
-    react: "📣",
+    pattern: "togstatus",
+    aliases: ["tostatus", "poststatus", "statuspost", "sts"],
+    react: "📤",
     category: "owner",
     description:
-      "Post an image+caption (or text) to every group where bot is admin. " +
-      "Quote an image and run .gadvert [caption], OR just .gadvert <text>.",
+      "Post any quoted message (image, video, text, audio, sticker) to the bot's WhatsApp Status. " +
+      "Quote the message and type .togstatus — group members who follow the bot will see it.",
   },
   async (from, Gifted, conText) => {
     const {
@@ -2212,135 +2212,121 @@ gmd(
       return reply("❌ Owner Only Command!");
     }
 
-    const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
-
-    const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-
-    // ── Determine what to send ──────────────────────────────────────────────
-    const customCaption = q ? q.trim() : null;
-
-    let mediaBuffer  = null;
-    let mediaType    = null;   // "image" | "video"
-    let originalCaption = "";
-
-    if (quotedMsg) {
-      const msgType = Object.keys(quotedMsg)[0];
-      if (["imageMessage", "videoMessage"].includes(msgType)) {
-        mediaType       = msgType.replace("Message", ""); // "image" | "video"
-        const mediaMsg  = quotedMsg[msgType];
-        originalCaption = mediaMsg.caption || "";
-
-        try {
-          const stream = await downloadContentFromMessage(mediaMsg, mediaType);
-          const chunks = [];
-          for await (const chunk of stream) chunks.push(chunk);
-          mediaBuffer = Buffer.concat(chunks);
-        } catch {
-          await react("❌");
-          return reply("❌ Failed to download the quoted media. Try again.");
-        }
-
-        if (!mediaBuffer || mediaBuffer.length === 0) {
-          await react("❌");
-          return reply("❌ Downloaded media is empty. Please re-send the image and try again.");
-        }
-      }
-    }
-
-    const caption = customCaption ?? originalCaption;
-
-    if (!mediaBuffer && !caption) {
+    if (!quotedMsg) {
       await react("❌");
       return reply(
-        `╭─⌈ 📣 *GROUP ADVERTISE* ⌋\n` +
-        `│ Usage:\n` +
-        `│  • Quote an image + *.gadvert [caption]*\n` +
-        `│  • Or just *.gadvert <text>* for text-only\n` +
+        `╭─⌈ 📤 *POST TO STATUS* ⌋\n` +
+        `│ *How to use:*\n` +
+        `│  1. Find any message (image, video,\n` +
+        `│     text, sticker, audio)\n` +
+        `│  2. Reply to it with *.togstatus*\n` +
+        `│  3. Bot posts it to WhatsApp Status\n` +
+        `│     — visible to all group members\n` +
+        `│     who have the bot as a contact.\n` +
         `│\n` +
-        `│ Posts to every group where the bot is admin.\n` +
+        `│ *Tip:* Add a caption after the command\n` +
+        `│  e.g. *.togstatus Hello everyone!*\n` +
         `╰⊷ _${botFooter || botName}_`
       );
     }
 
-    // ── Fetch all groups where bot is admin ─────────────────────────────────
+    const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
+    const STATUS_JID = "status@broadcast";
+    const customCaption = q ? q.trim() : null;
+    const msgType = Object.keys(quotedMsg)[0];
+
     await react("⏳");
 
-    let adminGroups = [];
     try {
-      const all = await Gifted.groupFetchAllParticipating();
-      const botJid = Gifted.user?.id?.replace(/:.*@/, "@") || "";
-
-      for (const group of Object.values(all)) {
-        const botParticipant = (group.participants || []).find(
-          (p) => p.id === botJid || p.id.split(":")[0] + "@s.whatsapp.net" === botJid
-        );
-        if (botParticipant && (botParticipant.admin === "admin" || botParticipant.admin === "superadmin")) {
-          adminGroups.push(group);
+      // ── TEXT ──────────────────────────────────────────────────────────────
+      if (msgType === "conversation" || msgType === "extendedTextMessage") {
+        const text =
+          customCaption ||
+          quotedMsg.conversation ||
+          quotedMsg.extendedTextMessage?.text ||
+          "";
+        if (!text) {
+          await react("❌");
+          return reply("❌ No text found in the quoted message.");
         }
+        await Gifted.sendMessage(STATUS_JID, {
+          text,
+          backgroundColor: "#1a1a2e",
+          font: 2,
+        });
+
+      // ── IMAGE ─────────────────────────────────────────────────────────────
+      } else if (msgType === "imageMessage") {
+        const mediaMsg = quotedMsg.imageMessage;
+        const stream = await downloadContentFromMessage(mediaMsg, "image");
+        const chunks = [];
+        for await (const chunk of stream) chunks.push(chunk);
+        const buffer = Buffer.concat(chunks);
+        await Gifted.sendMessage(STATUS_JID, {
+          image: buffer,
+          caption: customCaption ?? (mediaMsg.caption || ""),
+        });
+
+      // ── VIDEO ─────────────────────────────────────────────────────────────
+      } else if (msgType === "videoMessage") {
+        const mediaMsg = quotedMsg.videoMessage;
+        const stream = await downloadContentFromMessage(mediaMsg, "video");
+        const chunks = [];
+        for await (const chunk of stream) chunks.push(chunk);
+        const buffer = Buffer.concat(chunks);
+        await Gifted.sendMessage(STATUS_JID, {
+          video: buffer,
+          caption: customCaption ?? (mediaMsg.caption || ""),
+          gifPlayback: false,
+        });
+
+      // ── AUDIO ─────────────────────────────────────────────────────────────
+      } else if (msgType === "audioMessage") {
+        const mediaMsg = quotedMsg.audioMessage;
+        const stream = await downloadContentFromMessage(mediaMsg, "audio");
+        const chunks = [];
+        for await (const chunk of stream) chunks.push(chunk);
+        const buffer = Buffer.concat(chunks);
+        await Gifted.sendMessage(STATUS_JID, {
+          audio: buffer,
+          mimetype: mediaMsg.mimetype || "audio/mp4",
+          ptt: false,
+        });
+
+      // ── STICKER ───────────────────────────────────────────────────────────
+      } else if (msgType === "stickerMessage") {
+        const mediaMsg = quotedMsg.stickerMessage;
+        const stream = await downloadContentFromMessage(mediaMsg, "sticker");
+        const chunks = [];
+        for await (const chunk of stream) chunks.push(chunk);
+        const buffer = Buffer.concat(chunks);
+        // Status doesn't support native stickers — convert to image post
+        await Gifted.sendMessage(STATUS_JID, {
+          image: buffer,
+          caption: customCaption || "",
+        });
+
+      } else {
+        await react("❌");
+        return reply(
+          `❌ Message type *${msgType.replace("Message", "")}* can't be posted to status.\n` +
+          `Supported: image, video, text, audio, sticker.`
+        );
       }
+
+      await react("✅");
+      return reply(
+        `╭─⌈ 📤 *POSTED TO STATUS* ⌋\n` +
+        `│ ✅ Your status has been posted!\n` +
+        `│ 👁 Visible to all contacts who\n` +
+        `│    have the bot saved.\n` +
+        `│ ⏱ Expires in 24 hours.\n` +
+        `╰⊷ *${botName || "ULTRA GURU MD"}*`
+      );
+
     } catch (err) {
       await react("❌");
-      return reply(`❌ Failed to fetch groups: ${err.message}`);
+      return reply(`❌ Failed to post status: ${err.message}`);
     }
-
-    if (!adminGroups.length) {
-      await react("❌");
-      return reply("📭 Bot is not an admin in any group.");
-    }
-
-    const contextInfo = {
-      forwardingScore: 5,
-      isForwarded: true,
-      forwardedNewsletterMessageInfo: {
-        newsletterJid: newsletterJid || "120363406466294627@newsletter",
-        newsletterName: botName || "ULTRA GURU MD",
-        serverMessageId: 143,
-      },
-    };
-
-    await reply(
-      `📣 *Posting to ${adminGroups.length} admin group${adminGroups.length !== 1 ? "s" : ""}…*\n` +
-      `_Sit tight — 2 s gap between posts to stay safe._`
-    );
-
-    let sent   = 0;
-    let failed = 0;
-    const errors = [];
-
-    for (const group of adminGroups) {
-      try {
-        if (mediaBuffer) {
-          await Gifted.sendMessage(
-            group.id,
-            { [mediaType]: mediaBuffer, caption, contextInfo },
-            { quoted: mek }
-          );
-        } else {
-          await Gifted.sendMessage(
-            group.id,
-            { text: caption, contextInfo },
-            { quoted: mek }
-          );
-        }
-        sent++;
-      } catch (err) {
-        failed++;
-        errors.push(`${group.subject}: ${err.message}`);
-      }
-      await delay(2000);
-    }
-
-    const summary =
-      `╭─⌈ 📣 *GADVERT DONE* ⌋\n` +
-      `│ ✅ Posted  : *${sent}*\n` +
-      `│ ❌ Failed  : *${failed}*\n` +
-      `│ 📊 Total   : *${adminGroups.length}*\n` +
-      (errors.length
-        ? `│\n│ *Errors:*\n${errors.slice(0, 5).map((e) => `│ • ${e}`).join("\n")}\n`
-        : "") +
-      `╰⊷ *${botName || "ULTRA GURU MD"}*`;
-
-    await react(failed === 0 ? "✅" : "⚠️");
-    await reply(summary);
   }
 );

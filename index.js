@@ -176,7 +176,7 @@ setInterval(async () => {
 const AUTO_RESTART_MS = 24 * 60 * 60 * 1000;
 setTimeout(() => {
     console.log('🔄 [AUTO-RESTART] 24-hour scheduled restart triggered...');
-    process.exit(0);
+    process.exit(1); // exit(1) so panels/start.sh auto-restart policy triggers
 }, AUTO_RESTART_MS);
 console.log('✅ Auto-restart scheduled in 24 hours (' + new Date(Date.now() + AUTO_RESTART_MS).toLocaleTimeString() + ')');
 

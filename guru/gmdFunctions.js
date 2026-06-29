@@ -99,6 +99,25 @@ async function loadSession() {
                     console.error('❌ No SESSION_ID entered. Exiting.');
                     process.exit(1);
                 }
+                // ── Persist to .env so restarts don't prompt again ──────────
+                try {
+                    const envPath = path.join(__dirname, '..', '..', '.env');
+                    let envContent = '';
+                    if (fs.existsSync(envPath)) {
+                        envContent = fs.readFileSync(envPath, 'utf8');
+                        // Remove any existing SESSION_ID line
+                        envContent = envContent.split('\n')
+                            .filter(l => !l.startsWith('SESSION_ID='))
+                            .join('\n');
+                        if (envContent && !envContent.endsWith('\n')) envContent += '\n';
+                    }
+                    fs.writeFileSync(envPath, `${envContent}SESSION_ID=${sessionId}\n`, 'utf8');
+                    // Reload into process.env immediately
+                    process.env.SESSION_ID = sessionId;
+                    console.log('💾 SESSION_ID saved to .env — won\'t be asked again after restart.');
+                } catch (saveErr) {
+                    console.warn('⚠️ Could not save SESSION_ID to .env:', saveErr.message);
+                }
             }
         }
 

@@ -116,3 +116,56 @@ gmd(
     }
   }
 );
+
+gmd(
+  {
+    pattern: "pushgit",
+    aliases: ["gitpush", "gitsync"],
+    react: "🚀",
+    category: "owner",
+    description: "Stage, commit and push all bot changes to GitHub. Usage: .pushgit [commit message]",
+  },
+  async (from, Gifted, conText) => {
+    const { reply, react, isSuperUser, args } = conText;
+    if (!isSuperUser) return reply("❌ Owner only.");
+
+    const token = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
+    if (!token) {
+      await react("❌");
+      return reply(
+        "❌ *GITHUB_PERSONAL_ACCESS_TOKEN* is not set.\n\n" +
+        "Add it as a Replit Secret and restart the bot."
+      );
+    }
+
+    const commitMsg = args.join(" ").trim() || `bot: auto-push ${new Date().toISOString()}`;
+    const remoteUrl = `https://x-access-token:${token}@github.com/blacktech254/ULTRA-MD-`;
+
+    await react("⏳");
+    await reply("⏳ Staging and pushing to GitHub...");
+
+    _shellExec(
+      `git add -A && git diff --cached --quiet || git -c user.email="bot@ultraguru.md" -c user.name="Ultra Guru MD" commit -m "${commitMsg.replace(/"/g, "'")}" && git push "${remoteUrl}" main 2>&1`,
+      { timeout: 60000, maxBuffer: 1024 * 1024 * 2 },
+      async (err, stdout, stderr) => {
+        const output = (stdout || "").trim();
+
+        if (err && !output) {
+          await react("❌");
+          return reply(`❌ Push failed:\n\`\`\`\n${(stderr || err.message).slice(0, 1500)}\n\`\`\``);
+        }
+
+        // Grab the latest commit hash to confirm
+        _shellExec("git log --oneline -3", {}, async (_, log) => {
+          await react("✅");
+          await reply(
+            `✅ *Successfully pushed to GitHub!*\n\n` +
+            `📝 Commit: _${commitMsg}_\n\n` +
+            `📌 *Latest commits:*\n\`\`\`\n${(log || "").trim()}\n\`\`\`\n\n` +
+            `🔗 https://github.com/blacktech254/ULTRA-MD-`
+          );
+        });
+      }
+    );
+  }
+);

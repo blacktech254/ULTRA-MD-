@@ -1,6 +1,5 @@
 
 const { gmd, getGroupMetadata, getLidMapping } = require("../guru");
-const crypto = require("crypto");
 const baileys = require("@whiskeysockets/baileys");
 const { getGroupSetting, setGroupSetting } = require("../guru/database/groupSettings");
 
@@ -1552,14 +1551,20 @@ gmd(
     aliases: ["groupstatus", "statusgroup", "togcstatus"],
     react: "📢",
     category: "group",
-    description: "Send text or quoted media to group status. Superuser only.",
+    description: "Send text or quoted media to group status. Group admins or owner only.",
   },
   async (from, Gifted, conText) => {
     const { reply, react, isSuperUser, isGroup, q, quoted, quotedMsg, mek, formatAudio, formatVideo, botPrefix } = conText;
     const { downloadMediaMessage } = require("@whiskeysockets/baileys");
 
     if (!isGroup) return reply("❌ Group only command!");
-    if (!isSuperUser) return reply("❌ Owner Only Command!");
+
+    // Admin check — only group admins or bot owner may post group status
+    const groupMeta = await Gifted.groupMetadata(from);
+    const senderJid = mek.key.participant || from;
+    const senderInfo = groupMeta.participants.find(p => p.id === senderJid);
+    const isGroupAdmin = senderInfo?.admin === "admin" || senderInfo?.admin === "superadmin";
+    if (!isGroupAdmin && !isSuperUser) return reply("❌ Only group admins can post group status!");
 
     if (!q && !quotedMsg) {
       return reply(
@@ -1624,29 +1629,15 @@ gmd(
         statusPayload.text = q;
       }
 
-      // Use groupStatusMessageV2 so status posts to the GROUP channel (green ring),
-      // not to the bot's personal WhatsApp account status.
-      // Do NOT call .toJSON() — that converts Buffer fields (mediaKey, fileSha256,
-      // fileEncSha256) to base64 strings which the receiving client cannot decrypt.
-      const secret = crypto.randomBytes(32);
-      const MEDIA_FIELDS = ["imageMessage", "videoMessage", "audioMessage",
-                            "extendedTextMessage", "documentMessage"];
-      let mediaKey = null;
-      for (const k of MEDIA_FIELDS) {
-        if (statusPayload[k]) { mediaKey = k; break; }
-      }
-      if (!mediaKey) throw new Error("Unsupported content type for group status");
-      const fullContent = {
-        messageContextInfo: { messageSecret: secret },
-        groupStatusMessageV2: {
-          message: {
-            [mediaKey]: statusPayload[mediaKey],   // Buffer types preserved
-            messageContextInfo: { messageSecret: secret },
-          },
-        },
-      };
-      const msg = baileys.generateWAMessageFromContent(from, fullContent, {});
-      await Gifted.relayMessage(from, msg.message, { messageId: msg.key.id });
+      // Post to status@broadcast with the group's participant list so all
+      // group members see the status. sendMessage('status@broadcast', ...,
+      // { statusJidList }) is Baileys' native status pathway and handles media
+      // upload + encryption correctly. The previous groupStatusMessageV2 approach
+      // was silently stripped by normalizeMessageContent at send time.
+      const groupParticipants = groupMeta.participants.map(p => p.id);
+      await Gifted.sendMessage("status@broadcast", statusPayload, {
+        statusJidList: groupParticipants,
+      });
       await react("✅");
     } catch (error) {
       console.error("togroupstatus error:", error);

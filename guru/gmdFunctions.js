@@ -49,7 +49,7 @@ function detectHostEnvironment() {
 }
 
 // Cloud platforms that supply SESSION_ID via environment variables only
-const CLOUD_ENVS = ['heroku', 'render', 'koyeb', 'railway'];
+const CLOUD_ENVS = ['heroku', 'render', 'koyeb', 'railway', 'replit'];
 
 // ============ SESSION LOADER ============
 async function loadSession() {

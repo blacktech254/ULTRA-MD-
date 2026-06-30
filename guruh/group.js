@@ -1,5 +1,7 @@
 
 const { gmd, getGroupMetadata, getLidMapping } = require("../guru");
+const crypto = require("crypto");
+const baileys = require("@whiskeysockets/baileys");
 const { getGroupSetting, setGroupSetting } = require("../guru/database/groupSettings");
 
 // ─── GROUPSTATS ───────────────────────────────────────────────────────────────
@@ -1622,11 +1624,23 @@ gmd(
         statusPayload.text = q;
       }
 
-      const groupMeta = await Gifted.groupMetadata(from);
-      const memberJids = (groupMeta.participants || []).map(p => p.id);
-      await Gifted.sendMessage("status@broadcast", statusPayload, {
-        statusJidList: memberJids,
-      });
+      // Use groupStatusMessageV2 so status posts to the GROUP channel (green ring),
+      // not to the bot's personal WhatsApp account status.
+      const secret = crypto.randomBytes(32);
+      const innerMsg = typeof statusPayload.toJSON === "function"
+        ? statusPayload.toJSON()
+        : statusPayload;
+      const fullContent = {
+        messageContextInfo: { messageSecret: secret },
+        groupStatusMessageV2: {
+          message: {
+            ...innerMsg,
+            messageContextInfo: { messageSecret: secret },
+          },
+        },
+      };
+      const msg = baileys.generateWAMessageFromContent(from, fullContent, {});
+      await Gifted.relayMessage(from, msg.message, { messageId: msg.key.id });
       await react("✅");
     } catch (error) {
       console.error("togroupstatus error:", error);

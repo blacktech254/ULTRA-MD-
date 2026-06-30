@@ -25,13 +25,13 @@ const COLORS = {
 gmd(
     {
         pattern: "togstatus",
-        aliases: ["swgc", "groupstatus"],
+        aliases: ["swgc", "groupstatus", "tostatus", "postgroups"],
         react: "📡",
         category: "group",
-        description: "Send text / image / video / audio as group status",
+        description: "Send text / image / video / audio as group status. Use 'all' to post to every group.",
     },
     async (from, Gifted, conText) => {
-        const { reply, react, mek, isGroup, newsletterJid, botName } = conText;
+        const { reply, react, mek, isGroup, isSuperUser, newsletterJid, botName, botFooter, botPrefix } = conText;
 
         if (!isGroup) return reply("❌ This command only works in groups!");
 
@@ -51,7 +51,12 @@ gmd(
 
         try {
             const raw = conText.args.join(" ").trim();
-            let [caption, color, groupUrl] = raw.split("|").map((v) => v?.trim());
+
+            // Check for "all" broadcast mode
+            const broadcastAll = raw.toLowerCase().startsWith("all") && isSuperUser;
+            const rest = broadcastAll ? raw.slice(3).trim() : raw;
+
+            let [caption, color, groupUrl] = rest.split("|").map((v) => v?.trim());
 
             // Resolve target group (optional external link)
             let targetGroupId = from;
@@ -77,102 +82,112 @@ gmd(
                 quoted &&
                 (quoted.imageMessage || quoted.videoMessage || quoted.audioMessage);
 
-            // ── TEXT STATUS ──────────────────────────────────────────────────
+            // ── BUILD CONTENT ────────────────────────────────────────────────
+            let statusContent = null;
+            let mediaType = "text";
+
             if (!hasMedia) {
                 if (!caption) {
                     return quickReply(
                         `📝 *Group Status Usage*\n\n` +
                         `\`.togstatus caption|color\`\n` +
                         `\`.togstatus |blue\`\n` +
+                        `\`.togstatus all caption\` _(owner only — all groups)_\n` +
                         `_Reply to image / video / audio_\n\n` +
                         `🎨 *Colors:*\nblue, green, yellow, orange, red,\npurple, gray, black, white, cyan`,
                     );
                 }
-
                 const bgHex = COLORS[color?.toLowerCase()] || COLORS.blue;
-
-                await groupStatus(Gifted, targetGroupId, {
+                statusContent = {
                     extendedTextMessage: {
                         text: caption,
                         backgroundArgb: hexToArgb(bgHex),
                         font: 0,
                     },
-                });
+                };
+                mediaType = "text";
 
-                await react("✅");
-                return quickReply("✅ Text status sent!");
-            }
-
-            // ── IMAGE STATUS ─────────────────────────────────────────────────
-            if (quoted.imageMessage) {
+            } else if (quoted.imageMessage) {
                 await react("⏳");
                 const buf = await baileys.downloadMediaMessage(
-                    buildMsgObj(mek, quoted),
-                    "buffer",
-                    {},
+                    buildMsgObj(mek, quoted), "buffer", {},
                     { reuploadRequest: Gifted.updateMediaMessage },
                 );
-
-                const content = await baileys.generateWAMessageContent(
+                statusContent = await baileys.generateWAMessageContent(
                     { image: buf, caption: caption || "" },
                     { upload: Gifted.waUploadToServer },
                 );
-                await groupStatus(Gifted, targetGroupId, content);
-                await react("✅");
-                return quickReply("✅ Image status sent!");
-            }
+                mediaType = "image";
 
-            // ── VIDEO STATUS ─────────────────────────────────────────────────
-            if (quoted.videoMessage) {
+            } else if (quoted.videoMessage) {
                 await react("⏳");
                 const buf = await baileys.downloadMediaMessage(
-                    buildMsgObj(mek, quoted),
-                    "buffer",
-                    {},
+                    buildMsgObj(mek, quoted), "buffer", {},
                     { reuploadRequest: Gifted.updateMediaMessage },
                 );
-
-                const content = await baileys.generateWAMessageContent(
+                statusContent = await baileys.generateWAMessageContent(
                     { video: buf, caption: caption || "" },
                     { upload: Gifted.waUploadToServer },
                 );
-                await groupStatus(Gifted, targetGroupId, content);
-                await react("✅");
-                return quickReply("✅ Video status sent!");
-            }
+                mediaType = "video";
 
-            // ── AUDIO STATUS ─────────────────────────────────────────────────
-            if (quoted.audioMessage) {
+            } else if (quoted.audioMessage) {
                 await react("⏳");
                 const buf = await baileys.downloadMediaMessage(
-                    buildMsgObj(mek, quoted),
-                    "buffer",
-                    {},
+                    buildMsgObj(mek, quoted), "buffer", {},
                     { reuploadRequest: Gifted.updateMediaMessage },
                 );
-
                 const vn = await toVN(buf);
                 const waveform = await generateWaveform(buf);
-
-                const content = await baileys.generateWAMessageContent(
-                    {
-                        audio: vn,
-                        mimetype: "audio/ogg; codecs=opus",
-                        ptt: true,
-                    },
+                statusContent = await baileys.generateWAMessageContent(
+                    { audio: vn, mimetype: "audio/ogg; codecs=opus", ptt: true },
                     { upload: Gifted.waUploadToServer },
                 );
-
-                if (content.audioMessage) {
-                    content.audioMessage.waveform = Buffer.from(waveform, "base64");
+                if (statusContent.audioMessage) {
+                    statusContent.audioMessage.waveform = Buffer.from(waveform, "base64");
                 }
+                mediaType = "audio";
 
-                await groupStatus(Gifted, targetGroupId, content);
-                await react("✅");
-                return quickReply("✅ Audio status sent!");
+            } else {
+                return quickReply("❌ Unsupported media type. Reply to an image, video, or audio.");
             }
 
-            return quickReply("❌ Unsupported media type. Reply to an image, video, or audio.");
+            // ── DETERMINE TARGET GROUPS ───────────────────────────────────────
+            let targetGroups = [targetGroupId];
+
+            if (broadcastAll) {
+                try {
+                    const allGroups = await Gifted.groupFetchAllParticipating();
+                    targetGroups = Object.keys(allGroups);
+                    await quickReply(`📢 *Broadcasting to ${targetGroups.length} groups…*`);
+                } catch (err) {
+                    await react("❌");
+                    return quickReply(`❌ Could not fetch groups: ${err.message}`);
+                }
+            }
+
+            // ── SEND TO EACH GROUP VIA groupStatusMessageV2 ───────────────────
+            let sent = 0, failed = 0;
+            const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+            for (const gid of targetGroups) {
+                try {
+                    await groupStatus(Gifted, gid, statusContent);
+                    sent++;
+                    if (targetGroups.length > 1) await delay(800);
+                } catch (_) {
+                    failed++;
+                }
+            }
+
+            await react("✅");
+            if (broadcastAll) {
+                return quickReply(
+                    `✅ *Group status posted!*\n📊 Sent: ${sent} | Failed: ${failed}\n_${mediaType} status via green ring_`
+                );
+            }
+            return quickReply(`✅ ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} status sent to group!`);
+
         } catch (err) {
             console.error("[togstatus]", err);
             await react("❌");

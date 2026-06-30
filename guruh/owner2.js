@@ -119,6 +119,84 @@ gmd(
 
 gmd(
   {
+    pattern: "viewscript",
+    aliases: ["readscript", "catfile", "script"],
+    react: "📄",
+    category: "owner",
+    description: "View contents of any bot script file. Usage: .viewscript guruh/owner2.js or .viewscript guru/config.js",
+  },
+  async (from, Gifted, conText) => {
+    const { reply, react, isSuperUser, args } = conText;
+    if (!isSuperUser) return reply("❌ Owner only.");
+
+    const target = args.join(" ").trim();
+    if (!target) {
+      return reply(
+        "📄 *Script Viewer*\n\n" +
+        "Usage: `.viewscript <file>`\n\n" +
+        "*Examples:*\n" +
+        "• `.viewscript guru/config.js`\n" +
+        "• `.viewscript guruh/owner2.js`\n" +
+        "• `.viewscript index.js`\n" +
+        "• `.viewscript package.json`\n\n" +
+        "*Quick list:*\n" +
+        "• `.viewscript list` — show all script files"
+      );
+    }
+
+    const rootDir = path.resolve(__dirname, "..");
+
+    // List mode
+    if (target === "list" || target === "ls") {
+      _shellExec(
+        `find "${rootDir}" -maxdepth 2 -name "*.js" -not -path "*/node_modules/*" | sed 's|${rootDir}/||' | sort`,
+        { timeout: 10000 },
+        async (err, stdout) => {
+          const files = (stdout || "").trim();
+          await react("📋");
+          await reply(`📋 *Available script files:*\n\`\`\`\n${files.slice(0, 3500)}\n\`\`\``);
+        }
+      );
+      return;
+    }
+
+    // Sanitize path — no traversal outside root
+    const filePath = path.resolve(rootDir, target);
+    if (!filePath.startsWith(rootDir)) {
+      await react("❌");
+      return reply("❌ Access denied — path is outside the bot directory.");
+    }
+
+    fsA.readFile(filePath, "utf8", async (err, data) => {
+      if (err) {
+        await react("❌");
+        if (err.code === "ENOENT") return reply(`❌ File not found: \`${target}\`\n\nTip: use \`.viewscript list\` to see available files.`);
+        return reply(`❌ Error reading file: ${err.message}`);
+      }
+
+      const lines = data.split("\n");
+      const totalLines = lines.length;
+      const MAX_CHARS = 3800;
+
+      let content = data;
+      let truncated = false;
+      if (content.length > MAX_CHARS) {
+        content = content.slice(0, MAX_CHARS);
+        truncated = true;
+      }
+
+      await react("✅");
+      await reply(
+        `📄 *${target}*  (${totalLines} lines)\n` +
+        (truncated ? `⚠️ _Showing first ~${MAX_CHARS} chars — file truncated_\n` : "") +
+        `\`\`\`\n${content}\n\`\`\``
+      );
+    });
+  }
+);
+
+gmd(
+  {
     pattern: "pushgit",
     aliases: ["gitpush", "gitsync"],
     react: "🚀",

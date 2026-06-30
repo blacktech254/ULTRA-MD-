@@ -1,16 +1,22 @@
 
 const { gmd } = require("../guru");
 const axios = require("axios");
-const { getSetting, setSetting } = require("../guru/database/settings");
+const { getSetting } = require("../guru/database/settings");
 const { getCommitHash } = require("../guru/database/autoUpdate");
 const { runUpdate } = require("../guru/autoUpdater");
+
+const getRepo = async (giftedRepo) => {
+    const raw = giftedRepo || (await getSetting("BOT_REPO")) || "blacktech254/ULTRA-MD-";
+    const match = String(raw).match(/github\.com\/([^/\s]+\/[^/\s]+)/);
+    return match ? match[1].replace(/\.git$/, "").replace(/\/*$/, "") : String(raw).trim();
+};
 
 gmd(
     {
         pattern: "update",
         aliases: ["updatenow", "updt", "forceupdatenow"],
         react: "🆕",
-        description: "Manually check and apply the latest bot update.",
+        description: "Manually check and apply the latest bot update from GitHub.",
         category: "owner",
     },
     async (from, Gifted, conText) => {
@@ -23,13 +29,24 @@ gmd(
 
         try {
             await react("🔍");
-            const repo = giftedRepo || (await getSetting("BOT_REPO")) || "blacktech254/ULTRA-MD-";
-            await reply(`🔍 Checking for updates on \`${repo}\`...`);
+            const repo = await getRepo(giftedRepo);
+
+            await reply(
+                `🔍 *Checking for updates...*\n\n` +
+                `◈ 📦 Repo ⤳ \`github.com/${repo}\``
+            );
 
             const currentHash = await getCommitHash();
             const { data: commitData } = await axios.get(
                 `https://api.github.com/repos/${repo}/commits/main`,
-                { timeout: 20000 }
+                {
+                    timeout: 20000,
+                    headers: {
+                        "Accept": "application/vnd.github.v3+json",
+                        "Cache-Control": "no-cache",
+                        "User-Agent": "ULTRA-GURU-Bot",
+                    },
+                }
             );
             const latestHash = commitData.sha;
 
@@ -37,6 +54,7 @@ gmd(
                 await react("✅");
                 return reply(
                     `✅ *Already Up To Date!*\n\n` +
+                    `◈ 📦 Repo    ⤳ \`github.com/${repo}\`\n` +
                     `◈ 🏷️ Commit  ⤳ \`${currentHash.slice(0, 7)}\`\n` +
                     `◈ 📅 Date    ⤳ ${new Date(commitData.commit.author.date).toLocaleString()}\n` +
                     `◈ 💬 Message ⤳ ${commitData.commit.message}\n\n` +
@@ -44,22 +62,23 @@ gmd(
                 );
             }
 
-            const authorName = commitData.commit.author.name;
-            const commitMessage = commitData.commit.message;
-            const commitDate = new Date(commitData.commit.author.date).toLocaleString();
+            // Progress callback — sends each step as a WhatsApp message
+            const onProgress = async (msg) => {
+                try {
+                    await reply(msg);
+                } catch (_) {}
+            };
 
-            await reply(
-                `🔄 *Update Found! Applying...*\n\n` +
-                `◈ 👤 Author   ⤳ ${authorName}\n` +
-                `◈ 📅 Date     ⤳ ${commitDate}\n` +
-                `◈ 💬 Changes  ⤳ ${commitMessage}\n\n` +
-                `_Please wait — bot will restart when done._`
-            );
-
-            await runUpdate(repo, Gifted, null);
+            await runUpdate(repo, Gifted, null, onProgress);
 
             await react("✅");
-            await reply("✅ *Update Complete! Restarting now...*");
+            await reply(
+                `✅ *Update Complete!*\n\n` +
+                `◈ 📦 Repo   ⤳ \`github.com/${repo}\`\n` +
+                `◈ 🏷️ From   ⤳ \`${currentHash.slice(0, 7)}\`\n` +
+                `◈ 🏷️ To     ⤳ \`${latestHash.slice(0, 7)}\`\n\n` +
+                `_Bot is restarting now..._`
+            );
             setTimeout(() => process.exit(0), 2000);
         } catch (error) {
             console.error("Update error:", error);
@@ -67,7 +86,7 @@ gmd(
             return reply(
                 `❌ *Update Failed*\n\n` +
                 `Error: ${error.message}\n\n` +
-                `_Try redeploying manually if the issue persists._\n\n` +
+                `_Try running \`.update\` again or check the repo is accessible._\n\n` +
                 `> _${botFooter}_`
             );
         }
@@ -92,13 +111,19 @@ gmd(
 
         try {
             await react("🔍");
-            const repo = giftedRepo || (await getSetting("BOT_REPO")) || "blacktech254/ULTRA-MD-";
-            const autoUpdate = await getSetting("AUTO_UPDATE");
+            const repo = await getRepo(giftedRepo);
             const currentHash = await getCommitHash();
 
             const { data: commitData } = await axios.get(
                 `https://api.github.com/repos/${repo}/commits/main`,
-                { timeout: 20000 }
+                {
+                    timeout: 20000,
+                    headers: {
+                        "Accept": "application/vnd.github.v3+json",
+                        "Cache-Control": "no-cache",
+                        "User-Agent": "ULTRA-GURU-Bot",
+                    },
+                }
             );
             const latestHash = commitData.sha;
             const hasUpdate = latestHash !== currentHash;
@@ -106,18 +131,17 @@ gmd(
             await react(hasUpdate ? "🆕" : "✅");
             await reply(
                 `${hasUpdate ? "🆕 *Update Available!*" : "✅ *Up To Date*"}\n\n` +
-                `◈ 📦 Repo       ⤳ \`${repo}\`\n` +
-                `◈ 🔖 Current    ⤳ \`${currentHash.slice(0, 7)}\`\n` +
-                `◈ 🔖 Latest     ⤳ \`${latestHash.slice(0, 7)}\`\n` +
+                `◈ 📦 Repo      ⤳ \`github.com/${repo}\`\n` +
+                `◈ 🔖 Current   ⤳ \`${currentHash.slice(0, 7)}\`\n` +
+                `◈ 🔖 Latest    ⤳ \`${latestHash.slice(0, 7)}\`\n` +
                 (hasUpdate
-                    ? `◈ 👤 Author     ⤳ ${commitData.commit.author.name}\n` +
-                      `◈ 📅 Date       ⤳ ${new Date(commitData.commit.author.date).toLocaleString()}\n` +
-                      `◈ 💬 Changes    ⤳ ${commitData.commit.message}\n\n` +
+                    ? `◈ 👤 Author    ⤳ ${commitData.commit.author.name}\n` +
+                      `◈ 📅 Date      ⤳ ${new Date(commitData.commit.author.date).toLocaleString()}\n` +
+                      `◈ 💬 Changes   ⤳ ${commitData.commit.message}\n\n` +
                       `_Run \`.update\` to apply the update._`
-                    : ""
+                    : `\n_No action needed._`
                 ) +
-                `\n◈ 🔁 AutoUpdate ⤳ ${autoUpdate === "false" ? "🔴 OFF" : "🟢 ON"}\n\n` +
-                `> _${botFooter}_`
+                `\n\n> _${botFooter}_`
             );
         } catch (error) {
             await react("❌");
@@ -128,54 +152,10 @@ gmd(
 
 gmd(
     {
-        pattern: "autoupdate",
-        aliases: ["setautoupdate", "toggleautoupdate", "autoupdateset"],
-        react: "🔁",
-        description: "Enable or disable automatic updates on restart. Usage: .autoupdate on",
-        category: "owner",
-    },
-    async (from, Gifted, conText) => {
-        const { react, reply, isSuperUser, q, botFooter } = conText;
-
-        if (!isSuperUser) {
-            await react("❌");
-            return reply("❌ Owner Only Command!");
-        }
-
-        const val = (q || "").toLowerCase().trim();
-        if (!["on", "off"].includes(val)) {
-            const current = await getSetting("AUTO_UPDATE");
-            return reply(
-                `🔁 *Auto-Update Status*\n\n` +
-                `◈ Current ⤳ ${current === "false" ? "🔴 OFF" : "🟢 ON"}\n\n` +
-                `Usage: \`.autoupdate on\` or \`.autoupdate off\`\n\n` +
-                `> _${botFooter}_`
-            );
-        }
-
-        try {
-            await setSetting("AUTO_UPDATE", val === "on" ? "true" : "false");
-            await react("✅");
-            await reply(
-                `${val === "on" ? "🟢" : "🔴"} *Auto-Update ${val.toUpperCase()}*\n\n` +
-                `${val === "on"
-                    ? "Bot will automatically check for and apply updates every time it restarts."
-                    : "Bot will no longer auto-update on restart. Use `.update` to update manually."
-                }\n\n> _${botFooter}_`
-            );
-        } catch (err) {
-            await react("❌");
-            await reply(`❌ Error: ${err.message}`);
-        }
-    }
-);
-
-gmd(
-    {
         pattern: "resetupdate",
         aliases: ["clearupdatehash", "forcereupdate"],
         react: "🔄",
-        description: "Reset the stored update hash to force a full re-download on next restart.",
+        description: "Reset the stored update hash so next .update re-downloads everything.",
         category: "owner",
     },
     async (from, Gifted, conText) => {
@@ -192,9 +172,8 @@ gmd(
             await react("✅");
             await reply(
                 `✅ *Update Hash Cleared!*\n\n` +
-                `The stored version hash has been reset to _unknown_.\n` +
-                `Bot will re-download and apply the latest update on next restart.\n\n` +
-                `◈ _Restart the bot now to trigger the full update._\n\n` +
+                `The stored version has been reset to _unknown_.\n` +
+                `Next time you run \`.update\` it will re-download and apply all files.\n\n` +
                 `> _${botFooter}_`
             );
         } catch (err) {

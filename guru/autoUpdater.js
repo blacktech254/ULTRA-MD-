@@ -40,32 +40,41 @@ const normalizeRepo = (raw) => {
     return String(raw).trim();
 };
 
-const runUpdate = async (repo, Gifted, ownerJid) => {
+const runUpdate = async (repo, Gifted, ownerJid, onProgress) => {
     repo = normalizeRepo(repo) || repo;
+    const progress = typeof onProgress === "function" ? onProgress : (msg) => console.log(msg);
     const axios = require("axios");
     const AdmZip = require("adm-zip");
     const { execSync } = require("child_process");
     const { copyFolderSync } = require("./gmdFunctions");
 
+    await progress(`🔍 Fetching commit info from *github.com/${repo}*...`);
     const commitData = await fetchLatestCommit(axios, repo);
     const latestHash = commitData.sha;
     const currentHash = await getCommitHash();
 
     if (latestHash === currentHash) {
-        console.log("✅ [AutoUpdate] Bot is already up to date.");
+        console.log("✅ [Update] Bot is already up to date.");
         return false;
     }
 
     const authorName = commitData.commit.author.name;
     const commitMessage = commitData.commit.message;
     const commitDate = new Date(commitData.commit.author.date).toLocaleString();
-
-    console.log(`🔄 [AutoUpdate] New update detected!\n   ↳ Author: ${authorName}\n   ↳ Date: ${commitDate}\n   ↳ Message: ${commitMessage}`);
-
+    console.log(`🔄 [Update] New update: ${authorName} — ${commitMessage}`);
 
     const repoName = repo.split("/")[1];
     const zipPath = path.join(__dirname, "..", `${repoName}-main.zip`);
     const extractPath = path.join(__dirname, "..", "latest");
+
+    await progress(
+        `📥 *Downloading update...*\n\n` +
+        `◈ 📦 Repo    ⤳ \`github.com/${repo}\`\n` +
+        `◈ 👤 Author  ⤳ ${authorName}\n` +
+        `◈ 📅 Date    ⤳ ${commitDate}\n` +
+        `◈ 💬 Changes ⤳ ${commitMessage}\n\n` +
+        `_This may take 30–60 seconds..._`
+    );
 
     const { data: zipData } = await axios.get(
         `https://github.com/${repo}/archive/main.zip`,
@@ -73,9 +82,11 @@ const runUpdate = async (repo, Gifted, ownerJid) => {
     );
     fs.writeFileSync(zipPath, zipData);
 
+    await progress("📦 *Extracting files...*");
     const zip = new AdmZip(zipPath);
     zip.extractAllTo(extractPath, true);
 
+    await progress("📂 *Applying changes to bot files...*\n_(Your session, database and .env are kept safe)_");
     const sourcePath = path.join(extractPath, `${repoName}-main`);
     const destinationPath = path.join(__dirname, "..");
 
@@ -98,16 +109,17 @@ const runUpdate = async (repo, Gifted, ownerJid) => {
     try { fs.unlinkSync(zipPath); } catch (_) {}
     try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (_) {}
 
+    await progress("🔧 *Installing dependencies...*\n_(npm install — may take a moment)_");
     try {
-        console.log("📦 [AutoUpdate] Installing dependencies...");
         execSync("npm install --legacy-peer-deps", {
             cwd: destinationPath,
             stdio: "pipe",
             timeout: 120000,
         });
-        console.log("✅ [AutoUpdate] Dependencies installed.");
+        console.log("✅ [Update] Dependencies installed.");
     } catch (npmErr) {
-        console.warn("⚠️ [AutoUpdate] npm install warning:", npmErr.message);
+        console.warn("⚠️ [Update] npm install warning:", npmErr.message);
+        await progress(`⚠️ *npm install warning:* ${npmErr.message.slice(0, 200)}\n_Continuing anyway..._`);
     }
 
     return true;

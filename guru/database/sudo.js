@@ -34,32 +34,23 @@ let _syncDone = false;
 
 async function initializeSudoDB() {
     if (_syncDone) return;
+    _syncDone = true; // set early — prevent concurrent calls even if we throw
     try {
-        await SudoDB.sync({ alter: true });
-        _syncDone = true;
+        // Use plain sync (CREATE TABLE IF NOT EXISTS only).
+        // Never use { alter: true } — it runs showIndex which triggers a
+        // PostgreSQL catalog lookup (pg_attribute OID) that fails after
+        // table drop+recreate leaves stale OIDs in the pg catalog cache.
+        await SudoDB.sync();
     } catch (err) {
-        // PostgreSQL catalog corruption (XX000 / stale OID after table drop+recreate).
-        // Recovery: drop and recreate the table cleanly.
-        const isCatalogErr =
-            err?.parent?.code === 'XX000' ||
-            (err?.message || '').includes('cache lookup failed') ||
-            (err?.parent?.message || '').includes('cache lookup failed');
-
-        if (isCatalogErr) {
-            console.warn('[SUDO] Catalog error detected — dropping and recreating sudo_users table...');
-            try {
-                await SudoDB.drop({ cascade: true }).catch(() => {});
-                await SudoDB.sync({ force: false });
-                _syncDone = true;
-                console.log('[SUDO] sudo_users table recreated successfully.');
-            } catch (recreateErr) {
-                console.error('[SUDO] Failed to recreate sudo_users:', recreateErr.message);
-                // Still mark done to avoid hammering on every message
-                _syncDone = true;
-            }
-        } else {
-            console.error('[SUDO] Sync error:', err.message);
-            _syncDone = true; // prevent retry storm
+        const msg = (err?.parent?.message || err?.message || '');
+        console.warn('[SUDO] sync() failed:', msg.slice(0, 120));
+        // If the table is in a broken state, drop and recreate it cleanly
+        try {
+            await DATABASE.query('DROP TABLE IF EXISTS sudo_users CASCADE');
+            await SudoDB.sync();
+            console.log('[SUDO] sudo_users recreated successfully.');
+        } catch (e2) {
+            console.error('[SUDO] Recreation also failed:', e2.message.slice(0, 120));
         }
     }
 }
@@ -67,11 +58,16 @@ async function initializeSudoDB() {
 let _sudoCache = null;
 
 async function getSudoNumbers() {
-    await initializeSudoDB();
-    if (_sudoCache) return _sudoCache;
-    const records = await SudoDB.findAll();
-    _sudoCache = records.map(record => record.number);
-    return _sudoCache;
+    try {
+        await initializeSudoDB();
+        if (_sudoCache) return _sudoCache;
+        const records = await SudoDB.findAll();
+        _sudoCache = records.map(record => record.number);
+        return _sudoCache;
+    } catch (err) {
+        console.error('[SUDO] getSudoNumbers error (returning []):', err.message.slice(0, 120));
+        return [];
+    }
 }
 
 async function setSudo(number, addedByNumber = null) {

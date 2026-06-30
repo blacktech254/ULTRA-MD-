@@ -1,0 +1,123 @@
+max-old-space-size=512 index.js
+2026-06-30T01:44:18.705441+00:00 app[web.1]: 
+2026-06-30T01:44:18.890166+00:00 app[web.1]: 📦 Using PostgreSQL Database
+2026-06-30T01:44:19.705562+00:00 heroku[web.1]: State changed from starting to up
+2026-06-30T01:44:19.539118+00:00 app[web.1]: ✅ Auto-restart scheduled in 24 hours (1:44:19 AM)
+2026-06-30T01:44:19.540863+00:00 app[web.1]: 🔒 [EXPIRY] Licence watchdog started (checks every 30 min, no process.exit)
+2026-06-30T01:44:19.541062+00:00 app[web.1]: 🖥️ Detected Environment: HEROKU
+2026-06-30T01:44:19.541124+00:00 app[web.1]: 📦 SESSION_ID found — loading session...
+2026-06-30T01:44:19.542070+00:00 app[web.1]: ✅ Session File Loaded (Direct Base64)
+2026-06-30T01:44:19.542315+00:00 app[web.1]: ✅ Session valid — WhatsApp number: 254763986398
+2026-06-30T01:44:19.546911+00:00 app[web.1]: ✅ Server Running on Port: 8769
+2026-06-30T01:44:22.538297+00:00 app[web.1]: ✅ Database Synchronized.
+2026-06-30T01:44:22.775938+00:00 app[web.1]: ✅ ULTRA GURU Settings Initialized
+2026-06-30T01:44:22.941472+00:00 app[web.1]: ✅ Group Settings Initialized.
+2026-06-30T01:44:23.334174+00:00 app[web.1]: 🕗 Connecting Bot...
+2026-06-30T01:44:24.634496+00:00 app[web.1]: ✅ Connection Instance is Online
+2026-06-30T01:44:26.003827+00:00 app[web.1]: ✅ LID store initialized => 0 Mappings from 11 Groups
+2026-06-30T01:44:26.012225+00:00 app[web.1]: ⏰ Greeting scheduler started (checks every 60s)
+2026-06-30T01:44:27.173741+00:00 app[web.1]: ╔═════════╦══════════╦═════════╦══════════════════════╦════════════════════╦═════════════════════════════════════╗
+2026-06-30T01:44:27.173764+00:00 app[web.1]: ║ Time    ║ Date     ║ Type    ║ JID                  ║ Name               ║ Message                             ║
+2026-06-30T01:44:27.173765+00:00 app[web.1]: ╠═════════╪══════════╪═════════╪══════════════════════╪════════════════════╪═════════════════════════════════════╣
+2026-06-30T01:44:27.173789+00:00 app[web.1]: ║ 01:44:27 ║ 30/06/26 ║ 👥 GROUP ║ 120363425264222648   ║ 𝐋𝐎𝐑𝐃 𝐄𝐀𝐆𝐋� ║ @103023967785096                    ║
+2026-06-30T01:44:29.176982+00:00 app[web.1]: 📡 Auto-followed 1 channel(s)
+2026-06-30T01:44:31.004488+00:00 app[web.1]: 💜 Connected to Whatsapp, Active!
+2026-06-30T01:44:43.907404+00:00 app[web.1]: ╠═════════╪══════════╪═════════╪══════════════════════╪════════════════════╪═════════════════════════════════════╣
+2026-06-30T01:44:43.907436+00:00 app[web.1]: ║ 01:44:43 ║ 30/06/26 ║ 👥 GROUP ║ 120363425264222648   ║ 𝑳𝒐𝒓𝒅 𝑬𝒂𝒈𝒍� ║ Hii haireply                        ║
+2026-06-30T01:46:49.000000+00:00 app[api]: Build started by user zetuzetu926@gmail.com
+2026-06-30T01:47:32.794181+00:00 app[web.1]: ╠═════════╪══════════╪═════════╪══════════════════════╪════════════════════╪═════════════════════════════════════╣
+2026-06-30T01:47:32.794208+00:00 app[web.1]: ║ 01:47:32 ║ 30/06/26 ║ 👥 GROUP ║ 120363425264222648   ║ 𝑳𝒐𝒓𝒅 𝑬𝒂𝒈𝒍� ║ uptime                              ║
+2026-06-30T01:47:40.841946+00:00 app[web.1]: ╠═════════╪══════════╪═════════╪══════════════════════╪════════════════════╪═════════════════════════════════════╣
+2026-06-30T01:47:40.841968+00:00 app[web.1]: ║ 01:47:40 ║ 30/06/26 ║ 👥 GROUP ║ 120363425264222648   ║ 𝑳𝒐𝒓𝒅 𝑬𝒂𝒈𝒍� ║ Sidhany 😂                          ║
+2026-06-30T01:47:41.688501+00:00 app[web.1]: ╠═════════╪══════════╪═════════╪══════════════════════╪════════════════════╪═════════════════════════════════════╣
+2026-06-30T01:47:41.688543+00:00 app[web.1]: ║ 01:47:41 ║ 30/06/26 ║ 👥 GROUP ║ 120363425264222648   ║ 𝑳𝒐𝒓𝒅 𝑬𝒂𝒈𝒍� ║ (media/sticker)                     ║
+2026-06-30T01:47:47.651734+00:00 app[web.1]: ╠═════════╪══════════╪═════════╪══════════════════════╪════════════════════╪═════════════════════════════════════╣
+2026-06-30T01:47:47.651759+00:00 app[web.1]: ║ 01:47:47 ║ 30/06/26 ║ 👥 GROUP ║ 120363425264222648   ║ 𝑳𝒐𝒓𝒅 𝑬𝒂𝒈𝒍� ║ (media/sticker)                     ║
+2026-06-30T01:47:57.638607+00:00 app[web.1]: ╠═════════╪══════════╪═════════╪══════════════════════╪════════════════════╪═════════════════════════════════════╣
+2026-06-30T01:47:57.638631+00:00 app[web.1]: ║ 01:47:57 ║ 30/06/26 ║ 👥 GROUP ║ 120363425264222648   ║ 𝑳𝒐𝒓𝒅 𝑬𝒂𝒈𝒍� ║ runtime                             ║
+2026-06-30T01:47:58.416451+00:00 app[web.1]: ╠═════════╪══════════╪═════════╪══════════════════════╪════════════════════╪═════════════════════════════════════╣
+2026-06-30T01:47:58.416525+00:00 app[web.1]: ║ 01:47:58 ║ 30/06/26 ║ 👥 GROUP ║ 120363425264222648   ║ 𝑳𝒐𝒓𝒅 𝑬𝒂𝒈𝒍� ║ (media/sticker)                     ║
+2026-06-30T01:47:59.300876+00:00 app[web.1]: node:internal/process/promises:394
+2026-06-30T01:47:59.300911+00:00 app[web.1]:     triggerUncaughtException(err, true /* fromPromise */);
+2026-06-30T01:47:59.300913+00:00 app[web.1]:     ^
+2026-06-30T01:47:59.300913+00:00 app[web.1]: 
+2026-06-30T01:47:59.300914+00:00 app[web.1]: Error
+2026-06-30T01:47:59.300917+00:00 app[web.1]:     at Query.run (/app/node_modules/sequelize/lib/dialects/postgres/query.js:50:25)
+2026-06-30T01:47:59.300918+00:00 app[web.1]:     at /app/node_modules/sequelize/lib/sequelize.js:315:28
+2026-06-30T01:47:59.300918+00:00 app[web.1]:     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+2026-06-30T01:47:59.300919+00:00 app[web.1]:     at async PostgresQueryInterface.showIndex (/app/node_modules/sequelize/lib/dialects/abstract/query-interface.js:254:12)
+2026-06-30T01:47:59.300919+00:00 app[web.1]:     at async SudoUser.sync (/app/node_modules/sequelize/lib/model.js:988:29)
+2026-06-30T01:47:59.300920+00:00 app[web.1]:     at async initializeSudoDB (/app/guru/database/sudo.js:34:5)
+2026-06-30T01:47:59.300920+00:00 app[web.1]:     at async getSudoNumbers (/app/guru/database/sudo.js:40:5)
+2026-06-30T01:47:59.300920+00:00 app[web.1]:     at async buildSuperUsers (/app/guru/connection/commandHandler.js:198:33)
+2026-06-30T01:47:59.300920+00:00 app[web.1]:     at async EventEmitter.<anonymous> (/app/guru/messageHandler.js:319:27) {
+2026-06-30T01:47:59.300921+00:00 app[web.1]:   name: 'SequelizeDatabaseError',
+2026-06-30T01:47:59.300921+00:00 app[web.1]:   parent: error: cache lookup failed for attribute 1 of relation 247053777
+2026-06-30T01:47:59.300921+00:00 app[web.1]:       at parseErrorMessage (/app/node_modules/pg-protocol/dist/parser.js:305:11)
+2026-06-30T01:47:59.300922+00:00 app[web.1]:       at Parser.handlePacket (/app/node_modules/pg-protocol/dist/parser.js:143:27)
+2026-06-30T01:47:59.300922+00:00 app[web.1]:       at Parser.parse (/app/node_modules/pg-protocol/dist/parser.js:37:38)
+2026-06-30T01:47:59.300922+00:00 app[web.1]:       at TLSSocket.<anonymous> (/app/node_modules/pg-protocol/dist/index.js:12:42)
+2026-06-30T01:47:59.300922+00:00 app[web.1]:       at TLSSocket.emit (node:events:519:28)
+2026-06-30T01:47:59.300923+00:00 app[web.1]:       at addChunk (node:internal/streams/readable:561:12)
+2026-06-30T01:47:59.300923+00:00 app[web.1]:       at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+2026-06-30T01:47:59.300923+00:00 app[web.1]:       at Readable.push (node:internal/streams/readable:392:5)
+2026-06-30T01:47:59.300923+00:00 app[web.1]:       at TLSWrap.onStreamRead (node:internal/stream_base_commons:189:23)
+2026-06-30T01:47:59.300924+00:00 app[web.1]:       at TLSWrap.callbackTrampoline (node:internal/async_hooks:130:17) {
+2026-06-30T01:47:59.300924+00:00 app[web.1]:     length: 120,
+2026-06-30T01:47:59.300925+00:00 app[web.1]:     severity: 'ERROR',
+2026-06-30T01:47:59.300925+00:00 app[web.1]:     code: 'XX000',
+2026-06-30T01:47:59.300925+00:00 app[web.1]:     detail: undefined,
+2026-06-30T01:47:59.300925+00:00 app[web.1]:     hint: undefined,
+2026-06-30T01:47:59.300925+00:00 app[web.1]:     position: undefined,
+2026-06-30T01:47:59.300926+00:00 app[web.1]:     internalPosition: undefined,
+2026-06-30T01:47:59.300926+00:00 app[web.1]:     internalQuery: undefined,
+2026-06-30T01:47:59.300926+00:00 app[web.1]:     where: undefined,
+2026-06-30T01:47:59.300926+00:00 app[web.1]:     schema: undefined,
+2026-06-30T01:47:59.300926+00:00 app[web.1]:     table: undefined,
+2026-06-30T01:47:59.300927+00:00 app[web.1]:     column: undefined,
+2026-06-30T01:47:59.300927+00:00 app[web.1]:     dataType: undefined,
+2026-06-30T01:47:59.300927+00:00 app[web.1]:     constraint: undefined,
+2026-06-30T01:47:59.300927+00:00 app[web.1]:     file: 'lsyscache.c',
+2026-06-30T01:47:59.300927+00:00 app[web.1]:     line: '1041',
+2026-06-30T01:47:59.300927+00:00 app[web.1]:     routine: 'get_attoptions',
+2026-06-30T01:47:59.300928+00:00 app[web.1]:     sql: "SELECT i.relname AS name, ix.indisprimary AS primary, ix.indisunique AS unique, ix.indkey AS indkey, array_agg(a.attnum) as column_indexes, array_agg(a.attname) AS column_names, pg_get_indexdef(ix.indexrelid) AS definition FROM pg_class t, pg_class i, pg_index ix, pg_attribute a WHERE t.oid = ix.indrelid AND i.oid = ix.indexrelid AND a.attrelid = t.oid AND t.relkind = 'r' and t.relname = 'sudo_users' GROUP BY i.relname, ix.indexrelid, ix.indisprimary, ix.indisunique, ix.indkey ORDER BY i.relname;",
+2026-06-30T01:47:59.300928+00:00 app[web.1]:     parameters: undefined
+2026-06-30T01:47:59.300929+00:00 app[web.1]:   },
+2026-06-30T01:47:59.300929+00:00 app[web.1]:   original: error: cache lookup failed for attribute 1 of relation 247053777
+2026-06-30T01:47:59.300929+00:00 app[web.1]:       at parseErrorMessage (/app/node_modules/pg-protocol/dist/parser.js:305:11)
+2026-06-30T01:47:59.300929+00:00 app[web.1]:       at Parser.handlePacket (/app/node_modules/pg-protocol/dist/parser.js:143:27)
+2026-06-30T01:47:59.300929+00:00 app[web.1]:       at Parser.parse (/app/node_modules/pg-protocol/dist/parser.js:37:38)
+2026-06-30T01:47:59.300929+00:00 app[web.1]:       at TLSSocket.<anonymous> (/app/node_modules/pg-protocol/dist/index.js:12:42)
+2026-06-30T01:47:59.300929+00:00 app[web.1]:       at TLSSocket.emit (node:events:519:28)
+2026-06-30T01:47:59.300930+00:00 app[web.1]:       at addChunk (node:internal/streams/readable:561:12)
+2026-06-30T01:47:59.300930+00:00 app[web.1]:       at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+2026-06-30T01:47:59.300930+00:00 app[web.1]:       at Readable.push (node:internal/streams/readable:392:5)
+2026-06-30T01:47:59.300930+00:00 app[web.1]:       at TLSWrap.onStreamRead (node:internal/stream_base_commons:189:23)
+2026-06-30T01:47:59.300930+00:00 app[web.1]:       at TLSWrap.callbackTrampoline (node:internal/async_hooks:130:17) {
+2026-06-30T01:47:59.300930+00:00 app[web.1]:     length: 120,
+2026-06-30T01:47:59.300931+00:00 app[web.1]:     severity: 'ERROR',
+2026-06-30T01:47:59.300931+00:00 app[web.1]:     code: 'XX000',
+2026-06-30T01:47:59.300931+00:00 app[web.1]:     detail: undefined,
+2026-06-30T01:47:59.300931+00:00 app[web.1]:     hint: undefined,
+2026-06-30T01:47:59.300931+00:00 app[web.1]:     position: undefined,
+2026-06-30T01:47:59.300932+00:00 app[web.1]:     internalPosition: undefined,
+2026-06-30T01:47:59.300932+00:00 app[web.1]:     internalQuery: undefined,
+2026-06-30T01:47:59.300932+00:00 app[web.1]:     where: undefined,
+2026-06-30T01:47:59.300932+00:00 app[web.1]:     schema: undefined,
+2026-06-30T01:47:59.300932+00:00 app[web.1]:     table: undefined,
+2026-06-30T01:47:59.300932+00:00 app[web.1]:     column: undefined,
+2026-06-30T01:47:59.300933+00:00 app[web.1]:     dataType: undefined,
+2026-06-30T01:47:59.300933+00:00 app[web.1]:     constraint: undefined,
+2026-06-30T01:47:59.300933+00:00 app[web.1]:     file: 'lsyscache.c',
+2026-06-30T01:47:59.300933+00:00 app[web.1]:     line: '1041',
+2026-06-30T01:47:59.300933+00:00 app[web.1]:     routine: 'get_attoptions',
+2026-06-30T01:47:59.300936+00:00 app[web.1]:     sql: "SELECT i.relname AS name, ix.indisprimary AS primary, ix.indisunique AS unique, ix.indkey AS indkey, array_agg(a.attnum) as column_indexes, array_agg(a.attname) AS column_names, pg_get_indexdef(ix.indexrelid) AS definition FROM pg_class t, pg_class i, pg_index ix, pg_attribute a WHERE t.oid = ix.indrelid AND i.oid = ix.indexrelid AND a.attrelid = t.oid AND t.relkind = 'r' and t.relname = 'sudo_users' GROUP BY i.relname, ix.indexrelid, ix.indisprimary, ix.indisunique, ix.indkey ORDER BY i.relname;",
+2026-06-30T01:47:59.300936+00:00 app[web.1]:     parameters: undefined
+2026-06-30T01:47:59.300936+00:00 app[web.1]:   },
+2026-06-30T01:47:59.300947+00:00 app[web.1]:   sql: "SELECT i.relname AS name, ix.indisprimary AS primary, ix.indisunique AS unique, ix.indkey AS indkey, array_agg(a.attnum) as column_indexes, array_agg(a.attname) AS column_names, pg_get_indexdef(ix.indexrelid) AS definition FROM pg_class t, pg_class i, pg_index ix, pg_attribute a WHERE t.oid = ix.indrelid AND i.oid = ix.indexrelid AND a.attrelid = t.oid AND t.relkind = 'r' and t.relname = 'sudo_users' GROUP BY i.relname, ix.indexrelid, ix.indisprimary, ix.indisunique, ix.indkey ORDER BY i.relname;",
+2026-06-30T01:47:59.300947+00:00 app[web.1]:   parameters: {}
+2026-06-30T01:47:59.300948+00:00 app[web.1]: }
+2026-06-30T01:47:59.300948+00:00 app[web.1]: 
+2026-06-30T01:47:59.300948+00:00 app[web.1]: Node.js v22.23.1
+2026-06-30T01:47:59.385196+00:00 heroku[web.1]: Process exited with status 1
+2026-06-30T01:47:59.453524+00:00 heroku[web.1]: State changed from up to crashed

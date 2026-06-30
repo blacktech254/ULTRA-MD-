@@ -1,5 +1,5 @@
 #!/bin/bash
-# Push specific files (or all changed files) to GitHub via the Contents API.
+# Push specific files to GitHub via the Contents API (handles large files).
 # Usage:  bash scripts/push-to-github.sh "commit message" file1 file2 ...
 # Example: bash scripts/push-to-github.sh "feat: new command" guruh/converter.js
 
@@ -24,6 +24,8 @@ if [ -z "${MESSAGE}" ] || [ ${#FILES[@]} -eq 0 ]; then
 fi
 
 WORKSPACE="/home/runner/workspace"
+TMPB64="/tmp/_push_b64.txt"
+TMPPAYLOAD="/tmp/_push_payload.json"
 
 for FILE in "${FILES[@]}"; do
   LOCAL="${WORKSPACE}/${FILE}"
@@ -37,20 +39,26 @@ for FILE in "${FILES[@]}"; do
   SHA=$(curl -s -H "Authorization: token ${GITHUB_PERSONAL_ACCESS_TOKEN}" \
     "${API}/${FILE}?ref=${BRANCH}" | jq -r '.sha // empty')
 
-  B64=$(base64 -w 0 "${LOCAL}")
+  # Write base64 to temp file to avoid "argument list too long" on large files
+  base64 -w 0 "${LOCAL}" > "${TMPB64}"
 
-  BODY=$(jq -n \
-    --arg msg "${MESSAGE}" \
-    --arg content "${B64}" \
-    --arg sha "${SHA}" \
-    --arg branch "${BRANCH}" \
-    '{message: $msg, content: $content, sha: $sha, branch: $branch}')
+  # Build JSON payload via Node so large content is never a shell argument
+  node -e "
+    const fs = require('fs');
+    const b64 = fs.readFileSync('${TMPB64}', 'utf8').trim();
+    fs.writeFileSync('${TMPPAYLOAD}', JSON.stringify({
+      message: $(node -e "process.stdout.write(JSON.stringify('${MESSAGE}'))"),
+      content: b64,
+      sha: '${SHA}',
+      branch: '${BRANCH}'
+    }));
+  "
 
   RESULT=$(curl -s -X PUT \
     -H "Authorization: token ${GITHUB_PERSONAL_ACCESS_TOKEN}" \
     -H "Content-Type: application/json" \
     "${API}/${FILE}" \
-    -d "${BODY}")
+    --data-binary @"${TMPPAYLOAD}")
 
   COMMIT=$(echo "${RESULT}" | jq -r '.commit.sha // empty')
 
@@ -59,9 +67,11 @@ for FILE in "${FILES[@]}"; do
   else
     ERR=$(echo "${RESULT}" | jq -r '.message // "unknown error"')
     echo "❌ ${FILE} → ${ERR}"
+    rm -f "${TMPB64}" "${TMPPAYLOAD}"
     exit 1
   fi
 done
 
+rm -f "${TMPB64}" "${TMPPAYLOAD}"
 echo ""
 echo "🚀 All files pushed to github.com/${REPO} (${BRANCH})"

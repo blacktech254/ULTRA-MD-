@@ -2188,17 +2188,17 @@ gmd(
   },
 );
 
-// ─── TOGSTATUS — Post quoted message as GROUP STATUS (green ring) ─────────────
+// ─── TOGSTATUS moved to guruh/togstatus.js (correct groupStatusMessageV2 impl) ─
 
 gmd(
   {
-    pattern: "togstatus",
+    pattern: "broadcaststatus",
     aliases: ["tostatus", "postgroups"],
     react: "📢",
     category: "owner",
     description:
-      "Reply to any message and type .togstatus to post it as this group's status (green ring). " +
-      "Use .togstatus all to post to every group's status at once.",
+      "Reply to any message and type .broadcaststatus to post it as this group's status (green ring). " +
+      "Use .broadcaststatus all to post to every group's status at once.",
   },
   async (from, Gifted, conText) => {
     const {

@@ -197,6 +197,86 @@ gmd(
 
 gmd(
   {
+    pattern: "editscript",
+    aliases: ["patchscript", "editfile"],
+    react: "✏️",
+    category: "owner",
+    description: "Find & replace text in a bot script file. Usage: .editscript <file>|<find>|<replace>",
+  },
+  async (from, Gifted, conText) => {
+    const { reply, react, isSuperUser, args } = conText;
+    if (!isSuperUser) return reply("❌ Sudo/Owner only.");
+
+    const raw = args.join(" ").trim();
+
+    if (!raw || !raw.includes("|")) {
+      return reply(
+        "✏️ *Script Editor*\n\n" +
+        "Usage: `.editscript <file>|<find>|<replace>`\n\n" +
+        "*Examples:*\n" +
+        "• `.editscript guru/config.js|BOT_NAME = 'OLD'|BOT_NAME = 'NEW'`\n" +
+        "• `.editscript guruh/owner2.js|console.log('debug')|`  _(blank replace = delete line)_\n\n" +
+        "⚠️ _Case-sensitive. First match only. Always backup before editing._"
+      );
+    }
+
+    const parts = raw.split("|");
+    if (parts.length < 3) {
+      return reply("❌ Need exactly 3 parts separated by `|`:\n`<file>|<find text>|<replace text>`");
+    }
+
+    const [target, findText, replaceText = ""] = parts;
+    const rootDir = path.resolve(__dirname, "..");
+    const filePath = path.resolve(rootDir, target.trim());
+
+    if (!filePath.startsWith(rootDir)) {
+      await react("❌");
+      return reply("❌ Access denied — path is outside the bot directory.");
+    }
+
+    fsA.readFile(filePath, "utf8", async (readErr, original) => {
+      if (readErr) {
+        await react("❌");
+        if (readErr.code === "ENOENT") return reply(`❌ File not found: \`${target.trim()}\`\n\nUse \`.viewscript list\` to see available files.`);
+        return reply(`❌ Read error: ${readErr.message}`);
+      }
+
+      if (!original.includes(findText)) {
+        await react("❌");
+        return reply(`❌ Text not found in \`${target.trim()}\`:\n\`\`\`\n${findText.slice(0, 300)}\n\`\`\``);
+      }
+
+      // Make backup
+      const backupPath = filePath + ".bak";
+      fsA.writeFileSync(backupPath, original, "utf8");
+
+      // Apply replacement (first occurrence)
+      const updated = original.replace(findText, replaceText);
+
+      fsA.writeFile(filePath, updated, "utf8", async (writeErr) => {
+        if (writeErr) {
+          await react("❌");
+          return reply(`❌ Write error: ${writeErr.message}`);
+        }
+
+        const oldSnip = findText.slice(0, 200);
+        const newSnip = replaceText.slice(0, 200) || "_(deleted)_";
+
+        await react("✅");
+        await reply(
+          `✅ *File updated:* \`${target.trim()}\`\n\n` +
+          `🔴 *Removed:*\n\`\`\`\n${oldSnip}\n\`\`\`\n` +
+          `🟢 *Replaced with:*\n\`\`\`\n${newSnip}\n\`\`\`\n\n` +
+          `💾 Backup saved as \`${path.basename(backupPath)}\`\n` +
+          `⚡ Restart the bot to apply changes if needed.`
+        );
+      });
+    });
+  }
+);
+
+gmd(
+  {
     pattern: "pushgit",
     aliases: ["gitpush", "gitsync"],
     react: "🚀",

@@ -30,8 +30,38 @@ const SudoDB = DATABASE.define('SudoUser', {
     timestamps: true,
 });
 
+let _syncDone = false;
+
 async function initializeSudoDB() {
-    await SudoDB.sync({ alter: true });
+    if (_syncDone) return;
+    try {
+        await SudoDB.sync({ alter: true });
+        _syncDone = true;
+    } catch (err) {
+        // PostgreSQL catalog corruption (XX000 / stale OID after table drop+recreate).
+        // Recovery: drop and recreate the table cleanly.
+        const isCatalogErr =
+            err?.parent?.code === 'XX000' ||
+            (err?.message || '').includes('cache lookup failed') ||
+            (err?.parent?.message || '').includes('cache lookup failed');
+
+        if (isCatalogErr) {
+            console.warn('[SUDO] Catalog error detected — dropping and recreating sudo_users table...');
+            try {
+                await SudoDB.drop({ cascade: true }).catch(() => {});
+                await SudoDB.sync({ force: false });
+                _syncDone = true;
+                console.log('[SUDO] sudo_users table recreated successfully.');
+            } catch (recreateErr) {
+                console.error('[SUDO] Failed to recreate sudo_users:', recreateErr.message);
+                // Still mark done to avoid hammering on every message
+                _syncDone = true;
+            }
+        } else {
+            console.error('[SUDO] Sync error:', err.message);
+            _syncDone = true; // prevent retry storm
+        }
+    }
 }
 
 let _sudoCache = null;

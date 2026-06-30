@@ -316,12 +316,17 @@ function setupCommandHandler(Gifted) {
             sender,
         } = groupData;
 
-        const superUser = await buildSuperUsers(
-            settings,
-            getSudoNumbers,
-            botId,
-            settings.OWNER_NUMBER || "",
-        );
+        let superUser = [];
+        try {
+            superUser = await buildSuperUsers(
+                settings,
+                getSudoNumbers,
+                botId,
+                settings.OWNER_NUMBER || "",
+            );
+        } catch (suErr) {
+            console.error('[SuperUsers] buildSuperUsers failed:', suErr.message);
+        }
         const isSuperUser = superUser.includes(sender);
 
         if (settings.AUTO_BLOCK && sender && !isSuperUser && !isGroup) {

@@ -1,6 +1,5 @@
 "use strict";
 
-const crypto = require("crypto");
 const ffmpeg = require("fluent-ffmpeg");
 const { PassThrough } = require("stream");
 const baileys = require("@whiskeysockets/baileys");
@@ -28,7 +27,7 @@ gmd(
         aliases: ["swgc", "groupstatus", "tostatus", "postgroups"],
         react: "📡",
         category: "group",
-        description: "Send text / image / video / audio as group status. Use 'all' to post to every group.",
+        description: "Send text / image / video / audio as group status (admin only). Use 'all' to post to every group (owner only).",
     },
     async (from, Gifted, conText) => {
         const { reply, react, mek, isGroup, isSuperUser, newsletterJid, botName, botFooter, botPrefix } = conText;
@@ -50,9 +49,18 @@ gmd(
             Gifted.sendMessage(from, { text, contextInfo }, { quoted: mek });
 
         try {
+            // ── ADMIN CHECK ──────────────────────────────────────────────────
+            const groupMeta = await Gifted.groupMetadata(from);
+            const senderJid = mek.key.participant || from;
+            const senderInfo = groupMeta.participants.find(p => p.id === senderJid);
+            const isGroupAdmin = senderInfo?.admin === "admin" || senderInfo?.admin === "superadmin";
+            if (!isGroupAdmin && !isSuperUser) {
+                return quickReply("❌ Only group admins can post group status updates!");
+            }
+
             const raw = conText.args.join(" ").trim();
 
-            // Check for "all" broadcast mode
+            // Check for "all" broadcast mode (owner only)
             const broadcastAll = raw.toLowerCase().startsWith("all") && isSuperUser;
             const rest = broadcastAll ? raw.slice(3).trim() : raw;
 
@@ -82,8 +90,14 @@ gmd(
                 quoted &&
                 (quoted.imageMessage || quoted.videoMessage || quoted.audioMessage);
 
-            // ── BUILD CONTENT ────────────────────────────────────────────────
-            let statusContent = null;
+            // ── BUILD RAW SEND OPTIONS ───────────────────────────────────────
+            // We use sendMessage('status@broadcast', opts, {statusJidList}) which
+            // is Baileys' own status pathway — handles media upload + encryption
+            // correctly. The old generateWAMessageContent + groupStatusMessageV2
+            // approach was broken because generateWAMessageFromContent strips
+            // FutureProofMessage wrappers (including groupStatusMessageV2) via
+            // normalizeMessageContent, causing media to be double-processed/broken.
+            let sendOpts = null;
             let mediaType = "text";
 
             if (!hasMedia) {
@@ -98,12 +112,10 @@ gmd(
                     );
                 }
                 const bgHex = COLORS[color?.toLowerCase()] || COLORS.blue;
-                statusContent = {
-                    extendedTextMessage: {
-                        text: caption,
-                        backgroundArgb: hexToArgb(bgHex),
-                        font: 0,
-                    },
+                sendOpts = {
+                    text: caption,
+                    backgroundArgb: hexToArgb(bgHex),
+                    font: 0,
                 };
                 mediaType = "text";
 
@@ -113,10 +125,7 @@ gmd(
                     buildMsgObj(mek, quoted), "buffer", {},
                     { reuploadRequest: Gifted.updateMediaMessage },
                 );
-                statusContent = await baileys.generateWAMessageContent(
-                    { image: buf, caption: caption || "" },
-                    { upload: Gifted.waUploadToServer },
-                );
+                sendOpts = { image: buf, caption: caption || "" };
                 mediaType = "image";
 
             } else if (quoted.videoMessage) {
@@ -125,10 +134,7 @@ gmd(
                     buildMsgObj(mek, quoted), "buffer", {},
                     { reuploadRequest: Gifted.updateMediaMessage },
                 );
-                statusContent = await baileys.generateWAMessageContent(
-                    { video: buf, caption: caption || "" },
-                    { upload: Gifted.waUploadToServer },
-                );
+                sendOpts = { video: buf, caption: caption || "", gifPlayback: false };
                 mediaType = "video";
 
             } else if (quoted.audioMessage) {
@@ -138,14 +144,13 @@ gmd(
                     { reuploadRequest: Gifted.updateMediaMessage },
                 );
                 const vn = await toVN(buf);
-                const waveform = await generateWaveform(buf);
-                statusContent = await baileys.generateWAMessageContent(
-                    { audio: vn, mimetype: "audio/ogg; codecs=opus", ptt: true },
-                    { upload: Gifted.waUploadToServer },
-                );
-                if (statusContent.audioMessage) {
-                    statusContent.audioMessage.waveform = Buffer.from(waveform, "base64");
-                }
+                const wfBase64 = await generateWaveform(buf);
+                sendOpts = {
+                    audio: vn,
+                    mimetype: "audio/ogg; codecs=opus",
+                    ptt: true,
+                    waveform: Buffer.from(wfBase64, "base64"),
+                };
                 mediaType = "audio";
 
             } else {
@@ -166,13 +171,16 @@ gmd(
                 }
             }
 
-            // ── SEND TO EACH GROUP VIA groupStatusMessageV2 ───────────────────
+            // ── POST TO STATUS@BROADCAST WITH GROUP PARTICIPANTS ──────────────
+            // sendMessage('status@broadcast', ..., { statusJidList }) is the
+            // correct Baileys API for status that properly handles media upload
+            // and encryption. statusJidList makes it visible to group members.
             let sent = 0, failed = 0;
             const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
             for (const gid of targetGroups) {
                 try {
-                    await groupStatus(Gifted, gid, statusContent);
+                    await groupStatus(Gifted, gid, sendOpts);
                     sent++;
                     if (targetGroups.length > 1) await delay(800);
                 } catch (_) {
@@ -183,7 +191,7 @@ gmd(
             await react("✅");
             if (broadcastAll) {
                 return quickReply(
-                    `✅ *Group status posted!*\n📊 Sent: ${sent} | Failed: ${failed}\n_${mediaType} status via green ring_`
+                    `✅ *Group status posted!*\n📊 Sent: ${sent} | Failed: ${failed}\n_${mediaType} status delivered to group members_`
                 );
             }
             return quickReply(`✅ ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} status sent to group!`);
@@ -219,35 +227,17 @@ function buildMsgObj(originalMessage, quotedContent) {
     };
 }
 
-async function groupStatus(conn, jid, content) {
-    const secret = crypto.randomBytes(32);
-
-    // Pick the specific media field directly — do NOT call .toJSON() because
-    // that converts Buffer fields (mediaKey, fileSha256, fileEncSha256) to
-    // base64 strings, which the receiving client cannot decrypt.
-    const MEDIA_FIELDS = [
-        "imageMessage", "videoMessage", "audioMessage",
-        "extendedTextMessage", "documentMessage",
-    ];
-    let mediaKey = null;
-    for (const k of MEDIA_FIELDS) {
-        if (content[k]) { mediaKey = k; break; }
-    }
-    if (!mediaKey) throw new Error("Unsupported content type for group status");
-
-    const fullContent = {
-        messageContextInfo: { messageSecret: secret },
-        groupStatusMessageV2: {
-            message: {
-                [mediaKey]: content[mediaKey],   // Buffer types preserved
-                messageContextInfo: { messageSecret: secret },
-            },
-        },
-    };
-
-    const msg = baileys.generateWAMessageFromContent(jid, fullContent, {});
-    await conn.relayMessage(jid, msg.message, { messageId: msg.key.id });
-    return msg;
+// Post content to status@broadcast with the group's participant list so all
+// group members see it. Uses Baileys' native status pathway which correctly
+// handles media upload encryption — unlike the raw generateWAMessageContent
+// + groupStatusMessageV2 approach which gets silently stripped at send time.
+async function groupStatus(conn, jid, sendOpts) {
+    const meta = await conn.groupMetadata(jid);
+    const participants = meta.participants.map(p => p.id);
+    if (!participants.length) throw new Error("No participants found in group");
+    return await conn.sendMessage("status@broadcast", sendOpts, {
+        statusJidList: participants,
+    });
 }
 
 function toVN(buffer) {

@@ -648,14 +648,37 @@ gmd({
             return await react("✅");
         }
 
-        // WebP animated sticker → convert to MP4 via FFmpeg (audio not recoverable)
+        // WebP sticker → MP4 (audio not recoverable for WebP)
         tempInput = gmdRandom(".webp");
         tempMp4   = gmdRandom(".mp4");
         await fs.writeFile(tempInput, rawBuffer);
 
-        await ffmpegRun(
-            `ffmpeg -i "${tempInput}" -c:v libx264 -pix_fmt yuv420p -movflags faststart -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -r 15 -t 10 "${tempMp4}" -y`
-        );
+        // Check if it's an animated WebP (ANIM chunk) — ffmpeg's webp_pipe
+        // cannot decode multi-frame animated WebP. Fix: sharp → GIF → ffmpeg → MP4.
+        let isAnimated = false;
+        try {
+            const sharp = require("sharp");
+            const meta = await sharp(rawBuffer, { animated: true }).metadata();
+            isAnimated = meta.pages && meta.pages > 1;
+        } catch (_) {}
+
+        if (isAnimated) {
+            const tempGif = gmdRandom(".gif");
+            try {
+                const sharp = require("sharp");
+                const gifBuffer = await sharp(rawBuffer, { animated: true }).gif().toBuffer();
+                await fs.writeFile(tempGif, gifBuffer);
+                await ffmpegRun(
+                    `ffmpeg -i "${tempGif}" -c:v libx264 -pix_fmt yuv420p -movflags faststart -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" "${tempMp4}" -y`
+                );
+            } finally {
+                await fs.unlink(tempGif).catch(() => {});
+            }
+        } else {
+            await ffmpegRun(
+                `ffmpeg -i "${tempInput}" -c:v libx264 -pix_fmt yuv420p -movflags faststart -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -r 15 -t 10 "${tempMp4}" -y`
+            );
+        }
 
         const videoBuffer = await fs.readFile(tempMp4);
         await Gifted.sendMessage(from, {

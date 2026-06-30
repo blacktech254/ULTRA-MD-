@@ -704,3 +704,246 @@ gmd({
 });
 
 
+gmd({
+    pattern: "s2audio",
+    aliases: ["sticker2audio", "stickeraudio", "stickertoaudio"],
+    category: "converter",
+    react: "🎵",
+    description: "Extract audio from a video sticker (only works on MP4-based stickers that contain audio). Reply to a sticker."
+}, async (from, Gifted, conText) => {
+    const { mek, reply, react, quotedMsg, botFooter, sender, botName, newsletterJid, botPic, newsletterUrl } = conText;
+
+    if (!quotedMsg) {
+        await react("❌");
+        return reply("Please reply to a sticker message.");
+    }
+
+    const quotedSticker = quotedMsg?.stickerMessage || quotedMsg?.message?.stickerMessage;
+    if (!quotedSticker) {
+        await react("❌");
+        return reply("The quoted message is not a sticker.");
+    }
+
+    let tempInput, tempMp3;
+    try {
+        const filePath = await Gifted.downloadAndSaveMediaMessage(quotedSticker, "temp_media");
+        const rawBuffer = await fs.readFile(filePath);
+        await fs.unlink(filePath).catch(() => {});
+
+        const mediaType = detectMediaType(rawBuffer);
+
+        if (mediaType !== "mp4") {
+            await react("❌");
+            return reply(
+                `⚠️ *This sticker has no audio.*\n\nIt is a WebP sticker — audio is never stored in WebP format. Only video stickers (MP4-based) can have audio extracted.\n\n_Try using* .s2real *to convert it to a silent video instead._`
+            );
+        }
+
+        tempInput = gmdRandom(".mp4");
+        tempMp3   = gmdRandom(".mp3");
+        await fs.writeFile(tempInput, rawBuffer);
+
+        // Check if there is actually an audio stream before trying to extract
+        const hasAudio = await new Promise((resolve) => {
+            exec(`"${_ffmpegBin}" -i "${tempInput}" 2>&1`, (_err, _stdout, stderr) => {
+                resolve(/Audio:/.test(stderr));
+            });
+        });
+
+        if (!hasAudio) {
+            await react("❌");
+            return reply(
+                `⚠️ *This video sticker has no audio track.*\n\nIt was created from a silent video, so there is nothing to extract.`
+            );
+        }
+
+        await ffmpegRun(`ffmpeg -i "${tempInput}" -vn -acodec libmp3lame -q:a 2 "${tempMp3}" -y`);
+
+        const audioBuffer = await fs.readFile(tempMp3);
+        await Gifted.sendMessage(from, {
+            audio: audioBuffer,
+            mimetype: "audio/mpeg",
+            externalAdReply: {
+                title: "Sticker Audio",
+                body: "Extracted from video sticker",
+                mediaType: 1,
+                thumbnailUrl: botPic,
+                sourceUrl: newsletterUrl,
+                renderLargerThumbnail: false,
+                showAdAttribution: true,
+            }
+        }, { quoted: mek });
+        await react("✅");
+    } catch (e) {
+        console.error("[s2audio] Error:", e.message);
+        await react("❌");
+        await reply("Failed to extract audio from sticker: " + e.message);
+    } finally {
+        if (tempInput) await fs.unlink(tempInput).catch(() => {});
+        if (tempMp3)   await fs.unlink(tempMp3).catch(() => {});
+    }
+});
+
+
+gmd({
+    pattern: "mergevid",
+    aliases: ["addaudio", "mixaudio", "mergeaudio", "vmerge"],
+    category: "converter",
+    react: "🎬",
+    description: "Merge a video with an audio file. Reply to a video, and quote/include an audio message. Usage: reply to video, quote the audio."
+}, async (from, Gifted, conText) => {
+    const { mek, reply, react, quotedMsg, quoted, botFooter, sender, botName, newsletterJid } = conText;
+
+    if (!quotedMsg) {
+        await react("❌");
+        return reply(
+            `*How to use .mergevid:*\n\n1️⃣ Forward/send an audio file in chat\n2️⃣ Reply to a video message\n3️⃣ Then also quote the audio\n\n_Or: reply to a video, forward an audio into the reply chain._\n\nUsage: Reply to a *video* message while also quoting an *audio* message.`
+        );
+    }
+
+    const quotedVideo = quotedMsg?.videoMessage || quotedMsg?.message?.videoMessage;
+    const quotedAudio = quotedMsg?.audioMessage || quotedMsg?.message?.audioMessage;
+
+    // Also check the outer quoted chain for the other media type
+    const outerVideo = quoted?.videoMessage || quoted?.message?.videoMessage;
+    const outerAudio = quoted?.audioMessage || quoted?.message?.audioMessage;
+
+    const videoMsg = quotedVideo || outerVideo;
+    const audioMsg = quotedAudio || outerAudio;
+
+    if (!videoMsg) {
+        await react("❌");
+        return reply("❌ Could not find a *video* to merge. Reply to a video message.");
+    }
+    if (!audioMsg) {
+        await react("❌");
+        return reply("❌ Could not find an *audio* to merge. Also quote an audio message.");
+    }
+
+    let tempVid, tempAud, tempOut;
+    try {
+        await react("⏳");
+
+        const vidPath = await Gifted.downloadAndSaveMediaMessage(videoMsg, "temp_vid");
+        const audPath = await Gifted.downloadAndSaveMediaMessage(audioMsg, "temp_aud");
+
+        const vidBuf = await fs.readFile(vidPath);
+        const audBuf = await fs.readFile(audPath);
+        await fs.unlink(vidPath).catch(() => {});
+        await fs.unlink(audPath).catch(() => {});
+
+        tempVid = gmdRandom(".mp4");
+        tempAud = gmdRandom(".mp3");
+        tempOut = gmdRandom(".mp4");
+
+        await fs.writeFile(tempVid, vidBuf);
+        await fs.writeFile(tempAud, audBuf);
+
+        // Get video duration so we loop/trim audio to match
+        const vidDuration = await new Promise((resolve) => {
+            exec(`"${_ffmpegBin}" -i "${tempVid}" 2>&1`, (_err, _stdout, stderr) => {
+                const m = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.?\d*)/);
+                if (m) {
+                    resolve(parseFloat(m[1]) * 3600 + parseFloat(m[2]) * 60 + parseFloat(m[3]));
+                } else {
+                    resolve(null);
+                }
+            });
+        });
+
+        const durationFlag = vidDuration ? `-t ${vidDuration}` : "";
+
+        // Merge: replace video's audio stream with the provided audio, loop audio if shorter
+        await ffmpegRun(
+            `ffmpeg -i "${tempVid}" -stream_loop -1 -i "${tempAud}" -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 128k -shortest ${durationFlag} -movflags faststart "${tempOut}" -y`
+        );
+
+        const outBuffer = await fs.readFile(tempOut);
+        await Gifted.sendMessage(from, {
+            video: outBuffer,
+            mimetype: "video/mp4",
+            caption: `🎬 *Video + Audio Merged*\n🔊 _Audio replaced successfully_\n\n> _${botFooter}_`,
+            contextInfo: {
+                mentionedJid: [sender],
+                forwardingScore: 5,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: { newsletterJid, newsletterName: botName, serverMessageId: 147 }
+            }
+        }, { quoted: mek });
+        await react("✅");
+    } catch (e) {
+        console.error("[mergevid] Error:", e.message);
+        await react("❌");
+        await reply("Failed to merge video and audio: " + e.message);
+    } finally {
+        if (tempVid) await fs.unlink(tempVid).catch(() => {});
+        if (tempAud) await fs.unlink(tempAud).catch(() => {});
+        if (tempOut) await fs.unlink(tempOut).catch(() => {});
+    }
+});
+
+
+gmd({
+    pattern: "vid2ptt",
+    aliases: ["videovoice", "vidtoptt", "vidtovn", "videotovoice", "videotonote"],
+    category: "converter",
+    react: "🎙️",
+    description: "Extract audio from a video and send it as a WhatsApp voice note. Reply to a video."
+}, async (from, Gifted, conText) => {
+    const { mek, reply, react, quotedMsg } = conText;
+
+    if (!quotedMsg) {
+        await react("❌");
+        return reply("Please reply to a video message.");
+    }
+
+    const quotedVideo = quotedMsg?.videoMessage || quotedMsg?.message?.videoMessage;
+    if (!quotedVideo) {
+        await react("❌");
+        return reply("The quoted message is not a video.");
+    }
+
+    let tempMp4, tempOgg;
+    try {
+        const filePath = await Gifted.downloadAndSaveMediaMessage(quotedVideo, "temp_media");
+        const vidBuffer = await fs.readFile(filePath);
+        await fs.unlink(filePath).catch(() => {});
+
+        tempMp4 = gmdRandom(".mp4");
+        tempOgg = gmdRandom(".ogg");
+        await fs.writeFile(tempMp4, vidBuffer);
+
+        // Check audio stream exists
+        const hasAudio = await new Promise((resolve) => {
+            exec(`"${_ffmpegBin}" -i "${tempMp4}" 2>&1`, (_err, _stdout, stderr) => {
+                resolve(/Audio:/.test(stderr));
+            });
+        });
+
+        if (!hasAudio) {
+            await react("❌");
+            return reply("⚠️ *This video has no audio track.* There is nothing to extract as a voice note.");
+        }
+
+        // Extract audio → Opus OGG (WhatsApp PTT format)
+        await ffmpegRun(
+            `ffmpeg -i "${tempMp4}" -vn -c:a libopus -b:a 64k -ar 48000 -ac 1 "${tempOgg}" -y`
+        );
+
+        const pttBuffer = await fs.readFile(tempOgg);
+        await Gifted.sendMessage(from, {
+            audio: pttBuffer,
+            mimetype: "audio/ogg; codecs=opus",
+            ptt: true,
+        }, { quoted: mek });
+        await react("✅");
+    } catch (e) {
+        console.error("[vid2ptt] Error:", e.message);
+        await react("❌");
+        await reply("Failed to extract voice note from video: " + e.message);
+    } finally {
+        if (tempMp4) await fs.unlink(tempMp4).catch(() => {});
+        if (tempOgg) await fs.unlink(tempOgg).catch(() => {});
+    }
+});
+

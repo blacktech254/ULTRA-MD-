@@ -1,9 +1,10 @@
 "use strict";
 
-const archiver = require("archiver");
+const AdmZip = require("adm-zip");
 const PDFDocument = require("pdfkit");
 const { PassThrough } = require("stream");
 const fsA = require("node:fs");
+
 const path = require("path");
 const { gmd } = require("../guru");
 
@@ -93,18 +94,15 @@ gmd(
         }
 
         try {
-            const passThrough = new PassThrough();
-            const bufferPromise = streamToBuffer(passThrough);
-
-            const archive = archiver("zip", { zlib: { level: 6 } });
-            archive.pipe(passThrough);
+            const zip = new AdmZip();
 
             for (const { disk, arc } of files) {
-                archive.file(disk, { name: arc });
+                const dir = path.dirname(arc);
+                const name = path.basename(arc);
+                zip.addLocalFile(disk, dir === "." ? "" : dir, name);
             }
-            await archive.finalize();
 
-            const zipBuffer = await bufferPromise;
+            const zipBuffer = zip.toBuffer();
             const zipName = `ultraguru_${targets[0].replace(/[^a-z0-9]/gi, "_")}_${Date.now()}.zip`;
 
             await Gifted.sendMessage(

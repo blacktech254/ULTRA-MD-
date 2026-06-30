@@ -112,6 +112,12 @@ global.__pluginMsgHooks.push(async (ms, Gifted, settings) => {
         if (!suggestions.length || suggestions[0].dist > threshold) return;
 
         const from = ms.key.remoteJid;
+        const isGroup = from.endsWith("@g.us");
+
+        // Always reply privately to the sender — never spam the group
+        const senderJid = isGroup
+            ? (ms.key.participant || ms.participant || from)
+            : from;
 
         // Build reply text
         let text;
@@ -136,7 +142,8 @@ global.__pluginMsgHooks.push(async (ms, Gifted, settings) => {
                 `_Use \`${p}menu\` or \`${p}help\` to see all commands._`;
         }
 
-        await Gifted.sendMessage(from, { text }, { quoted: ms });
+        // Send as private DM — only the user who typed sees this
+        await Gifted.sendMessage(senderJid, { text });
 
     } catch (_) {
         // Silently ignore any errors — this is a helper, not critical

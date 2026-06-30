@@ -54,6 +54,7 @@ const {
 } = require("./guru/eventHandlers");
 
 const { setupCommandHandler } = require("./guru/messageHandler");
+const { checkAndAutoUpdate, resetUpdateFlag } = require("./guru/autoUpdater");
 
 const express = require("express");
 const path = require("path");
@@ -105,9 +106,15 @@ setInterval(async () => {
 }, 240000);
 
 const AUTO_RESTART_MS = 24 * 60 * 60 * 1000;
-setTimeout(() => {
-    console.log("🔄 [AUTO-RESTART] 24-hour scheduled restart triggered...");
-    process.exit(1);
+setTimeout(async () => {
+    console.log("🔄 [AUTO-RESTART] 24-hour scheduled restart triggered — checking for updates first...");
+    try {
+        resetUpdateFlag();
+        if (global._botSocket) await checkAndAutoUpdate(global._botSocket);
+    } catch (e) {
+        console.error("❌ [AUTO-RESTART] Update check failed:", e.message);
+    }
+    process.exit(0);
 }, AUTO_RESTART_MS);
 console.log(
     "✅ Auto-restart scheduled in 24 hours (" +
@@ -211,6 +218,15 @@ async function startGifted() {
                 await safeNewsletterFollow(Gifted, s.NEWSLETTER_JID);
                 await safeGroupAcceptInvite(Gifted, s.GC_JID);
                 await initializeLidStore(Gifted);
+
+                // Auto-update check on every connection (incl. after 24hr restart)
+                setTimeout(async () => {
+                    try {
+                        await checkAndAutoUpdate(Gifted);
+                    } catch (e) {
+                        console.error("❌ [AutoUpdate] onOpen check failed:", e.message);
+                    }
+                }, 15000);
 
                 try {
                     const { startScheduler } = require("./guru/scheduler");

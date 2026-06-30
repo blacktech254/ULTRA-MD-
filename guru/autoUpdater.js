@@ -32,7 +32,16 @@ const fetchLatestCommit = async (axios, repo) => {
     return data;
 };
 
+// Accept both "owner/repo" and full GitHub URLs
+const normalizeRepo = (raw) => {
+    if (!raw) return null;
+    const match = String(raw).match(/github\.com\/([^/\s]+\/[^/\s]+)/);
+    if (match) return match[1].replace(/\.git$/, "").replace(/\/*$/, "");
+    return String(raw).trim();
+};
+
 const runUpdate = async (repo, Gifted, ownerJid) => {
+    repo = normalizeRepo(repo) || repo;
     const axios = require("axios");
     const AdmZip = require("adm-zip");
     const { execSync } = require("child_process");
@@ -115,7 +124,7 @@ const checkAndAutoUpdate = async (Gifted) => {
             return;
         }
 
-        const repo = (await getSetting("BOT_REPO")) || "blacktech254/ULTRA-MD-";
+        const repo = normalizeRepo(await getSetting("BOT_REPO")) || "blacktech254/ULTRA-MD-";
 
         let ownerJid = null;
         try {

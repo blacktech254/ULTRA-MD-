@@ -65,7 +65,7 @@ const DEFAULT_SETTINGS = {
     NEWSLETTER_JID: "120363406649804510@newsletter",
     GC_JID: "Cp6waPAdT3hLVcbdfBeV61",  // Updated group invite code
     NEWSLETTER_URL: "https://whatsapp.com/channel/0029Vb7jauLHLHQbkcbcHi0e",
-    BOT_REPO: "https://github.com/blacktech254/ULTRA-MD-",
+    BOT_REPO: "blacktech254/ULTRA-MD-",
     AUTO_UPDATE: "true",
     PACK_NAME: "ULTRA GURU",
     PACK_AUTHOR: "GURUTECH 😎",

@@ -119,6 +119,58 @@ gmd(
 
 gmd(
   {
+    pattern: "restartbot",
+    aliases: ["reboot", "restart", "botrestart"],
+    react: "🔄",
+    category: "owner",
+    description: "Restart the bot. Add 'update' to pull latest code first. Usage: .restartbot | .restartbot update",
+  },
+  async (from, Gifted, conText) => {
+    const { reply, react, isSuperUser, args } = conText;
+    if (!isSuperUser) return reply("❌ Owner/Sudo only.");
+
+    const doUpdate = args.join(" ").toLowerCase().includes("update");
+
+    if (doUpdate) {
+      await react("🔄");
+      await reply("🔄 *Checking for updates before restart...*");
+
+      try {
+        const { runUpdate } = require("../guru/autoUpdater");
+        const { getSetting } = require("../guru/database/settings");
+
+        const rawRepo = await getSetting("BOT_REPO");
+        const match = String(rawRepo || "").match(/github\.com\/([^/\s]+\/[^/\s]+)/);
+        const repo = match ? match[1].replace(/\.git$/, "").replace(/\/*$/, "") : (rawRepo || "blacktech254/ULTRA-MD-");
+
+        const updated = await runUpdate(repo, Gifted, null);
+        if (updated) {
+          await react("✅");
+          await reply("✅ *Update applied! Restarting now...*");
+        } else {
+          await react("✅");
+          await reply("✅ *Already up to date. Restarting anyway...*");
+        }
+      } catch (err) {
+        await react("⚠️");
+        await reply(`⚠️ Update check failed: ${err.message}\n\n_Restarting without update..._`);
+      }
+
+      setTimeout(() => process.exit(0), 3000);
+    } else {
+      await react("🔄");
+      await reply(
+        "🔄 *Bot is restarting...*\n\n" +
+        "_It will be back online in a few seconds._\n\n" +
+        "💡 Tip: use *.restartbot update* to pull latest code before restarting."
+      );
+      setTimeout(() => process.exit(0), 2000);
+    }
+  }
+);
+
+gmd(
+  {
     pattern: "viewscript",
     aliases: ["readscript", "catfile", "script"],
     react: "📄",

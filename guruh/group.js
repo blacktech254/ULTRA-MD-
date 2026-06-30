@@ -1626,15 +1626,21 @@ gmd(
 
       // Use groupStatusMessageV2 so status posts to the GROUP channel (green ring),
       // not to the bot's personal WhatsApp account status.
+      // Do NOT call .toJSON() — that converts Buffer fields (mediaKey, fileSha256,
+      // fileEncSha256) to base64 strings which the receiving client cannot decrypt.
       const secret = crypto.randomBytes(32);
-      const innerMsg = typeof statusPayload.toJSON === "function"
-        ? statusPayload.toJSON()
-        : statusPayload;
+      const MEDIA_FIELDS = ["imageMessage", "videoMessage", "audioMessage",
+                            "extendedTextMessage", "documentMessage"];
+      let mediaKey = null;
+      for (const k of MEDIA_FIELDS) {
+        if (statusPayload[k]) { mediaKey = k; break; }
+      }
+      if (!mediaKey) throw new Error("Unsupported content type for group status");
       const fullContent = {
         messageContextInfo: { messageSecret: secret },
         groupStatusMessageV2: {
           message: {
-            ...innerMsg,
+            [mediaKey]: statusPayload[mediaKey],   // Buffer types preserved
             messageContextInfo: { messageSecret: secret },
           },
         },

@@ -3,6 +3,25 @@ const { gmd } = require("../guru");
 // In-memory merge queues: Map<chatJid, { files: Buffer[], names: string[] }>
 const mergeQueues = new Map();
 
+/**
+ * Unwrap ephemeral / view-once / document-with-caption wrappers to find
+ * the actual documentMessage inside a message object.
+ * WhatsApp frequently wraps quoted docs like this, so this MUST run
+ * before checking for `.documentMessage` directly.
+ */
+function unwrapDocMessage(msg) {
+    if (!msg) return null;
+
+    let m = msg;
+    if (m.ephemeralMessage?.message) m = m.ephemeralMessage.message;
+    if (m.viewOnceMessage?.message) m = m.viewOnceMessage.message;
+    if (m.viewOnceMessageV2?.message) m = m.viewOnceMessageV2.message;
+    if (m.viewOnceMessageV2Extension?.message) m = m.viewOnceMessageV2Extension.message;
+    if (m.documentWithCaptionMessage?.message) m = m.documentWithCaptionMessage.message;
+
+    return m.documentMessage || null;
+}
+
 // ─── VCF DEDUPLICATION TOOL ──────────────────────────────────────────────────
 
 /**
@@ -118,8 +137,8 @@ gmd(
         const quotedRaw = ctx?.quotedMessage || null;
 
         const docMsg =
-            quotedRaw?.documentMessage ||
-            mek.message?.documentMessage ||
+            unwrapDocMessage(quotedRaw) ||
+            unwrapDocMessage(mek.message) ||
             null;
 
         if (!docMsg) {
@@ -254,8 +273,8 @@ gmd(
 
             const quotedRaw = ctx?.quotedMessage || null;
             const docMsg =
-                quotedRaw?.documentMessage ||
-                mek.message?.documentMessage ||
+                unwrapDocMessage(quotedRaw) ||
+                unwrapDocMessage(mek.message) ||
                 null;
 
             if (!docMsg) {

@@ -199,18 +199,22 @@ gmd(
         const outName = `${origName}_cleaned.vcf`;
 
         // ── Send back ─────────────────────────────────────────────────────
+        // Sent with NO caption so the file stays a clean, raw .vcf that the
+        // user can forward/share as-is without dragging a caption along.
         await Gifted.sendMessage(from, {
             document: cleanedBuffer,
             fileName: outName,
             mimetype: "text/vcard",
-            caption:
-                `✅ *VCF Cleaned Successfully!*\n\n` +
-                `📇 Original contacts: *${cards.length}*\n` +
-                `🗑️ Duplicates removed: *${removed}*\n` +
-                `📋 Clean contacts: *${kept.length}*\n` +
-                `📞 Phone numbers scanned: *${totalPhones}*\n\n` +
-                `_All original contact details preserved. Only duplicate numbers removed._`,
         }, { quoted: mek });
+
+        await reply(
+            `✅ *VCF Cleaned Successfully!*\n\n` +
+            `📇 Original contacts: *${cards.length}*\n` +
+            `🗑️ Duplicates removed: *${removed}*\n` +
+            `📋 Clean contacts: *${kept.length}*\n` +
+            `📞 Phone numbers scanned: *${totalPhones}*\n\n` +
+            `_All original contact details preserved. Only duplicate numbers removed._`
+        );
     }
 );
 
@@ -361,16 +365,18 @@ gmd(
                 document: mergedBuffer,
                 fileName: outName,
                 mimetype: "text/vcard",
-                caption:
-                    `✅ *VCF Merge Complete!*\n\n` +
-                    `📂 Files merged: *${q.files.length}*\n` +
-                    `${fileBreakdown}\n` +
-                    `📇 Total contacts combined: *${allCards.length}*\n` +
-                    `🗑️ Duplicates removed: *${removed}*\n` +
-                    `📋 Final unique contacts: *${kept.length}*\n` +
-                    `📞 Phone numbers scanned: *${totalPhones}*\n\n` +
-                    `_All original details preserved. Queue has been cleared._`,
             }, { quoted: mek });
+
+            await reply(
+                `✅ *VCF Merge Complete!*\n\n` +
+                `📂 Files merged: *${q.files.length}*\n` +
+                `${fileBreakdown}\n` +
+                `📇 Total contacts combined: *${allCards.length}*\n` +
+                `🗑️ Duplicates removed: *${removed}*\n` +
+                `📋 Final unique contacts: *${kept.length}*\n` +
+                `📞 Phone numbers scanned: *${totalPhones}*\n\n` +
+                `_All original details preserved. Queue has been cleared._`
+            );
 
             // Clear the queue after successful merge
             mergeQueues.delete(from);

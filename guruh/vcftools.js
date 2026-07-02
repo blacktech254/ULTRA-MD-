@@ -125,7 +125,7 @@ gmd(
         react: "🗂️",
     },
     async (from, Gifted, conText) => {
-        const { mek, reply, conn, getMediaBuffer } = conText;
+        const { mek, reply, getMediaBuffer } = conText;
 
         // ── Find the VCF document ──────────────────────────────────────────
         // Support: replying to a VCF, or the message itself containing a VCF
@@ -199,7 +199,7 @@ gmd(
         const outName = `${origName}_cleaned.vcf`;
 
         // ── Send back ─────────────────────────────────────────────────────
-        await conn.sendMessage(from, {
+        await Gifted.sendMessage(from, {
             document: cleanedBuffer,
             fileName: outName,
             mimetype: "text/vcard",
@@ -229,7 +229,7 @@ gmd(
         react: "📂",
     },
     async (from, Gifted, conText) => {
-        const { mek, reply, conn, getMediaBuffer, args } = conText;
+        const { mek, reply, getMediaBuffer, args } = conText;
 
         const sub = (args[0] || "").toLowerCase().trim();
 
@@ -357,7 +357,7 @@ gmd(
             const mergedBuffer = Buffer.from(mergedVcf, "utf8");
             const outName = `merged_contacts_${Date.now()}.vcf`;
 
-            await conn.sendMessage(from, {
+            await Gifted.sendMessage(from, {
                 document: mergedBuffer,
                 fileName: outName,
                 mimetype: "text/vcard",

@@ -77,6 +77,11 @@ async function loadSession() {
                 console.error("║  Add SESSION_ID to your platform's environment variables.║");
                 console.error("║  Format:  SESSION_ID=GURU~xxxxxxxxxxxxxxxx...            ║");
                 console.error("╚══════════════════════════════════════════════════════════╝");
+                if (hostEnv === 'replit') {
+                    // On Replit, keep the web server alive so the dashboard is accessible
+                    console.log("⏳ Waiting for SESSION_ID to be set in Replit Secrets...");
+                    await new Promise(() => {}); // keep process alive
+                }
                 process.exit(1);
             } else {
                 // Panels (Katabamp, Pterodactyl), VPS, local — prompt to paste

@@ -1,0 +1,1 @@
+- [sharp-wa-sticker-rebuild](sharp-wa-sticker-rebuild.md) — wa-sticker-formatter's bundled sharp must be manually rebuilt after npm install on linux-x64

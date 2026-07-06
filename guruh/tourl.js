@@ -4,6 +4,17 @@ const path = require("path");
 const fs = require('fs').promises;
 const { sendButtons } = require('gifted-btns');
 
+// ─── .url — universal image/media → URL (catbox) ─────────────────────────────
+gmd({
+    pattern: "url",
+    aliases: ["tourl", "mediaurl", "imgurl"],
+    react: "🔗",
+    category: "uploader",
+    description: "Convert any media to a URL. Reply to an image/video/audio/document with .url",
+}, async (from, Guru, conText) => {
+    await handleUpload(from, Guru, conText, 'catbox');
+});
+
 gmd({
     pattern: "gurucdn",
     react: "⬆️",

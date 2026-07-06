@@ -1,6 +1,7 @@
 
-const { gmd } = require("../guru");
+const { gmd, toPtt } = require("../guru");
 const axios = require("axios");
+const googleTTS = require("google-tts-api");
 const Database = require("better-sqlite3");
 const path = require("path");
 const fs = require("fs-extra");
@@ -867,6 +868,154 @@ ${result}${footer}`
         } catch (err) {
             if (react) await react("❌");
             await reply(`❌ Caption generation failed: ${err.message}${footer}`);
+        }
+    }
+);
+
+// ════════════════════════════════════════════════════════════════════════════
+//  .explain <url> — Fetch URL content → AI summary → voice note audio
+// ════════════════════════════════════════════════════════════════════════════
+
+// Strip HTML tags and clean up whitespace from raw HTML
+function stripHtml(html) {
+    return html
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&quot;/gi, '"')
+        .replace(/\s{2,}/g, " ")
+        .trim();
+}
+
+gmd(
+    {
+        pattern: "explain",
+        aliases: ["urlexplain", "readurl", "listenurl"],
+        react: "🔊",
+        category: "ai",
+        description: "Explain a URL as a voice note. Usage: .explain <url>",
+    },
+    async (from, Guru, conText) => {
+        const { q, reply, react, botFooter, botName } = conText;
+        const footer = buildFooter(botFooter, botName);
+
+        if (!q || !q.trim()) {
+            return reply(`❌ Please provide a URL.\nExample: *.explain https://example.com*${footer}`);
+        }
+
+        const urlMatch = q.match(/https?:\/\/[^\s]+/);
+        if (!urlMatch) {
+            return reply(`❌ No valid URL found. Make sure it starts with *http://* or *https://*${footer}`);
+        }
+
+        const targetUrl = urlMatch[0];
+        await react("⏳");
+
+        try {
+            // ── Step 1: Fetch page ──────────────────────────────────────────
+            let pageText = "";
+            try {
+                const { data: html } = await axios.get(targetUrl, {
+                    timeout: 15000,
+                    responseType: "text",
+                    headers: {
+                        "User-Agent":
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                        "Accept": "text/html,application/xhtml+xml,*/*;q=0.9",
+                    },
+                    maxRedirects: 5,
+                });
+                pageText = stripHtml(String(html)).slice(0, 4000);
+            } catch (fetchErr) {
+                return reply(`❌ Could not fetch the URL: ${fetchErr.message}${footer}`);
+            }
+
+            if (!pageText || pageText.length < 50) {
+                return reply(`❌ The URL returned no readable text content.${footer}`);
+            }
+
+            // ── Step 2: AI explanation ──────────────────────────────────────
+            await react("🧠");
+            const prompt =
+                `You are an expert explainer. Read the webpage content below and write a clear, natural, conversational explanation of what this page is about in 120-160 words. ` +
+                `Write ONLY plain spoken text — no markdown, no bullet points, no asterisks, no special symbols. ` +
+                `It must sound natural when read aloud.\n\nWebpage content:\n${pageText}`;
+
+            let explanation = "";
+            try {
+                explanation = await pollinationsQuery(prompt, "openai");
+                // Remove any leftover markdown symbols
+                explanation = explanation
+                    .replace(/[*_~`#>]/g, "")
+                    .replace(/\s{2,}/g, " ")
+                    .trim();
+            } catch (aiErr) {
+                return reply(`❌ AI explanation failed: ${aiErr.message}${footer}`);
+            }
+
+            if (!explanation || explanation.length < 20) {
+                return reply(`❌ AI returned an empty response. Please try again.${footer}`);
+            }
+
+            // ── Step 3: TTS → audio chunks ──────────────────────────────────
+            await react("🎙️");
+            let audioBuffer;
+            try {
+                const chunks = await googleTTS.getAllAudioBase64(explanation, {
+                    lang: "en",
+                    slow: false,
+                    host: "https://translate.google.com",
+                    timeout: 30000,
+                });
+                const buffers = chunks.map((c) => Buffer.from(c.base64, "base64"));
+                audioBuffer = Buffer.concat(buffers);
+            } catch (ttsErr) {
+                return reply(`❌ Text-to-speech failed: ${ttsErr.message}${footer}`);
+            }
+
+            // ── Step 4: Convert to PTT voice note & send ───────────────────
+            let pttBuffer;
+            try {
+                pttBuffer = await toPtt(audioBuffer);
+            } catch (pttErr) {
+                // Fallback: send as plain mp3 audio if PTT conversion fails
+                pttBuffer = null;
+            }
+
+            if (pttBuffer) {
+                await Guru.sendMessage(from, {
+                    audio: pttBuffer,
+                    mimetype: "audio/ogg; codecs=opus",
+                    ptt: true,
+                });
+            } else {
+                await Guru.sendMessage(from, {
+                    audio: audioBuffer,
+                    mimetype: "audio/mpeg",
+                    ptt: false,
+                    fileName: "explanation.mp3",
+                });
+            }
+
+            // Also send a brief text summary
+            const preview = explanation.length > 180 ? explanation.slice(0, 180) + "…" : explanation;
+            await reply(
+                `🔊 *URL Explanation*\n\n` +
+                `🔗 ${targetUrl}\n\n` +
+                `_${preview}_\n\n` +
+                `> _Audio generated by ULTRA GURU AI_${footer}`
+            );
+
+            await react("✅");
+
+        } catch (err) {
+            console.error("[.explain] error:", err.message);
+            await react("❌");
+            await reply(`❌ Something went wrong: ${err.message}${footer}`);
         }
     }
 );

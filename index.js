@@ -1,18 +1,19 @@
+// ════════════════════════════════════════════════════════════════════════════
+//  ULTRA GURU MD — Bot Entry Point
+//  by GuruTech | github.com/blacktech254
+// ════════════════════════════════════════════════════════════════════════════
+
+"use strict";
+
+// ─── Polyfills (must be first) ───────────────────────────────────────────────
 require("events").EventEmitter.defaultMaxListeners = 960;
+if (!globalThis.crypto) globalThis.crypto = require("crypto").webcrypto;
+try { if (typeof File === "undefined") globalThis.File = require("buffer").File; } catch (_) {}
 
-if (!globalThis.crypto) {
-    const { webcrypto } = require("crypto");
-    globalThis.crypto = webcrypto;
-}
-
-if (typeof File === "undefined") {
-    try {
-        const { File } = require("buffer");
-        if (File) globalThis.File = File;
-    } catch (_) {}
-}
-
-require("./guru/gmdHelpers");
+// ─── Node & Third-Party ──────────────────────────────────────────────────────
+const path    = require("path");
+const http    = require("http");
+const express = require("express");
 
 const {
     default: makeWASocket,
@@ -20,275 +21,272 @@ const {
     fetchLatestWaWebVersion,
 } = require("@whiskeysockets/baileys");
 
+// ─── Guru Core ───────────────────────────────────────────────────────────────
+require("./guru/gmdHelpers");
+
 const {
-    logger,
-    commands,
-    loadSession,
-    useSQLiteAuthState,
-    safeNewsletterFollow,
-    safeGroupAcceptInvite,
-    setupConnectionHandler,
-    setupGroupEventsListeners,
-    initializeLidStore,
-    getAllSettings,
-    DEFAULT_SETTINGS,
-    createSocketConfig,
-    createContext,
-    syncDatabase,
-    initializeSettings,
-    initializeGroupSettings,
+    logger, commands,
+    loadSession, useSQLiteAuthState,
+    safeNewsletterFollow, safeGroupAcceptInvite,
+    setupConnectionHandler, setupGroupEventsListeners,
+    initializeLidStore, getAllSettings, DEFAULT_SETTINGS,
+    createSocketConfig, createContext,
+    syncDatabase, initializeSettings, initializeGroupSettings,
     loadPlugins,
 } = require("./guru");
 
-const { startCleanup, SQLiteStore } = require("./guru/database/messageStore");
-
+const { startCleanup, SQLiteStore }      = require("./guru/database/messageStore");
+const { setupCommandHandler }            = require("./guru/messageHandler");
 const {
-    setupAutoReact,
-    setupAntiDelete,
-    setupAutoBio,
-    setupAntiCall,
-    setupPresence,
-    setupChatBotAndAntiLink,
-    setupAntiEdit,
-    setupStatusHandlers,
+    setupAutoReact, setupAntiDelete, setupAutoBio,
+    setupAntiCall, setupPresence, setupChatBotAndAntiLink,
+    setupAntiEdit, setupStatusHandlers,
 } = require("./guru/eventHandlers");
 
-const { setupCommandHandler } = require("./guru/messageHandler");
-
-const express = require("express");
-const path = require("path");
-
-const PORT = process.env.PORT || 5000;
-const app = express();
-let Guru;
-let store;
+// ─── Constants ───────────────────────────────────────────────────────────────
+const PORT            = process.env.PORT || 5000;
+const SESSION_DIR     = path.join(__dirname, "guru", "session");
+const PLUGINS_DIR     = path.join(__dirname, "guruh");
+const MEMORY_LIMIT    = 400 * 1024 * 1024; // 400 MB
+const AUTO_RESTART_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 logger.level = "silent";
-app.use(express.static("guru"));
-app.get("/", (req, res) => res.sendFile(__dirname + "/guru/guru.html"));
-app.get("/health", (req, res) =>
-    res.status(200).json({ status: "alive", uptime: process.uptime() }),
-);
-const server = app.listen(PORT, "0.0.0.0", () =>
-    console.log(`✅ Server Running on Port: ${PORT}`),
-);
-server.on("error", (err) => {
-    if (err.code === "EADDRINUSE") {
-        console.warn(`⚠️ Port ${PORT} already in use — retrying in 3s...`);
+
+// ─── Mutable State ───────────────────────────────────────────────────────────
+let GuruSocket = null;
+let store      = null;
+let botSettings = {};
+
+// ════════════════════════════════════════════════════════════════════════════
+//  WEB SERVER
+// ════════════════════════════════════════════════════════════════════════════
+
+function startWebServer() {
+    const app = express();
+
+    app.use(express.static("guru"));
+    app.get("/",       (_req, res) => res.sendFile(path.join(__dirname, "guru", "guru.html")));
+    app.get("/health", (_req, res) => res.status(200).json({ status: "alive", uptime: process.uptime() }));
+
+    const server = app.listen(PORT, "0.0.0.0", () =>
+        console.log(`✅ Server Running on Port: ${PORT}`)
+    );
+
+    server.on("error", (err) => {
+        if (err.code !== "EADDRINUSE") return console.error("Server error:", err.message);
+        console.warn(`⚠️ Port ${PORT} in use — retrying in 3s...`);
         setTimeout(() => {
             server.close(() => {
-                const retryServer = app.listen(PORT, "0.0.0.0", () =>
-                    console.log(`✅ Server Running on Port: ${PORT}`),
+                const retry = app.listen(PORT, "0.0.0.0", () =>
+                    console.log(`✅ Server Running on Port: ${PORT}`)
                 );
-                retryServer.on("error", (retryErr) => {
-                    console.error("Express server retry error:", retryErr.message);
-                });
+                retry.on("error", (e) => console.error("Retry failed:", e.message));
             });
         }, 3000);
-    } else {
-        console.error("Express server error:", err.message);
-    }
-});
+    });
+}
 
-setInterval(() => {
-    const used = process.memoryUsage();
-    if (used.heapUsed > 400 * 1024 * 1024) {
-        if (global.gc) global.gc();
-    }
-}, 60000);
+// ════════════════════════════════════════════════════════════════════════════
+//  SYSTEM TASKS
+// ════════════════════════════════════════════════════════════════════════════
 
-setInterval(async () => {
+function startSystemTasks() {
+    // Memory watchdog — GC when heap exceeds limit
+    setInterval(() => {
+        if (process.memoryUsage().heapUsed > MEMORY_LIMIT && global.gc) global.gc();
+    }, 60_000);
+
+    // Health ping — keeps the server warm
+    setInterval(() => {
+        http.get(`http://localhost:${PORT}/health`, () => {}).on("error", () => {});
+    }, 240_000);
+
+    // Scheduled 24-hour auto-restart
+    setTimeout(() => {
+        console.log("🔄 [AUTO-RESTART] 24-hour restart triggered.");
+        process.exit(0);
+    }, AUTO_RESTART_MS);
+
+    console.log(`✅ Auto-restart scheduled in 24 hours (${new Date(Date.now() + AUTO_RESTART_MS).toLocaleTimeString()})`);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  EXPIRY WATCHDOG
+// ════════════════════════════════════════════════════════════════════════════
+
+function startExpiryWatchdog() {
     try {
-        const http = require("http");
-        http.get(`http://localhost:${PORT}/health`, () => {});
-    } catch (e) {}
-}, 240000);
+        const { startExpiryWatchdog: watch } = require("./guru/expiry");
 
-const AUTO_RESTART_MS = 24 * 60 * 60 * 1000;
-setTimeout(() => {
-    console.log("🔄 [AUTO-RESTART] 24-hour scheduled restart triggered.");
-    process.exit(0);
-}, AUTO_RESTART_MS);
-console.log(
-    "✅ Auto-restart scheduled in 24 hours (" +
-        new Date(Date.now() + AUTO_RESTART_MS).toLocaleTimeString() +
-        ")",
-);
+        const notifyOwner = async (text) => {
+            const ownerNum = (process.env.OWNER_NUMBER || "").replace(/[^0-9]/g, "");
+            const ownerJid = `${ownerNum}@s.whatsapp.net`;
+            if (global._botSocket && ownerJid.length > 10) {
+                await global._botSocket.sendMessage(ownerJid, { text }).catch(() => {});
+            }
+        };
 
-const sessionDir = path.join(__dirname, "guru", "session");
-const pluginsPath = path.join(__dirname, "guruh");
+        watch(
+            async (msg) => {
+                global._licenceExpired = true;
+                console.warn("[EXPIRY] ⛔ Licence expired — commands locked.");
+                await notifyOwner(`⛔ *ULTRA GURU MD — LICENCE EXPIRED*\n\n${msg}\n\n_Commands are locked. Renew your licence to continue._`);
+            },
+            async (warnMsg) => notifyOwner(warnMsg),
+        );
+    } catch (e) {
+        console.warn("[EXPIRY] Watchdog not started:", e.message);
+    }
+}
 
-let botSettings = {};
-async function loadBotSettings() {
+// ════════════════════════════════════════════════════════════════════════════
+//  DATABASE INIT
+// ════════════════════════════════════════════════════════════════════════════
+
+async function initDatabase() {
     await syncDatabase();
     await initializeSettings();
     await initializeGroupSettings();
     botSettings = await getAllSettings();
-    return botSettings;
 }
 
-startCleanup();
-
-try {
-    const { startExpiryWatchdog } = require("./guru/expiry");
-    startExpiryWatchdog(
-        async (msg) => {
-            global._licenceExpired = true;
-            console.warn(
-                "[EXPIRY] ⛔ Licence expired — commands locked. Bot will NOT restart.",
-            );
-            try {
-                const ownerJid =
-                    (process.env.OWNER_NUMBER || "").replace(/[^0-9]/g, "") +
-                    "@s.whatsapp.net";
-                if (global._botSocket && ownerJid.length > 10) {
-                    await global._botSocket.sendMessage(ownerJid, {
-                        text: `⛔ *ULTRA GURU MD — LICENCE EXPIRED*\n\n${msg}\n\n_Commands are locked. Renew your licence to continue._`,
-                    });
-                }
-            } catch {}
-        },
-        async (warnMsg) => {
-            try {
-                const ownerJid =
-                    (process.env.OWNER_NUMBER || "").replace(/[^0-9]/g, "") +
-                    "@s.whatsapp.net";
-                if (global._botSocket && ownerJid.length > 10) {
-                    await global._botSocket.sendMessage(ownerJid, {
-                        text: warnMsg,
-                    });
-                }
-            } catch {}
-        },
-    );
-} catch (e) {
-    console.warn("[EXPIRY] Watchdog not started:", e.message);
-}
+// ════════════════════════════════════════════════════════════════════════════
+//  BOT BOOT
+// ════════════════════════════════════════════════════════════════════════════
 
 async function startGuru() {
     try {
-        const { version } = await fetchLatestWaWebVersion();
-        const sessionDbPath = path.join(sessionDir, "session.db");
+        const { version }        = await fetchLatestWaWebVersion();
+        const sessionDbPath      = path.join(SESSION_DIR, "session.db");
         const { state, saveCreds } = await useSQLiteAuthState(sessionDbPath);
 
         if (store) store.destroy();
         store = new SQLiteStore();
 
+        // Build socket
         const socketConfig = createSocketConfig(version, state, logger);
         socketConfig.getMessage = async (key) => {
-            if (store) {
-                const msg = await store.loadMessage(key.remoteJid, key.id);
-                return msg?.message || undefined;
-            }
-            return { conversation: "Error occurred" };
+            if (!store) return { conversation: "Error occurred" };
+            const msg = await store.loadMessage(key.remoteJid, key.id);
+            return msg?.message ?? undefined;
         };
 
-        Guru = makeWASocket(socketConfig);
-        global._botSocket = Guru;
-        store.bind(Guru.ev);
+        GuruSocket            = makeWASocket(socketConfig);
+        global._botSocket     = GuruSocket;
+        store.bind(GuruSocket.ev);
 
-        Guru.ev.process(async (events) => {
+        // Persist credentials on update
+        GuruSocket.ev.process(async (events) => {
             if (events["creds.update"]) await saveCreds();
         });
 
-        setupAutoReact(Guru);
-        setupAntiDelete(Guru);
-        setupAutoBio(Guru);
-        setupAntiCall(Guru);
-        setupPresence(Guru);
-        setupChatBotAndAntiLink(Guru);
-        setupAntiEdit(Guru);
-        setupStatusHandlers(Guru);
-        setupGroupEventsListeners(Guru);
+        // Attach event handlers
+        setupAutoReact(GuruSocket);
+        setupAntiDelete(GuruSocket);
+        setupAutoBio(GuruSocket);
+        setupAntiCall(GuruSocket);
+        setupPresence(GuruSocket);
+        setupChatBotAndAntiLink(GuruSocket);
+        setupAntiEdit(GuruSocket);
+        setupStatusHandlers(GuruSocket);
+        setupGroupEventsListeners(GuruSocket);
 
-        loadPlugins(pluginsPath);
+        // Load plugins & commands
+        loadPlugins(PLUGINS_DIR);
+        setupCommandHandler(GuruSocket);
 
-        setupCommandHandler(Guru);
-
-        setupConnectionHandler(Guru, sessionDir, startGuru, {
-            onOpen: async (Guru) => {
-                const s = await getAllSettings();
-                await safeNewsletterFollow(Guru, s.NEWSLETTER_JID);
-                await safeGroupAcceptInvite(Guru, s.GC_JID);
-                await initializeLidStore(Guru);
-
-                try {
-                    const { startScheduler } = require("./guru/scheduler");
-                    startScheduler(Guru);
-                } catch (e) {
-                    console.error("[Scheduler] start error:", e.message);
-                }
-
-                setTimeout(async () => {
-                    try {
-                        const totalCommands = commands.filter(
-                            (c) => c.pattern && !c.dontAddCommandList,
-                        ).length;
-                        console.log("💜 Connected to Whatsapp, Active!");
-
-                        if (s.STARTING_MESSAGE === "true") {
-                            const d = DEFAULT_SETTINGS;
-                            const md =
-                                s.MODE === "public"
-                                    ? "🌐 PUBLIC"
-                                    : "🔒 PRIVATE";
-                            const botName = (
-                                s.BOT_NAME || d.BOT_NAME
-                            ).toUpperCase();
-                            const { expiryLine } = require("./guru/expiry");
-                            const expLine = await expiryLine().catch(
-                                () => "✅ Active",
-                            );
-                            const connectionMsg =
-`*✅ ${botName} — ONLINE*
-
-┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
-📊 *Plugins*  : ${totalCommands}
-⚡ *Prefix*   : ${s.PREFIX || d.PREFIX}
-⚙️ *Mode*     : ${md}
-🔒 *Licence*  : ${expLine}
-📲 *Telegram* : t.me/GURU_TECHLAB
-┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
-> ✨ _${s.CAPTION || d.CAPTION}_
-> _Allow a few seconds to sync._`;
-
-                            const destJid = jidNormalizedUser(Guru.user.id);
-                            let ctx = {};
-                            try {
-                                ctx = await createContext(
-                                    s.BOT_NAME || d.BOT_NAME,
-                                    {
-                                        title: "BOT INTEGRATED",
-                                        body: "Status: Ready for Use",
-                                    },
-                                );
-                            } catch (_) {}
-                            await Guru.sendMessage(
-                                destJid,
-                                { text: connectionMsg, ...ctx },
-                                {
-                                    disappearingMessagesInChat: true,
-                                    ephemeralExpiration: 300,
-                                },
-                            );
-                        }
-                    } catch (err) {
-                        console.error("Post-connection setup error:", err);
-                    }
-                }, 5000);
-            },
+        // Connection lifecycle
+        setupConnectionHandler(GuruSocket, SESSION_DIR, startGuru, {
+            onOpen: (socket) => onBotConnected(socket),
         });
 
-        process.on("SIGINT", () => store?.destroy());
+        // Cleanup on exit
+        process.on("SIGINT",  () => store?.destroy());
         process.on("SIGTERM", () => store?.destroy());
-    } catch (error) {
-        console.error("Socket initialization error:", error);
-        setTimeout(() => startGuru(), 5000);
+
+    } catch (err) {
+        console.error("❌ Socket init error:", err.message);
+        setTimeout(startGuru, 5_000);
     }
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+//  ON CONNECTED
+// ════════════════════════════════════════════════════════════════════════════
+
+async function onBotConnected(socket) {
+    const s = await getAllSettings();
+
+    // Follow channel & join group
+    await safeNewsletterFollow(socket, s.NEWSLETTER_JID);
+    await safeGroupAcceptInvite(socket, s.GC_JID);
+    await initializeLidStore(socket);
+
+    // Start scheduler
+    try {
+        const { startScheduler } = require("./guru/scheduler");
+        startScheduler(socket);
+    } catch (e) {
+        console.error("[Scheduler] start error:", e.message);
+    }
+
+    // Post-connect message
+    setTimeout(() => sendStartupMessage(socket, s), 5_000);
+}
+
+async function sendStartupMessage(socket, s) {
+    try {
+        const d             = DEFAULT_SETTINGS;
+        const totalCommands = commands.filter((c) => c.pattern && !c.dontAddCommandList).length;
+        const botName       = (s.BOT_NAME || d.BOT_NAME).toUpperCase();
+        const modeLabel     = s.MODE === "public" ? "🌐 PUBLIC" : "🔒 PRIVATE";
+
+        console.log("💜 Connected to WhatsApp — Active!");
+
+        if (s.STARTING_MESSAGE !== "true") return;
+
+        const { expiryLine } = require("./guru/expiry");
+        const expLine        = await expiryLine().catch(() => "✅ Active");
+
+        const msg = [
+            `*✅ ${botName} — ONLINE*`,
+            ``,
+            `┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄`,
+            `📊 *Plugins*  : ${totalCommands}`,
+            `⚡ *Prefix*   : ${s.PREFIX || d.PREFIX}`,
+            `⚙️ *Mode*     : ${modeLabel}`,
+            `🔒 *Licence*  : ${expLine}`,
+            `📲 *Telegram* : t.me/GURU_TECHLAB`,
+            `┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄`,
+            `> ✨ _${s.CAPTION || d.CAPTION}_`,
+            `> _Allow a few seconds to sync._`,
+        ].join("\n");
+
+        const destJid = jidNormalizedUser(socket.user.id);
+        let ctx = {};
+        try { ctx = await createContext(botName, { title: "BOT INTEGRATED", body: "Status: Ready for Use" }); } catch (_) {}
+
+        await socket.sendMessage(destJid, { text: msg, ...ctx }, {
+            disappearingMessagesInChat: true,
+            ephemeralExpiration: 300,
+        });
+    } catch (err) {
+        console.error("Post-connection error:", err.message);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  BOOTSTRAP
+// ════════════════════════════════════════════════════════════════════════════
+
 (async () => {
+    startWebServer();
+    startSystemTasks();
+    startExpiryWatchdog();
+    startCleanup();
+
     await loadSession();
-    await loadBotSettings();
+    await initDatabase();
+
     startGuru();
 })();

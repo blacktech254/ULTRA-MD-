@@ -1019,3 +1019,109 @@ gmd(
         }
     }
 );
+
+// ════════════════════════════════════════════════════════════════════════════
+//  .tts <text> — Convert typed text to a WhatsApp voice note
+// ════════════════════════════════════════════════════════════════════════════
+
+// Supported TTS languages (code → label)
+const TTS_LANGS = {
+    en: "🇬🇧 English",
+    sw: "🇰🇪 Swahili",
+    fr: "🇫🇷 French",
+    de: "🇩🇪 German",
+    es: "🇪🇸 Spanish",
+    ar: "🇸🇦 Arabic",
+    hi: "🇮🇳 Hindi",
+    pt: "🇧🇷 Portuguese",
+    zh: "🇨🇳 Chinese",
+    ja: "🇯🇵 Japanese",
+};
+
+gmd(
+    {
+        pattern: "tts",
+        aliases: ["texttospeech", "speak", "voicenote"],
+        react: "🔊",
+        category: "tools",
+        description: "Convert text to a voice note. Usage: .tts <text> or .tts lang=sw <text>",
+    },
+    async (from, Guru, conText) => {
+        const { q, reply, react, botFooter, botName } = conText;
+        const footer = buildFooter(botFooter, botName);
+
+        if (!q || !q.trim()) {
+            const langList = Object.entries(TTS_LANGS)
+                .map(([code, label]) => `  • \`${code}\` — ${label}`)
+                .join("\n");
+            return reply(
+                `🔊 *Text-to-Speech*\n\n` +
+                `Usage: *.tts <text>*\n` +
+                `With language: *.tts lang=sw Hello there*\n\n` +
+                `*Supported languages:*\n${langList}\n\n` +
+                `_Default is English (en)_${footer}`
+            );
+        }
+
+        // ── Parse optional lang= prefix ───────────────────────────────────
+        let lang = "en";
+        let text = q.trim();
+
+        const langMatch = text.match(/^lang=([a-z]{2})\s+/i);
+        if (langMatch) {
+            const requested = langMatch[1].toLowerCase();
+            if (TTS_LANGS[requested]) {
+                lang = requested;
+            } else {
+                return reply(`❌ Unsupported language code: *${requested}*\n\nSupported: ${Object.keys(TTS_LANGS).join(", ")}${footer}`);
+            }
+            text = text.slice(langMatch[0].length).trim();
+        }
+
+        if (!text) return reply(`❌ No text provided after the language option.${footer}`);
+        if (text.length > 1000) return reply(`❌ Text too long. Maximum is *1000 characters* (yours: ${text.length}).${footer}`);
+
+        await react("⏳");
+
+        try {
+            // ── Generate TTS audio chunks ─────────────────────────────────
+            const chunks = await googleTTS.getAllAudioBase64(text, {
+                lang,
+                slow: false,
+                host: "https://translate.google.com",
+                timeout: 30000,
+            });
+
+            const audioBuffer = Buffer.concat(chunks.map((c) => Buffer.from(c.base64, "base64")));
+
+            // ── Convert to PTT voice note ─────────────────────────────────
+            let pttBuffer = null;
+            try {
+                pttBuffer = await toPtt(audioBuffer);
+            } catch (_) {}
+
+            if (pttBuffer) {
+                await Guru.sendMessage(from, {
+                    audio: pttBuffer,
+                    mimetype: "audio/ogg; codecs=opus",
+                    ptt: true,
+                });
+            } else {
+                // Fallback: send as plain audio file
+                await Guru.sendMessage(from, {
+                    audio: audioBuffer,
+                    mimetype: "audio/mpeg",
+                    ptt: false,
+                    fileName: "tts.mp3",
+                });
+            }
+
+            await react("✅");
+
+        } catch (err) {
+            console.error("[.tts] error:", err.message);
+            await react("❌");
+            await reply(`❌ TTS failed: ${err.message}${footer}`);
+        }
+    }
+);

@@ -12,7 +12,7 @@ gmd(
     category: "owner",
     description: "View auto-followed channels and their react status",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, botFooter } = conText;
     if (!isSuperUser) {
       await react("❌");
@@ -65,7 +65,7 @@ gmd(
     category: "owner",
     description: "Add a channel to auto-follow and auto-react list. Usage: .addchannel 1234567890@newsletter",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, q, botFooter } = conText;
     if (!isSuperUser) {
       await react("❌");
@@ -83,7 +83,7 @@ gmd(
       }
       existing.push(jid);
       await setSetting("OWNER_CHANNELS", existing.join(","));
-      await safeNewsletterFollow(Gifted, jid);
+      await safeNewsletterFollow(Guru, jid);
       await react("✅");
       await reply(
         `✅ *Channel Added & Followed!*\n\n` +
@@ -106,7 +106,7 @@ gmd(
     category: "owner",
     description: "Remove a custom channel from auto-react list. Usage: .removechannel 1234567890@newsletter",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, q, botFooter } = conText;
     if (!isSuperUser) {
       await react("❌");
@@ -147,7 +147,7 @@ gmd(
     category: "owner",
     description: "Manually re-follow all tracked channels",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, botFooter } = conText;
     if (!isSuperUser) {
       await react("❌");
@@ -163,7 +163,7 @@ gmd(
       let succeeded = 0;
       let failed = 0;
       for (const jid of allChannels) {
-        const ok = await safeNewsletterFollow(Gifted, jid);
+        const ok = await safeNewsletterFollow(Guru, jid);
         if (ok) succeeded++; else failed++;
       }
       await react("✅");
@@ -189,7 +189,7 @@ gmd(
     category: "owner",
     description: "View all professor emojis used for channel auto-reactions",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, botFooter } = conText;
     if (!isSuperUser) {
       await react("❌");
@@ -217,7 +217,7 @@ gmd(
     category: "owner",
     description: "Broadcast a message to all groups. Usage: .broadcast <message>",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, q, botFooter, quoted } = conText;
     if (!isSuperUser) {
       await react("❌");
@@ -229,7 +229,7 @@ gmd(
     const text = q || "";
 
     try {
-      const groups = await Gifted.groupFetchAllParticipating();
+      const groups = await Guru.groupFetchAllParticipating();
       const groupJids = Object.keys(groups);
       if (!groupJids.length) return reply("⚠️ Bot is not in any groups!");
 
@@ -244,10 +244,10 @@ gmd(
         try {
           if (quoted) {
             // Forward the quoted media/message if reply was used
-            await Gifted.sendMessage(jid, { forward: quoted }, { quoted: null });
-            if (text) await Gifted.sendMessage(jid, { text });
+            await Guru.sendMessage(jid, { forward: quoted }, { quoted: null });
+            if (text) await Guru.sendMessage(jid, { text });
           } else {
-            await Gifted.sendMessage(jid, { text });
+            await Guru.sendMessage(jid, { text });
           }
           success++;
           // Small delay to avoid rate-limiting
@@ -283,7 +283,7 @@ gmd(
     category: "owner",
     description: "Broadcast a message/media to saved DM contacts. Usage: .broadcastdm <message> or quote media",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, q, botFooter, quoted } = conText;
     if (!isSuperUser) {
       await react("❌");
@@ -295,10 +295,10 @@ gmd(
     const text = q || "";
 
     try {
-      const chats = await Gifted.groupFetchAllParticipating();
+      const chats = await Guru.groupFetchAllParticipating();
       const groupJids = new Set(Object.keys(chats));
 
-      const contacts = Gifted.store?.contacts || {};
+      const contacts = Guru.store?.contacts || {};
       const dmJids = Object.keys(contacts).filter(
         j => j.endsWith("@s.whatsapp.net") && !groupJids.has(j)
       );
@@ -312,10 +312,10 @@ gmd(
       for (const jid of dmJids) {
         try {
           if (quoted) {
-            await Gifted.sendMessage(jid, { forward: quoted }, { quoted: null });
-            if (text) await Gifted.sendMessage(jid, { text });
+            await Guru.sendMessage(jid, { forward: quoted }, { quoted: null });
+            if (text) await Guru.sendMessage(jid, { text });
           } else {
-            await Gifted.sendMessage(jid, { text });
+            await Guru.sendMessage(jid, { text });
           }
           success++;
           await new Promise(r => setTimeout(r, 800));
@@ -350,7 +350,7 @@ gmd(
     category: "owner",
     description: "Broadcast a message to ALL groups and DM contacts. Usage: .broadcastall <message> or quote media",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, q, botFooter, quoted } = conText;
     if (!isSuperUser) {
       await react("❌");
@@ -367,12 +367,12 @@ gmd(
 
     try {
       // ── Fetch groups ──────────────────────────────────────
-      const groupsMap  = await Gifted.groupFetchAllParticipating();
+      const groupsMap  = await Guru.groupFetchAllParticipating();
       const groupJids  = Object.keys(groupsMap);
 
       // ── Fetch DM contacts ─────────────────────────────────
       const groupSet   = new Set(groupJids);
-      const contacts   = Gifted.store?.contacts || {};
+      const contacts   = Guru.store?.contacts || {};
       const dmJids     = Object.keys(contacts).filter(
         j => j.endsWith("@s.whatsapp.net") && !groupSet.has(j)
       );
@@ -395,10 +395,10 @@ gmd(
       for (const jid of groupJids) {
         try {
           if (quoted) {
-            await Gifted.sendMessage(jid, { forward: quoted }, { quoted: null });
-            if (text) await Gifted.sendMessage(jid, { text });
+            await Guru.sendMessage(jid, { forward: quoted }, { quoted: null });
+            if (text) await Guru.sendMessage(jid, { text });
           } else {
-            await Gifted.sendMessage(jid, { text });
+            await Guru.sendMessage(jid, { text });
           }
           gSuccess++;
           await new Promise(r => setTimeout(r, 500));
@@ -411,10 +411,10 @@ gmd(
       for (const jid of dmJids) {
         try {
           if (quoted) {
-            await Gifted.sendMessage(jid, { forward: quoted }, { quoted: null });
-            if (text) await Gifted.sendMessage(jid, { text });
+            await Guru.sendMessage(jid, { forward: quoted }, { quoted: null });
+            if (text) await Guru.sendMessage(jid, { text });
           } else {
-            await Gifted.sendMessage(jid, { text });
+            await Guru.sendMessage(jid, { text });
           }
           dSuccess++;
           await new Promise(r => setTimeout(r, 800));
@@ -453,7 +453,7 @@ gmd(
     category: "owner",
     description: "Send a text post to your WhatsApp channel. Usage: .channelpost <text>",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, q, botFooter } = conText;
     if (!isSuperUser) {
       await react("❌");
@@ -467,7 +467,7 @@ gmd(
       if (!channelJid || !channelJid.endsWith("@newsletter"))
         return reply("❌ NEWSLETTER_JID not configured. Use `.setchanneljid <jid>` first.");
 
-      await Gifted.sendMessage(channelJid, { text: q });
+      await Guru.sendMessage(channelJid, { text: q });
       await react("✅");
       await reply(
         `📡 *Channel Post Sent!*\n\n` +
@@ -492,7 +492,7 @@ gmd(
     category: "owner",
     description: "Set your WhatsApp channel JID. Usage: .setchanneljid 120363xxxxxx@newsletter",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, q, botFooter } = conText;
     if (!isSuperUser) {
       await react("❌");
@@ -506,7 +506,7 @@ gmd(
       const { setSetting } = require("../guru/database/settings");
       await setSetting("NEWSLETTER_JID", jid);
       // Also auto-follow it
-      await safeNewsletterFollow(Gifted, jid);
+      await safeNewsletterFollow(Guru, jid);
       await react("✅");
       await reply(
         `✅ *Channel JID Updated!*\n\n` +
@@ -532,7 +532,7 @@ gmd(
     category: "owner",
     description: "Show your bot's channel reaction configuration",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, botFooter } = conText;
     if (!isSuperUser) {
       await react("❌");

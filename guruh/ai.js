@@ -74,7 +74,7 @@ async function pollinationsQuery(prompt, model = "openai") {
 }
 
 async function queryAI(endpoint, query, conText, pollinationsModel = "openai") {
-    const { reply, react, GiftedTechApi, GiftedApiKey, botFooter, botName } = conText;
+    const { reply, react, GuruTechApi, GuruApiKey, botFooter, botName } = conText;
     const footer = buildFooter(botFooter, botName);
 
     if (!query) {
@@ -93,11 +93,11 @@ async function queryAI(endpoint, query, conText, pollinationsModel = "openai") {
         let result = null;
 
         try {
-            const apiUrl = `${GiftedTechApi}/api/ai/${endpoint}?apikey=${GiftedApiKey}&q=${encodeURIComponent(query)}`;
+            const apiUrl = `${GuruTechApi}/api/ai/${endpoint}?apikey=${GuruApiKey}&q=${encodeURIComponent(query)}`;
             const res = await axios.get(apiUrl, { timeout: 15000 });
             if (res.data?.success && res.data?.result) {
                 const candidate = String(res.data.result);
-                // GiftedTechApi returns "rate-overlimit" when the key is throttled — treat as miss
+                // GuruTechApi returns "rate-overlimit" when the key is throttled — treat as miss
                 if (!candidate.includes("overlimit") && !candidate.includes("rate-limit") && !candidate.includes("ratelimit")) {
                     result = candidate;
                 }
@@ -151,7 +151,7 @@ gmd(
         description: "Chat with ULTRA GURU AI assistant",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await queryAI("ai", conText.q || "Introduce yourself briefly", conText, "openai");
     }
 );
@@ -164,7 +164,7 @@ gmd(
         description: "General AI chat assistant",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await queryAI("chat", conText.q, conText, "openai");
     }
 );
@@ -177,7 +177,7 @@ gmd(
         description: "Chat with GPT-4o AI model",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await queryAI("gpt", conText.q, conText, "openai");
     }
 );
@@ -190,7 +190,7 @@ gmd(
         description: "Chat with GPT-4 AI model",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await queryAI("gpt4", conText.q, conText, "openai-large");
     }
 );
@@ -203,7 +203,7 @@ gmd(
         description: "Chat with GPT-4o AI model",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await queryAI("gpt4o", conText.q, conText, "openai");
     }
 );
@@ -216,7 +216,7 @@ gmd(
         description: "Chat with GPT-4o-mini AI model",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await queryAI("gpt4o-mini", conText.q, conText, "openai-reasoning");
     }
 );
@@ -228,7 +228,7 @@ gmd(
         description: "Chat with OpenAI GPT model",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await queryAI("openai", conText.q, conText, "openai");
     }
 );
@@ -240,7 +240,7 @@ gmd(
         description: "Chat with Gemini AI",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await queryAI("geminiai", conText.q, conText, "openai-large");
     }
 );
@@ -252,7 +252,7 @@ gmd(
         description: "Chat with Mistral AI model",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await pollinationsCmd(conText.q, "mistral", conText, "🔮");
     }
 );
@@ -265,7 +265,7 @@ gmd(
         description: "Get AI-powered web search answers",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await queryAI("letmegpt", conText.q, conText, "searchgpt");
     }
 );
@@ -278,7 +278,7 @@ gmd(
         description: "Chat with Meta Llama AI model",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await pollinationsCmd(conText.q, "llama", conText, "🦙");
     }
 );
@@ -291,7 +291,7 @@ gmd(
         description: "Chat with Claude AI model",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await pollinationsCmd(conText.q, "claude-hybridspace", conText, "🌌");
     }
 );
@@ -304,7 +304,7 @@ gmd(
         description: "AI coding assistant powered by Qwen Coder",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, botFooter, botName } = conText;
         const footer = buildFooter(botFooter, botName);
         const query = conText.q;
@@ -324,7 +324,7 @@ gmd(
         description: "Chat with Unity creative AI (uncensored)",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await pollinationsCmd(conText.q, "unity", conText, "🎭");
     }
 );
@@ -337,7 +337,7 @@ gmd(
         description: "AI-powered web search assistant",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         await pollinationsCmd(conText.q, "searchgpt", conText, "🌐");
     }
 );
@@ -350,7 +350,7 @@ gmd(
         description: "Generate AI images from text description",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, botFooter, botName, mek } = conText;
         const footer = buildFooter(botFooter, botName);
         const prompt = conText.q;
@@ -365,7 +365,7 @@ gmd(
             const seed = Math.floor(Math.random() * 999999);
             const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=flux&width=1024&height=1024&seed=${seed}&nologo=true&enhance=true`;
 
-            await Gifted.sendMessage(
+            await Guru.sendMessage(
                 from,
                 {
                     image: { url: imageUrl },
@@ -391,7 +391,7 @@ gmd(
         description: "List all available AI models and commands",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, botFooter, botName } = conText;
         const footer = buildFooter(botFooter, botName);
         const botN = botName || "ULTRA GURU MD";
@@ -430,7 +430,7 @@ gmd(
         category: "ai",
         dontAddCommandList: true,
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, botFooter, botName } = conText;
         const footer = buildFooter(botFooter, botName);
         const botN = botName || "ULTRA GURU MD";
@@ -480,7 +480,7 @@ gmd(
         description: "Chat with real Meta AI (Llama 3.3 70B) with memory",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, q, mek, botFooter, botName, sender } = conText;
         const footer = buildFooter(botFooter, botName);
         const query  = q || mek?.message?.extendedTextMessage?.contextInfo?.quotedMessage?.conversation;
@@ -534,7 +534,7 @@ gmd(
         description: "Clear your Meta AI conversation history",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, sender, botFooter, botName } = conText;
         const footer = buildFooter(botFooter, botName);
         if (react) await react("✅");
@@ -580,7 +580,7 @@ gmd(
         description: "Chat with Lupus — GuruTech's AI assistant with memory",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, q, mek, botFooter, botName, sender } = conText;
         const footer = buildFooter(botFooter, botName);
         const botN  = botName || "ULTRA GURU MD";
@@ -647,7 +647,7 @@ gmd(
         description: "Generate an AI image from a text prompt",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, q, mek, botFooter, botName, sender } = conText;
         const footer = buildFooter(botFooter, botName);
 
@@ -675,7 +675,7 @@ gmd(
             const imgRes = await axios.get(url, { responseType: 'arraybuffer', timeout: 90000 });
             const imgBuf = Buffer.from(imgRes.data);
             if (react) await react("✅");
-            await Gifted.sendMessage(from, {
+            await Guru.sendMessage(from, {
                 image: imgBuf,
                 caption: `🎨 *AI Generated Image*\n\n📝 *Prompt:* ${q.trim()}\n\n_Powered by Flux · Pollinations_${footer}`,
                 contextInfo: { mentionedJid: [sender] },
@@ -699,7 +699,7 @@ gmd(
         description: "AI-edit a quoted image. Quote image + describe the change.",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, q, mek, quoted, botFooter, botName, sender } = conText;
         const footer = buildFooter(botFooter, botName);
 
@@ -735,7 +735,7 @@ gmd(
 
             if (media) {
                 // Download the quoted image to build context
-                const tmpPath = await Gifted.downloadAndSaveMediaMessage(media, 'aiedit_src');
+                const tmpPath = await Guru.downloadAndSaveMediaMessage(media, 'aiedit_src');
                 const fs = require('fs').promises;
                 imageBuffer = await fs.readFile(tmpPath).catch(() => null);
                 await fs.unlink(tmpPath).catch(() => {});
@@ -757,7 +757,7 @@ gmd(
 
             // Send original back alongside edited if we had it
             if (imageBuffer) {
-                await Gifted.sendMessage(from, {
+                await Guru.sendMessage(from, {
                     image: imgBuf,
                     caption:
 `┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -768,7 +768,7 @@ gmd(
                     contextInfo: { mentionedJid: [sender] },
                 }, { quoted: mek });
             } else {
-                await Gifted.sendMessage(from, {
+                await Guru.sendMessage(from, {
                     image: imgBuf,
                     caption: `✏️ *AI Image Edit*\n\n📝 *Instruction:* ${instruction}\n\n_Powered by Flux · Pollinations_${footer}`,
                     contextInfo: { mentionedJid: [sender] },
@@ -791,7 +791,7 @@ gmd(
         description: "Generate an AI image and convert to sticker. Usage: .aisticker <prompt>",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, q, mek, botFooter, botName, sender, packName, packAuthor } = conText;
         const footer = buildFooter(botFooter, botName);
 
@@ -821,7 +821,7 @@ gmd(
             await fs.unlink(tmpFile).catch(() => {});
 
             if (react) await react("✅");
-            await Gifted.sendMessage(from, { sticker: stickerBuf }, { quoted: mek });
+            await Guru.sendMessage(from, { sticker: stickerBuf }, { quoted: mek });
         } catch (err) {
             if (react) await react("❌");
             await reply(`❌ AI sticker failed: ${err.message}${footer}`);
@@ -839,7 +839,7 @@ gmd(
         description: "Generate a social media caption for any topic",
         category: "ai",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, q, mek, botFooter, botName, sender } = conText;
         const footer = buildFooter(botFooter, botName);
 

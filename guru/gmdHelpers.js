@@ -133,7 +133,7 @@ const createContext2 = async (userJid, options = {}) => {
             },
             externalAdReply: {
                 title: options.title || botName,
-                body: options.body || "Powered by Gifted Tech",
+                body: options.body || "Powered by Guru Tech",
                 thumbnailUrl: botPic,
                 mediaType: 1,
                 showAdAttribution: true,
@@ -147,13 +147,13 @@ const createContext2 = async (userJid, options = {}) => {
  * createFakeContact — sends a vCard contact card showing the sender's
  * name, number and profile picture before each bot response.
  *
- * @param {object} Gifted   - Baileys WA socket
+ * @param {object} Guru   - Baileys WA socket
  * @param {string} from     - remoteJid (chat/group to send to)
  * @param {string} sender   - sender's JID e.g. 2547xxxxxx@s.whatsapp.net
  * @param {string} pushName - sender's display name from WhatsApp
  * @param {object} mek      - quoted message object
  */
-const createFakeContact = async (Gifted, from, sender, pushName, mek) => {
+const createFakeContact = async (Guru, from, sender, pushName, mek) => {
     try {
         // Extract a clean phone number from the JID
         const phone = sender.replace(/@s\.whatsapp\.net|@c\.us/g, '').replace(/[^0-9]/g, '');
@@ -171,7 +171,7 @@ const createFakeContact = async (Gifted, from, sender, pushName, mek) => {
         // Try to get the sender's profile picture
         let profilePicThumb = undefined;
         try {
-            const picUrl = await Gifted.profilePictureUrl(sender, 'image');
+            const picUrl = await Guru.profilePictureUrl(sender, 'image');
             if (picUrl) {
                 const axios = require('axios');
                 const resp = await axios.get(picUrl, { responseType: 'arraybuffer', timeout: 6000 });
@@ -193,7 +193,7 @@ const createFakeContact = async (Gifted, from, sender, pushName, mek) => {
             contactMsg.contacts.contacts[0].profilePicThumb = profilePicThumb;
         }
 
-        await Gifted.sendMessage(from, contactMsg, { quoted: mek });
+        await Guru.sendMessage(from, contactMsg, { quoted: mek });
     } catch (err) {
         // Non-fatal — if contact card fails, the main reply still goes through
         console.error('[FakeContact] Error sending fake contact:', err.message);

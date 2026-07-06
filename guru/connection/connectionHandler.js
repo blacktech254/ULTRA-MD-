@@ -6,7 +6,7 @@ const path = require("path");
 const { setupGroupCacheListeners } = require("./groupCache");
 const { resetUpdateFlag } = require("../autoUpdater");
 const { setupRestrictionManager, resetRestrictionListeners } = require("../restrictionManager");
-const { setupVVTracker, GiftedAntiViewOnce, sendVVAnonymous, isViewOnceMsg, extractViewOnceData } = require("../gmdFunctions2");
+const { setupVVTracker, GuruAntiViewOnce, sendVVAnonymous, isViewOnceMsg, extractViewOnceData } = require("../gmdFunctions2");
 const { getAllSettings } = require("../database/settings");
 
 const RECONNECT_DELAY = 5000;
@@ -29,20 +29,20 @@ const clearWatchdog = () => {
     }
 };
 
-const forceReconnect = (Gifted, startGifted, reason) => {
+const forceReconnect = (Guru, startGuru, reason) => {
     if (isReconnecting) return;
     console.warn(`⚠️ Watchdog: ${reason} — forcing reconnect...`);
     clearWatchdog();
     isReconnecting = true;
     isWatchdogReconnect = true;
-    try { Gifted.end(new Error(reason)); } catch (_) {}
+    try { Guru.end(new Error(reason)); } catch (_) {}
     setTimeout(() => {
         isReconnecting = false;
-        startGifted();
+        startGuru();
     }, withJitter(RECONNECT_DELAY));
 };
 
-const startWatchdog = (Gifted, startGifted) => {
+const startWatchdog = (Guru, startGuru) => {
     clearWatchdog();
 
     watchdogTimer = setInterval(async () => {
@@ -50,21 +50,21 @@ const startWatchdog = (Gifted, startGifted) => {
 
         // ── 1. WebSocket state check ────────────────────────────────────────
         try {
-            const ws = Gifted.ws;
+            const ws = Guru.ws;
             const isOpen = ws && (ws.readyState === 1 || ws.isOpen === true);
             if (!isOpen) {
-                return forceReconnect(Gifted, startGifted, "WebSocket not open");
+                return forceReconnect(Guru, startGuru, "WebSocket not open");
             }
         } catch (err) {
-            return forceReconnect(Gifted, startGifted, `WebSocket check error: ${err.message}`);
+            return forceReconnect(Guru, startGuru, `WebSocket check error: ${err.message}`);
         }
 
         // ── 2. Real keepalive — push a packet through WhatsApp's protocol ───
         // Errors immediately if the connection is truly dead (not just quiet)
         try {
-            await Gifted.sendPresenceUpdate("available");
+            await Guru.sendPresenceUpdate("available");
         } catch (err) {
-            return forceReconnect(Gifted, startGifted, `Keepalive failed: ${err.message}`);
+            return forceReconnect(Guru, startGuru, `Keepalive failed: ${err.message}`);
         }
     }, WATCHDOG_INTERVAL);
 };
@@ -102,10 +102,10 @@ const getOwnerChannels = async () => {
     return [...new Set([...OWNER_CHANNELS, ...extraChannels])];
 };
 
-const safeNewsletterFollow = async (Gifted, newsletterJid) => {
+const safeNewsletterFollow = async (Guru, newsletterJid) => {
     if (!newsletterJid) return false;
     try {
-        await Gifted.newsletterFollow(newsletterJid);
+        await Guru.newsletterFollow(newsletterJid);
         return true;
     } catch (error) {
         console.error(
@@ -116,10 +116,10 @@ const safeNewsletterFollow = async (Gifted, newsletterJid) => {
     }
 };
 
-const safeGroupAcceptInvite = async (Gifted, groupJid) => {
+const safeGroupAcceptInvite = async (Guru, groupJid) => {
     if (!groupJid) return false;
     try {
-        await Gifted.groupAcceptInvite(groupJid);
+        await Guru.groupAcceptInvite(groupJid);
         return true;
     } catch (error) {
         switch (error.data) {
@@ -142,22 +142,22 @@ const safeGroupAcceptInvite = async (Gifted, groupJid) => {
     }
 };
 
-const autoFollowOwnerChannels = async (Gifted) => {
+const autoFollowOwnerChannels = async (Guru) => {
     const allChannels = await getOwnerChannels();
 
     for (const jid of allChannels) {
-        await safeNewsletterFollow(Gifted, jid);
+        await safeNewsletterFollow(Guru, jid);
     }
     if (allChannels.length > 0) {
         console.log(`📡 Auto-followed ${allChannels.length} channel(s)`);
     }
 };
 
-const setupNewsletterReactions = (Gifted) => {
+const setupNewsletterReactions = (Guru) => {
     if (channelReactListenerActive) return;
     channelReactListenerActive = true;
 
-    Gifted.ev.on("messages.upsert", async ({ messages, type }) => {
+    Guru.ev.on("messages.upsert", async ({ messages, type }) => {
         try {
             for (const msg of messages) {
                 if (!msg?.key?.remoteJid) continue;
@@ -180,17 +180,17 @@ const setupNewsletterReactions = (Gifted) => {
                 const emoji = getRandomProfessorEmoji();
 
                 try {
-                    if (typeof Gifted.newsletterReactMessage === "function") {
-                        await Gifted.newsletterReactMessage(jid, serverMessageId, emoji);
+                    if (typeof Guru.newsletterReactMessage === "function") {
+                        await Guru.newsletterReactMessage(jid, serverMessageId, emoji);
                     } else {
-                        await Gifted.sendMessage(jid, {
+                        await Guru.sendMessage(jid, {
                             react: { key: msg.key, text: emoji },
                         });
                     }
                     console.log(`📡 Auto-reacted to channel post [${jid.split("@")[0]}] with ${emoji}`);
                 } catch (reactErr) {
                     try {
-                        await Gifted.sendMessage(jid, {
+                        await Guru.sendMessage(jid, {
                             react: { key: msg.key, text: emoji },
                         });
                     } catch (_) {}
@@ -225,10 +225,10 @@ const getStalkTargets = () => stalkTargets;
 
 let stalkListenerActive = false;
 
-const setupStalkListener = (Gifted) => {
+const setupStalkListener = (Guru) => {
     if (stalkListenerActive) return;
     stalkListenerActive = true;
-    Gifted.ev.on("presence.update", ({ id, presences }) => {
+    Guru.ev.on("presence.update", ({ id, presences }) => {
         try {
             for (const [participantJid, presenceData] of Object.entries(presences || {})) {
                 const num = participantJid.split("@")[0].split(":")[0];
@@ -238,7 +238,7 @@ const setupStalkListener = (Gifted) => {
                 const stalkers = stalkTargets.get(num);
                 const timeStr = new Date().toLocaleString();
                 for (const { requesterJid, label } of stalkers) {
-                    Gifted.sendMessage(requesterJid, {
+                    Guru.sendMessage(requesterJid, {
                         text: `👁️ *STALK ALERT* 👁️\n╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍\n📱 Target: *${label || `+${num}`}*\n🟢 Status: *Online Now*\n🕐 Time: ${timeStr}\n\n_Use \`.unstalk ${label || `+${num}`}\` to stop tracking._`,
                     }).catch(() => {});
                 }
@@ -341,14 +341,14 @@ const _extractTargetIds = (msg) => {
     return ids;
 };
 
-const setupAntiViewOnce = (Gifted) => {
+const setupAntiViewOnce = (Guru) => {
     if (_antiVOListenerActive) return;
     _antiVOListenerActive = true;
 
     const { getSetting } = require("../database/settings");
 
     // ── Step 1: Cache every incoming view-once immediately ──────────────────
-    Gifted.ev.on("messages.upsert", async ({ messages, type }) => {
+    Guru.ev.on("messages.upsert", async ({ messages, type }) => {
         for (const msg of messages) {
             try {
                 if (!msg?.message) continue;
@@ -385,7 +385,7 @@ const setupAntiViewOnce = (Gifted) => {
     });
 
     // ── Step 2: Trigger on ANY reply or reaction — bot OR owner ─────────────
-    Gifted.ev.on("messages.upsert", async ({ messages }) => {
+    Guru.ev.on("messages.upsert", async ({ messages }) => {
         for (const msg of messages) {
             try {
                 const isFromMe = msg.key.fromMe;
@@ -410,7 +410,7 @@ const setupAntiViewOnce = (Gifted) => {
 
                     // Fire — silently forward to bot DM
                     setImmediate(() =>
-                        GiftedAntiViewOnce(Gifted, cachedMsg).catch(e =>
+                        GuruAntiViewOnce(Guru, cachedMsg).catch(e =>
                             console.error("[AntiViewOnce/fire]", e.message)
                         )
                     );
@@ -428,11 +428,11 @@ const setupAntiViewOnce = (Gifted) => {
 let _autoSaveVOActive = false;
 const _AUTOSAVE_EMOJIS = new Set(["❤️", "❤", "😍", "😂", "🤣"]);
 
-const setupAutoSaveVO = (Gifted) => {
+const setupAutoSaveVO = (Guru) => {
     if (_autoSaveVOActive) return;
     _autoSaveVOActive = true;
 
-    Gifted.ev.on("messages.upsert", async ({ messages }) => {
+    Guru.ev.on("messages.upsert", async ({ messages }) => {
         for (const msg of messages) {
             try {
                 if (!msg?.message?.reactionMessage) continue;
@@ -464,7 +464,7 @@ const setupAutoSaveVO = (Gifted) => {
                 const settings = await getAllSettings();
                 const botName = settings.BOT_NAME || "ULTRA GURU";
 
-                await sendVVAnonymous(Gifted, content, type, reactorDmJid, botName, origSenderNum);
+                await sendVVAnonymous(Guru, content, type, reactorDmJid, botName, origSenderNum);
             } catch (e) {
                 console.error("[AutoSaveVO] Error:", e.message);
             }
@@ -473,20 +473,20 @@ const setupAutoSaveVO = (Gifted) => {
 };
 
 const setupConnectionHandler = (
-    Gifted,
+    Guru,
     sessionDir,
-    startGifted,
+    startGuru,
     callbacks = {},
 ) => {
-    setupGroupCacheListeners(Gifted);
-    setupNewsletterReactions(Gifted);
-    setupRestrictionManager(Gifted);
-    setupVVTracker(Gifted);
-    setupStalkListener(Gifted);
-    setupAntiViewOnce(Gifted);
-    setupAutoSaveVO(Gifted);
+    setupGroupCacheListeners(Guru);
+    setupNewsletterReactions(Guru);
+    setupRestrictionManager(Guru);
+    setupVVTracker(Guru);
+    setupStalkListener(Guru);
+    setupAntiViewOnce(Guru);
+    setupAutoSaveVO(Guru);
 
-    Gifted.ev.on("connection.update", async (update) => {
+    Guru.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect } = update;
 
         if (connection === "connecting") {
@@ -498,18 +498,18 @@ const setupConnectionHandler = (
             reconnectAttempts = 0;
             isReconnecting = false;
 
-            startWatchdog(Gifted, startGifted);
+            startWatchdog(Guru, startGuru);
 
             // Skip startup message on silent watchdog reconnects
             const wasWatchdogReconnect = isWatchdogReconnect;
             isWatchdogReconnect = false;
 
             if (callbacks.onOpen && !wasWatchdogReconnect) {
-                await callbacks.onOpen(Gifted);
+                await callbacks.onOpen(Guru);
             }
 
             setTimeout(async () => {
-                await autoFollowOwnerChannels(Gifted);
+                await autoFollowOwnerChannels(Guru);
             }, 3000);
         }
 
@@ -533,7 +533,7 @@ const setupConnectionHandler = (
                     reconnectAttempts = 0;
                     setTimeout(() => {
                         isReconnecting = false;
-                        startGifted();
+                        startGuru();
                     }, withJitter(120000));
                     return;
                 }
@@ -549,7 +549,7 @@ const setupConnectionHandler = (
                 );
                 setTimeout(() => {
                     isReconnecting = false;
-                    startGifted();
+                    startGuru();
                 }, delay);
             };
 
@@ -590,7 +590,7 @@ const setupConnectionHandler = (
                         isReconnecting = true;
                         setTimeout(() => {
                             isReconnecting = false;
-                            startGifted();
+                            startGuru();
                         }, 1500);
                     }
                     break;

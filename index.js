@@ -60,12 +60,12 @@ const path = require("path");
 
 const PORT = process.env.PORT || 5000;
 const app = express();
-let Gifted;
+let Guru;
 let store;
 
 logger.level = "silent";
 app.use(express.static("guru"));
-app.get("/", (req, res) => res.sendFile(__dirname + "/guru/gifted.html"));
+app.get("/", (req, res) => res.sendFile(__dirname + "/guru/guru.html"));
 app.get("/health", (req, res) =>
     res.status(200).json({ status: "alive", uptime: process.uptime() }),
 );
@@ -165,7 +165,7 @@ try {
     console.warn("[EXPIRY] Watchdog not started:", e.message);
 }
 
-async function startGifted() {
+async function startGuru() {
     try {
         const { version } = await fetchLatestWaWebVersion();
         const sessionDbPath = path.join(sessionDir, "session.db");
@@ -183,38 +183,38 @@ async function startGifted() {
             return { conversation: "Error occurred" };
         };
 
-        Gifted = makeWASocket(socketConfig);
-        global._botSocket = Gifted;
-        store.bind(Gifted.ev);
+        Guru = makeWASocket(socketConfig);
+        global._botSocket = Guru;
+        store.bind(Guru.ev);
 
-        Gifted.ev.process(async (events) => {
+        Guru.ev.process(async (events) => {
             if (events["creds.update"]) await saveCreds();
         });
 
-        setupAutoReact(Gifted);
-        setupAntiDelete(Gifted);
-        setupAutoBio(Gifted);
-        setupAntiCall(Gifted);
-        setupPresence(Gifted);
-        setupChatBotAndAntiLink(Gifted);
-        setupAntiEdit(Gifted);
-        setupStatusHandlers(Gifted);
-        setupGroupEventsListeners(Gifted);
+        setupAutoReact(Guru);
+        setupAntiDelete(Guru);
+        setupAutoBio(Guru);
+        setupAntiCall(Guru);
+        setupPresence(Guru);
+        setupChatBotAndAntiLink(Guru);
+        setupAntiEdit(Guru);
+        setupStatusHandlers(Guru);
+        setupGroupEventsListeners(Guru);
 
         loadPlugins(pluginsPath);
 
-        setupCommandHandler(Gifted);
+        setupCommandHandler(Guru);
 
-        setupConnectionHandler(Gifted, sessionDir, startGifted, {
-            onOpen: async (Gifted) => {
+        setupConnectionHandler(Guru, sessionDir, startGuru, {
+            onOpen: async (Guru) => {
                 const s = await getAllSettings();
-                await safeNewsletterFollow(Gifted, s.NEWSLETTER_JID);
-                await safeGroupAcceptInvite(Gifted, s.GC_JID);
-                await initializeLidStore(Gifted);
+                await safeNewsletterFollow(Guru, s.NEWSLETTER_JID);
+                await safeGroupAcceptInvite(Guru, s.GC_JID);
+                await initializeLidStore(Guru);
 
                 try {
                     const { startScheduler } = require("./guru/scheduler");
-                    startScheduler(Gifted);
+                    startScheduler(Guru);
                 } catch (e) {
                     console.error("[Scheduler] start error:", e.message);
                 }
@@ -252,7 +252,7 @@ async function startGifted() {
 > ✨ _${s.CAPTION || d.CAPTION}_
 > _Allow a few seconds to sync._`;
 
-                            const destJid = jidNormalizedUser(Gifted.user.id);
+                            const destJid = jidNormalizedUser(Guru.user.id);
                             let ctx = {};
                             try {
                                 ctx = await createContext(
@@ -263,7 +263,7 @@ async function startGifted() {
                                     },
                                 );
                             } catch (_) {}
-                            await Gifted.sendMessage(
+                            await Guru.sendMessage(
                                 destJid,
                                 { text: connectionMsg, ...ctx },
                                 {
@@ -283,12 +283,12 @@ async function startGifted() {
         process.on("SIGTERM", () => store?.destroy());
     } catch (error) {
         console.error("Socket initialization error:", error);
-        setTimeout(() => startGifted(), 5000);
+        setTimeout(() => startGuru(), 5000);
     }
 }
 
 (async () => {
     await loadSession();
     await loadBotSettings();
-    startGifted();
+    startGuru();
 })();

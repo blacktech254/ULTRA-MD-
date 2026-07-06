@@ -39,7 +39,7 @@ gmd(
     category: "owner",
     description: "Get Bot Owner.",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { mek, reply, react, isSuperUser, ownerNumber, ownerName, botName } =
       conText;
 
@@ -57,7 +57,7 @@ gmd(
         `TEL;type=CELL;type=VOICE;waid=${ownerNumber}:${ownerNumber}\n` +
         "END:VCARD";
 
-      await Gifted.sendMessage(
+      await Guru.sendMessage(
         from,
         {
           contacts: {
@@ -84,7 +84,7 @@ gmd(
     category: "group",
     description: "Set group full profile picture without cropping.",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { mek, reply, react, sender, quoted, isGroup, isSuperUser, isAdmin } =
       conText;
 
@@ -105,7 +105,7 @@ gmd(
         await react("❌");
         return reply("Please quote an image");
       }
-      tempFilePath = await Gifted.downloadAndSaveMediaMessage(
+      tempFilePath = await Guru.downloadAndSaveMediaMessage(
         quotedImg,
         "temp_media",
       );
@@ -132,7 +132,7 @@ gmd(
         content: [pictureNode],
       };
 
-      await Gifted.query(iqNode);
+      await Guru.query(iqNode);
       await react("✅");
       await fs.unlink(tempFilePath);
       await reply(
@@ -170,7 +170,7 @@ gmd(
     category: "owner",
     description: "Set full profile picture without cropping.",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { mek, reply, react, sender, quoted, isSuperUser } = conText;
 
     if (!isSuperUser) {
@@ -184,7 +184,7 @@ gmd(
         await react("❌");
         return reply("Please quote an image");
       }
-      tempFilePath = await Gifted.downloadAndSaveMediaMessage(
+      tempFilePath = await Guru.downloadAndSaveMediaMessage(
         quotedImg,
         "temp_media",
       );
@@ -210,7 +210,7 @@ gmd(
         content: [pictureNode],
       };
 
-      await Gifted.query(iqNode);
+      await Guru.query(iqNode);
       await react("✅");
       await fs.unlink(tempFilePath);
       await reply("✅ Profile picture updated successfully (full image)!");
@@ -235,7 +235,7 @@ gmd(
     category: "owner",
     description: "Get someone's full profile details.",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const {
       mek,
       reply,
@@ -271,13 +271,13 @@ gmd(
       if (quoted) {
         if (isGroup && !targetUser.endsWith("@s.whatsapp.net")) {
           try {
-            const jid = await Gifted.getJidFromLid(targetUser);
+            const jid = await Guru.getJidFromLid(targetUser);
             if (jid) targetUser = jid;
           } catch (error) {}
         }
 
         try {
-          profilePictureUrl = await Gifted.profilePictureUrl(
+          profilePictureUrl = await Guru.profilePictureUrl(
             targetUser,
             "image",
           );
@@ -287,7 +287,7 @@ gmd(
         }
 
         try {
-          const statusData = await Gifted.fetchStatus(targetUser);
+          const statusData = await Guru.fetchStatus(targetUser);
           if (statusData && statusData.length > 0 && statusData[0].status) {
             statusText = statusData[0].status.status || "Not Found";
             const rawSetAt = statusData[0].status.setAt;
@@ -310,7 +310,7 @@ gmd(
 
         const number = targetUser.replace(/@s\.whatsapp\.net$/, "");
 
-        await Gifted.sendMessage(
+        await Guru.sendMessage(
           from,
           {
             image: { url: profilePictureUrl },
@@ -354,7 +354,7 @@ gmd(
     category: "owner",
     description: "Set new profile picture.",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { mek, reply, react, sender, quoted, isSuperUser } = conText;
 
     if (!isSuperUser) {
@@ -369,13 +369,13 @@ gmd(
         return reply("Please quote an image");
       }
 
-      const tempFilePath = await Gifted.downloadAndSaveMediaMessage(
+      const tempFilePath = await Guru.downloadAndSaveMediaMessage(
         quotedImg,
         "temp_media",
       );
       const imageBuffer = await fs.readFile(tempFilePath);
       try {
-        await Gifted.updateProfilePicture(Gifted.user.id, {
+        await Guru.updateProfilePicture(Guru.user.id, {
           url: tempFilePath,
         });
         await reply("Profile picture updated successfully!");
@@ -401,7 +401,7 @@ gmd(
           ],
         };
 
-        await Gifted.query(iq);
+        await Guru.query(iq);
         await reply("Profile picture update requested (legacy method)");
         await react("✅");
       }
@@ -425,7 +425,7 @@ gmd(
     category: "owner",
     description: "Download someone's profile picture.",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const {
       mek,
       reply,
@@ -457,7 +457,7 @@ gmd(
     try {
       if (quoted) {
         try {
-          profilePictureUrl = await Gifted.profilePictureUrl(
+          profilePictureUrl = await Guru.profilePictureUrl(
             quotedUser,
             "image",
           );
@@ -468,7 +468,7 @@ gmd(
           );
         }
 
-        await Gifted.sendMessage(
+        await Guru.sendMessage(
           from,
           {
             image: { url: profilePictureUrl },
@@ -504,7 +504,7 @@ gmd(
     category: "group",
     description: "Download group profile picture",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { mek, reply, react, isGroup, newsletterJid, botName, botFooter } =
       conText;
 
@@ -516,13 +516,13 @@ gmd(
     try {
       let profilePictureUrl;
       try {
-        profilePictureUrl = await Gifted.profilePictureUrl(from, "image");
+        profilePictureUrl = await Guru.profilePictureUrl(from, "image");
       } catch (error) {
         await react("❌");
         return reply("❌ This group has no profile picture set!");
       }
 
-      await Gifted.sendMessage(
+      await Guru.sendMessage(
         from,
         {
           image: { url: profilePictureUrl },
@@ -557,7 +557,7 @@ gmd(
     category: "general",
     description: "Reveal view-once media to the group/chat",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { mek, reply, quoted, react, botName, botFooter } = conText;
 
     const fmt = (title, msg) =>
@@ -610,8 +610,8 @@ gmd(
       let buffer = null;
 
       const strategies = [
-        async () => await Gifted.downloadMediaMessage({ message: { [`${mediaType}Message`]: mediaMsg } }),
-        async () => await Gifted.downloadMediaMessage(mediaMsg),
+        async () => await Guru.downloadMediaMessage({ message: { [`${mediaType}Message`]: mediaMsg } }),
+        async () => await Guru.downloadMediaMessage(mediaMsg),
         async () => {
           const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
           const stream = await downloadContentFromMessage(mediaMsg, mediaType);
@@ -638,11 +638,11 @@ gmd(
       const mime = mediaMsg.mimetype || "";
 
       if (mediaType === "image") {
-        await Gifted.sendMessage(from, { image: buffer, caption });
+        await Guru.sendMessage(from, { image: buffer, caption });
       } else if (mediaType === "video") {
-        await Gifted.sendMessage(from, { video: buffer, caption, mimetype: mime || "video/mp4" });
+        await Guru.sendMessage(from, { video: buffer, caption, mimetype: mime || "video/mp4" });
       } else {
-        await Gifted.sendMessage(from, { audio: buffer, ptt: true, mimetype: mime || "audio/ogg; codecs=opus" });
+        await Guru.sendMessage(from, { audio: buffer, ptt: true, mimetype: mime || "audio/ogg; codecs=opus" });
       }
 
       await react("✅");
@@ -662,7 +662,7 @@ gmd(
     category: "general",
     description: "Reveal view-once media — sent to your DM",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { mek, reply, quoted, react, sender, botName, botFooter } = conText;
 
     const fmt = (title, msg) =>
@@ -715,8 +715,8 @@ gmd(
       let buffer = null;
 
       const strategies = [
-        async () => await Gifted.downloadMediaMessage({ message: { [`${mediaType}Message`]: mediaMsg } }),
-        async () => await Gifted.downloadMediaMessage(mediaMsg),
+        async () => await Guru.downloadMediaMessage({ message: { [`${mediaType}Message`]: mediaMsg } }),
+        async () => await Guru.downloadMediaMessage(mediaMsg),
         async () => {
           const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
           const stream = await downloadContentFromMessage(mediaMsg, mediaType);
@@ -746,11 +746,11 @@ gmd(
       const dest = sender;
 
       if (mediaType === "image") {
-        await Gifted.sendMessage(dest, { image: buffer, caption });
+        await Guru.sendMessage(dest, { image: buffer, caption });
       } else if (mediaType === "video") {
-        await Gifted.sendMessage(dest, { video: buffer, caption, mimetype: mime || "video/mp4" });
+        await Guru.sendMessage(dest, { video: buffer, caption, mimetype: mime || "video/mp4" });
       } else {
-        await Gifted.sendMessage(dest, { audio: buffer, ptt: true, mimetype: mime || "audio/ogg; codecs=opus" });
+        await Guru.sendMessage(dest, { audio: buffer, ptt: true, mimetype: mime || "audio/ogg; codecs=opus" });
       }
 
       await react("✅");
@@ -770,7 +770,7 @@ gmd(
     category: "group",
     description: "Toggle disappearing messages. Usage: .disapp on/off/1/7/90",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const {
       reply,
       react,
@@ -824,7 +824,7 @@ gmd(
         return reply("❌ Invalid option. Use: on, off, 1, 7, or 90");
       }
 
-      await Gifted.sendMessage(from, { disappearingMessagesInChat: duration });
+      await Guru.sendMessage(from, { disappearingMessagesInChat: duration });
 
       await react("✅");
       if (duration === 0) {
@@ -849,7 +849,7 @@ gmd(
     category: "group",
     description: "Delete a quoted message",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const {
       mek,
       reply,
@@ -877,9 +877,9 @@ gmd(
         );
       }
 
-      await Gifted.sendMessage(from, { delete: quotedKey });
+      await Guru.sendMessage(from, { delete: quotedKey });
       if (mek?.key) {
-        await Gifted.sendMessage(from, { delete: mek.key });
+        await Guru.sendMessage(from, { delete: mek.key });
       }
       await react("✅");
     } catch (error) {
@@ -897,7 +897,7 @@ gmd(
     category: "owner",
     description: "List all groups the bot is in",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser } = conText;
 
     if (!isSuperUser) return reply("❌ Owner Only Command!");
@@ -905,7 +905,7 @@ gmd(
     try {
       await react("⏳");
 
-      const groups = await Gifted.groupFetchAllParticipating();
+      const groups = await Guru.groupFetchAllParticipating();
       const groupList = Object.values(groups);
 
       if (groupList.length === 0) {
@@ -933,7 +933,7 @@ gmd(
           message += `   🆔 ${group.id}\n\n`;
         });
 
-        await Gifted.sendMessage(from, { text: message });
+        await Guru.sendMessage(from, { text: message });
         if (chunkIndex < chunks.length - 1) {
           await new Promise((r) => setTimeout(r, 500));
         }
@@ -955,7 +955,7 @@ gmd(
     category: "owner",
     description: "Block a user. Reply to their message or provide number",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const {
       reply,
       react,
@@ -1006,7 +1006,7 @@ gmd(
     }
 
     try {
-      await Gifted.updateBlockStatus(targetJid, "block");
+      await Guru.updateBlockStatus(targetJid, "block");
       await react("✅");
       return reply(`✅ Blocked @${num}`, { mentions: [targetJid] });
     } catch (error) {
@@ -1024,7 +1024,7 @@ gmd(
     category: "owner",
     description: "Unblock a user. Reply to their message or provide number",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, quotedUser, args, mentionedJid } =
       conText;
     const { isJidGroup } = require("@whiskeysockets/baileys");
@@ -1063,7 +1063,7 @@ gmd(
     targetJid = `${num}@s.whatsapp.net`;
 
     try {
-      await Gifted.updateBlockStatus(targetJid, "unblock");
+      await Guru.updateBlockStatus(targetJid, "unblock");
       await react("✅");
       return reply(`✅ Unblocked @${num}`, { mentions: [targetJid] });
     } catch (error) {
@@ -1081,14 +1081,14 @@ gmd(
     category: "owner",
     description: "List all blocked contacts",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser } = conText;
     const { convertLidToJid } = require("../guru/connection/serializer");
 
     if (!isSuperUser) return reply("❌ Owner Only Command!");
 
     try {
-      const blockedList = await Gifted.fetchBlocklist();
+      const blockedList = await Guru.fetchBlocklist();
 
       if (blockedList.length === 0) {
         return reply("📭 No blocked contacts.");
@@ -1121,7 +1121,7 @@ gmd(
     description:
       "Forward a quoted message to a number/group. Usage: .fwd <jid> [custom caption]",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const {
       reply,
       react,
@@ -1179,7 +1179,7 @@ gmd(
       if (msgType === "conversation" || msgType === "extendedTextMessage") {
         const text =
           quotedMsg.conversation || quotedMsg.extendedTextMessage?.text || "";
-        await Gifted.sendMessage(targetJid, {
+        await Guru.sendMessage(targetJid, {
           text: customCaption || text,
           contextInfo: forwardContextInfo,
         });
@@ -1207,7 +1207,7 @@ gmd(
           const altDownload =
             require("../guru/connection/serializer").downloadMediaMessage;
           const fakeMsg = { key: { remoteJid: from }, message: quotedMsg };
-          buffer = await altDownload(fakeMsg, Gifted);
+          buffer = await altDownload(fakeMsg, Guru);
         }
 
         if (!buffer || buffer.length === 0) {
@@ -1222,27 +1222,27 @@ gmd(
           mediaMsg?.fileName || `file.${mimetype?.split("/")[1] || "bin"}`;
 
         if (msgType === "imageMessage") {
-          await Gifted.sendMessage(targetJid, {
+          await Guru.sendMessage(targetJid, {
             image: buffer,
             caption,
             contextInfo: forwardContextInfo,
           });
         } else if (msgType === "videoMessage") {
-          await Gifted.sendMessage(targetJid, {
+          await Guru.sendMessage(targetJid, {
             video: buffer,
             caption,
             mimetype,
             contextInfo: forwardContextInfo,
           });
         } else if (msgType === "audioMessage") {
-          await Gifted.sendMessage(targetJid, {
+          await Guru.sendMessage(targetJid, {
             audio: buffer,
             mimetype,
             ptt: mediaMsg?.ptt,
             contextInfo: forwardContextInfo,
           });
         } else if (msgType === "documentMessage") {
-          await Gifted.sendMessage(targetJid, {
+          await Guru.sendMessage(targetJid, {
             document: buffer,
             mimetype,
             fileName: filename,
@@ -1250,7 +1250,7 @@ gmd(
             contextInfo: forwardContextInfo,
           });
         } else if (msgType === "stickerMessage") {
-          await Gifted.sendMessage(targetJid, { sticker: buffer });
+          await Guru.sendMessage(targetJid, { sticker: buffer });
         }
       } else {
         return reply(`❌ Unsupported message type: ${msgType}`);
@@ -1276,7 +1276,7 @@ gmd(
     description:
       "Forward quoted message to your WhatsApp status. Usage: .tostatus [custom caption]",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, quotedMsg, q, mek } = conText;
     const { downloadMediaMessage } = require("../guru/connection/serializer");
 
@@ -1293,14 +1293,14 @@ gmd(
         const text =
           quotedMsg.conversation || quotedMsg.extendedTextMessage?.text || "";
         const statusText = customCaption || text;
-        await Gifted.sendMessage(
+        await Guru.sendMessage(
           statusJid,
           {
             text: statusText,
             backgroundColor: "#075e54",
             font: 1,
           },
-          { statusJidList: await getStatusJidList(Gifted) },
+          { statusJidList: await getStatusJidList(Guru) },
         );
       } else if (["imageMessage", "videoMessage"].includes(msgType)) {
         const contextInfo =
@@ -1314,7 +1314,7 @@ gmd(
           message: quotedMsg,
         };
 
-        const buffer = await downloadMediaMessage(fakeMsg, Gifted);
+        const buffer = await downloadMediaMessage(fakeMsg, Guru);
         if (!buffer) {
           return reply("❌ Failed to download media!");
         }
@@ -1322,16 +1322,16 @@ gmd(
         const originalCaption = quotedMsg[msgType]?.caption || "";
         const caption =
           customCaption !== null ? customCaption : originalCaption;
-        const statusJidList = await getStatusJidList(Gifted);
+        const statusJidList = await getStatusJidList(Guru);
 
         if (msgType === "imageMessage") {
-          await Gifted.sendMessage(
+          await Guru.sendMessage(
             statusJid,
             { image: buffer, caption },
             { statusJidList },
           );
         } else if (msgType === "videoMessage") {
-          await Gifted.sendMessage(
+          await Guru.sendMessage(
             statusJid,
             { video: buffer, caption },
             { statusJidList },
@@ -1360,7 +1360,7 @@ gmd(
     category: "owner",
     description: "Join a group using invite link. Owner only.",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, isSuperUser, mek, botName, newsletterJid } =
       conText;
 
@@ -1384,7 +1384,7 @@ gmd(
     const inviteCode = linkMatch[1];
 
     try {
-      const groupId = await Gifted.groupAcceptInvite(inviteCode);
+      const groupId = await Guru.groupAcceptInvite(inviteCode);
 
       if (groupId) {
         await react("✅");
@@ -1412,9 +1412,9 @@ gmd(
   },
 );
 
-async function getStatusJidList(Gifted) {
+async function getStatusJidList(Guru) {
   try {
-    const contacts = await Gifted.groupFetchAllParticipating();
+    const contacts = await Guru.groupFetchAllParticipating();
     const jidList = [];
     for (const group of Object.values(contacts)) {
       if (group.participants) {
@@ -1449,7 +1449,7 @@ gmd(
     category: "owner",
     description: "Sets User as Sudo",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { q, mek, reply, react, isSuperUser, quotedUser, setSudo } = conText;
 
     if (!isSuperUser) {
@@ -1465,7 +1465,7 @@ gmd(
       let targetJid = quotedUser;
       if (quotedUser.endsWith("@lid")) {
         try {
-          const jid = await Gifted.getJidFromLid(quotedUser);
+          const jid = await Guru.getJidFromLid(quotedUser);
           if (jid) targetJid = jid;
         } catch (e) {
           console.error("LID to JID conversion failed:", e.message);
@@ -1483,7 +1483,7 @@ gmd(
 
     if (DEV_NUMBERS.includes(targetNumber)) {
       await react("❌");
-      return Gifted.sendMessage(
+      return Guru.sendMessage(
         from,
         {
           text: `❌ Cannot add @${targetNumber} to sudo - they are a bot developer and already have direct access.`,
@@ -1494,7 +1494,7 @@ gmd(
     }
 
     try {
-      const [result] = await Gifted.onWhatsApp(targetNumber);
+      const [result] = await Guru.onWhatsApp(targetNumber);
       if (!result || !result.exists) {
         await react("❌");
         return reply(
@@ -1515,7 +1515,7 @@ gmd(
         ? `✅ Added @${targetNumber} to sudo list.`
         : `⚠️ @${targetNumber} is already in sudo list.`;
 
-      await Gifted.sendMessage(
+      await Guru.sendMessage(
         from,
         {
           text: msg,
@@ -1540,7 +1540,7 @@ gmd(
     category: "owner",
     description: "Deletes User as Sudo",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { q, mek, reply, react, isSuperUser, quotedUser, delSudo } = conText;
 
     if (!isSuperUser) {
@@ -1556,7 +1556,7 @@ gmd(
       let targetJid = quotedUser;
       if (quotedUser.endsWith("@lid")) {
         try {
-          const jid = await Gifted.getJidFromLid(quotedUser);
+          const jid = await Guru.getJidFromLid(quotedUser);
           if (jid) targetJid = jid;
         } catch (e) {
           console.error("LID to JID conversion failed:", e.message);
@@ -1574,7 +1574,7 @@ gmd(
 
     if (DEV_NUMBERS.includes(targetNumber)) {
       await react("❌");
-      return Gifted.sendMessage(
+      return Guru.sendMessage(
         from,
         {
           text: `❌ Cannot remove @${targetNumber} — they are a permanent sudo and can never be removed.`,
@@ -1598,7 +1598,7 @@ gmd(
         msg = `⚠️ @${targetNumber} is not in the sudo list.`;
       }
 
-      await Gifted.sendMessage(
+      await Guru.sendMessage(
         from,
         {
           text: msg,
@@ -1623,7 +1623,7 @@ gmd(
     category: "owner",
     description: "Get and send a command",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { mek, reply, react, isSuperUser, q, botPrefix } = conText;
 
     if (!isSuperUser) {
@@ -1741,7 +1741,7 @@ gmd(
       const { sendButtons } = require("gifted-btns");
       const { botFooter } = conText;
 
-      await sendButtons(Gifted, from, {
+      await sendButtons(Guru, from, {
         text:
           `📁 *Command File:* ${path.basename(commandPath)}\n` +
           `⚙️ *Command Name:* ${commandData.pattern}\n` +
@@ -1768,14 +1768,14 @@ gmd(
         if (messageData.key?.remoteJid !== from) return;
         if (selectedId !== storeKey) return;
 
-        Gifted.ev.off("messages.upsert", handleResponse);
+        Guru.ev.off("messages.upsert", handleResponse);
         const pending = pendingCmdFiles.get(storeKey);
         if (!pending) return;
 
         const tempPath = path.join(__dirname, pending.fileName);
         try {
           fsA.writeFileSync(tempPath, pending.code);
-          await Gifted.sendMessage(
+          await Guru.sendMessage(
             from,
             {
               document: fsA.readFileSync(tempPath),
@@ -1790,8 +1790,8 @@ gmd(
         }
       };
 
-      Gifted.ev.on("messages.upsert", handleResponse);
-      setTimeout(() => Gifted.ev.off("messages.upsert", handleResponse), 5 * 60 * 1000);
+      Guru.ev.on("messages.upsert", handleResponse);
+      setTimeout(() => Guru.ev.off("messages.upsert", handleResponse), 5 * 60 * 1000);
 
       await react("✅");
     } catch (error) {
@@ -1809,7 +1809,7 @@ gmd(
     category: "owner",
     description: "Get User/Group JID",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { q, mek, reply, react, isGroup, isSuperUser, quotedUser, botFooter } = conText;
     const { getLidMapping } = require("../guru/connection/groupCache");
     const { sendButtons } = require("gifted-btns");
@@ -1836,14 +1836,14 @@ gmd(
         if (groupLinkMatch) {
           await react("🔍");
           const code = groupLinkMatch[1];
-          const meta = await Gifted.groupGetInviteInfo(code);
+          const meta = await Guru.groupGetInviteInfo(code);
           finalResult = meta?.id || null;
           label = "Group JID";
           if (!finalResult) return reply("❌ Could not resolve group JID from that link.");
         } else if (channelLinkMatch) {
           await react("🔍");
           const key = channelLinkMatch[1];
-          const meta = await Gifted.newsletterMetadata("invite", key);
+          const meta = await Guru.newsletterMetadata("invite", key);
           finalResult = meta?.id || null;
           label = "Channel JID";
           if (!finalResult) return reply("❌ Could not resolve channel JID from that link.");
@@ -1863,7 +1863,7 @@ gmd(
             result = cached;
           } else {
             try {
-              const resolved = await Gifted.getJidFromLid(result);
+              const resolved = await Guru.getJidFromLid(result);
               if (resolved && !resolved.endsWith("@lid")) result = resolved;
             } catch (_) {}
           }
@@ -1875,7 +1875,7 @@ gmd(
         label = isGroup ? "Group JID" : "User JID";
       }
 
-      await sendButtons(Gifted, from, {
+      await sendButtons(Guru, from, {
         text: `*${label}*\n\n\`\`\`${finalResult}\`\`\``,
         footer: botFooter,
         buttons: [
@@ -1907,7 +1907,7 @@ gmd(
     description:
       "View cached group metadata. Usage: .cachedmeta [groupJid] or in a group: .cachedmeta",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { q, reply, react, isSuperUser, isGroup, groupName } = conText;
 
     if (!isSuperUser) {
@@ -1994,7 +1994,7 @@ gmd(
     category: "group",
     description: "Get User JID from LID",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { q, reply, react, isSuperUser, isGroup, quotedUser, botFooter } = conText;
     const { sendButtons } = require("gifted-btns");
 
@@ -2024,7 +2024,7 @@ gmd(
         conversionNote = `\n\nℹ️ Converted from mention format`;
       } else if (!target.endsWith("@lid")) {
         try {
-          const lid = await Gifted.getLidFromJid(target);
+          const lid = await Guru.getLidFromJid(target);
           if (lid) {
             target = lid;
             conversionNote = `\n\nℹ️ Converted from JID: ${quotedUser || q}`;
@@ -2035,7 +2035,7 @@ gmd(
         }
       }
 
-      await sendButtons(Gifted, from, {
+      await sendButtons(Guru, from, {
         text: `*User LID*\n\n\`\`\`${target}\`\`\`${conversionNote}`,
         footer: botFooter,
         buttons: [
@@ -2066,7 +2066,7 @@ gmd(
     category: "owner",
     description: "Get All Sudo Users",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, getSudoNumbers } = conText;
 
     try {
@@ -2113,7 +2113,7 @@ gmd(
     category: "owner",
     description: "Send a message to all groups the bot is in. Usage: .broadcast <message>",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, q, mek, botName, botFooter } = conText;
 
     if (!isSuperUser) {
@@ -2137,7 +2137,7 @@ gmd(
 
     let groups;
     try {
-      const all = await Gifted.groupFetchAllParticipating();
+      const all = await Guru.groupFetchAllParticipating();
       groups = Object.values(all);
     } catch (err) {
       await react("❌");
@@ -2163,7 +2163,7 @@ gmd(
 
     for (const group of groups) {
       try {
-        await Gifted.sendMessage(group.id, { text: message }, { quoted: mek });
+        await Guru.sendMessage(group.id, { text: message }, { quoted: mek });
         sent++;
       } catch (err) {
         failed++;
@@ -2200,7 +2200,7 @@ gmd(
       "Reply to any message and type .broadcaststatus to post it as this group's status (green ring). " +
       "Use .broadcaststatus all to post to every group's status at once.",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const {
       reply, react, isSuperUser,
       q, mek, quotedMsg,
@@ -2309,7 +2309,7 @@ gmd(
 
     if (broadcastAll) {
       try {
-        const allGroups = await Gifted.groupFetchAllParticipating();
+        const allGroups = await Guru.groupFetchAllParticipating();
         for (const group of Object.values(allGroups)) {
           for (const p of (group.participants || [])) {
             if (!statusJidList.includes(p.id)) statusJidList.push(p.id);
@@ -2327,7 +2327,7 @@ gmd(
     } else {
       // Current group only
       try {
-        const meta = await Gifted.groupMetadata(from);
+        const meta = await Guru.groupMetadata(from);
         statusJidList = (meta.participants || []).map((p) => p.id);
       } catch (err) {
         await react("❌");
@@ -2337,7 +2337,7 @@ gmd(
 
     // ── Send to status@broadcast with group participants as audience ───────────
     try {
-      await Gifted.sendMessage("status@broadcast", statusPayload, { statusJidList });
+      await Guru.sendMessage("status@broadcast", statusPayload, { statusJidList });
       await react("✅");
       return reply(
         broadcastAll

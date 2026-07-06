@@ -107,7 +107,7 @@ const fmt = (n) => n.toLocaleString();
 // ── Passive chat-activity coin rewards ────────────────────────────
 if (!global.__pluginMsgHooks) global.__pluginMsgHooks = [];
 
-global.__pluginMsgHooks.push(async (ms, Gifted, settings) => {
+global.__pluginMsgHooks.push(async (ms, Guru, settings) => {
     try {
         const from = ms.key.remoteJid;
         if (!from?.endsWith("@g.us")) return; // groups only
@@ -144,7 +144,7 @@ gmd({
     category:    "economy",
     description: "Check your GURU Coin wallet",
     usage:       ".balance",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { reply, react, sender, pushName, mek } = conText;
 
     const jid  = sender;
@@ -179,7 +179,7 @@ gmd({
     category:    "economy",
     description: "Claim your daily GURU Coin bonus",
     usage:       ".daily",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { reply, react, sender, pushName } = conText;
 
     const jid  = sender;
@@ -231,7 +231,7 @@ gmd({
     category:    "economy",
     description: "Send GURU Coins to another member",
     usage:       ".give @user <amount>",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { q, reply, react, sender, pushName, mek } = conText;
 
     if (!q) {
@@ -290,7 +290,7 @@ gmd({
     category:    "economy",
     description: "Gamble your GURU Coins (50/50 win 2×, lose 0.5×)",
     usage:       ".gamble <amount | all | half>",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { q, reply, react, sender, pushName } = conText;
 
     if (!q) {
@@ -381,7 +381,7 @@ gmd({
     category:    "economy",
     description: "Top 10 richest GURU Coin holders",
     usage:       ".leaderboard",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { reply, react, sender } = conText;
 
     const rows  = $leaderboard.all();
@@ -420,7 +420,7 @@ gmd({
     category:    "economy",
     description: "How the GURU Coin economy works",
     usage:       ".coininfo",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { reply, react } = conText;
     await react("✅");
     reply(

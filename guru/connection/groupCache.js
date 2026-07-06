@@ -44,7 +44,7 @@ const isExpectedError = (errorMsg) => {
     return expectedErrors.some((e) => errorMsg?.toLowerCase().includes(e));
 };
 
-const getGroupMetadata = async (Gifted, jid) => {
+const getGroupMetadata = async (Guru, jid) => {
     if (!jid || !jid.endsWith("@g.us")) return null;
 
     try {
@@ -54,7 +54,7 @@ const getGroupMetadata = async (Gifted, jid) => {
             return cached;
         }
 
-        const metadata = await Gifted.groupMetadata(jid);
+        const metadata = await Guru.groupMetadata(jid);
         if (metadata) {
             groupCache.set(jid, metadata);
             updateLidMappingsFromMetadata(metadata);
@@ -86,11 +86,11 @@ const clearGroupCache = () => {
     groupCache.flushAll();
 };
 
-const setupGroupCacheListeners = (Gifted) => {
-    Gifted.ev.on("groups.update", async ([event]) => {
+const setupGroupCacheListeners = (Guru) => {
+    Guru.ev.on("groups.update", async ([event]) => {
         try {
             if (event?.id) {
-                const metadata = await Gifted.groupMetadata(event.id);
+                const metadata = await Guru.groupMetadata(event.id);
                 updateGroupCache(event.id, metadata);
             }
         } catch (error) {
@@ -101,7 +101,7 @@ const setupGroupCacheListeners = (Gifted) => {
         }
     });
 
-    Gifted.ev.on("group-participants.update", async (event) => {
+    Guru.ev.on("group-participants.update", async (event) => {
         try {
             if (event?.id) {
                 const cachedMeta = groupCache.get(event.id);
@@ -109,7 +109,7 @@ const setupGroupCacheListeners = (Gifted) => {
                     updateLidMappingsFromMetadata(cachedMeta);
                 }
 
-                const metadata = await Gifted.groupMetadata(event.id);
+                const metadata = await Guru.groupMetadata(event.id);
                 updateGroupCache(event.id, metadata);
             }
         } catch (error) {
@@ -128,9 +128,9 @@ const cachedGroupMetadata = async (jid) => {
     return groupCache.get(jid);
 };
 
-const initializeLidStore = async (Gifted) => {
+const initializeLidStore = async (Guru) => {
     try {
-        const groups = await Gifted.groupFetchAllParticipating();
+        const groups = await Guru.groupFetchAllParticipating();
         if (groups) {
             for (const groupJid of Object.keys(groups)) {
                 const meta = groups[groupJid];

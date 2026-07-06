@@ -83,7 +83,7 @@ if (!Array.isArray(global.__pluginMsgHooks)) {
     global.__pluginMsgHooks = [];
 }
 
-global.__pluginMsgHooks.push(async (ms, Gifted, settings) => {
+global.__pluginMsgHooks.push(async (ms, Guru, settings) => {
     try {
         // Ignore bot's own messages
         if (ms.key?.fromMe) return;
@@ -143,7 +143,7 @@ global.__pluginMsgHooks.push(async (ms, Gifted, settings) => {
         }
 
         // Send as private DM — only the user who typed sees this
-        await Gifted.sendMessage(senderJid, { text });
+        await Guru.sendMessage(senderJid, { text });
 
     } catch (_) {
         // Silently ignore any errors — this is a helper, not critical

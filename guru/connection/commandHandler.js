@@ -56,7 +56,7 @@ const findBodyCommand = (body) => {
     });
 };
 
-const createHelpers = (Gifted, ms, from, botName, senderJid, senderName) => {
+const createHelpers = (Guru, ms, from, botName, senderJid, senderName) => {
     const _botName  = botName   || 'ULTRA GURU MD';
     const _phone    = (senderJid || '').replace(/@s\.whatsapp\.net|@c\.us/g, '').replace(/\D/g, '');
     const _name     = senderName || (_phone ? `+${_phone}` : _botName);
@@ -89,13 +89,13 @@ const createHelpers = (Gifted, ms, from, botName, senderJid, senderName) => {
     };
 
     const reply = (text) => {
-        Gifted.sendMessage(from, { text }, { quoted: _fkontak });
+        Guru.sendMessage(from, { text }, { quoted: _fkontak });
     };
 
     const react = async (emoji) => {
         if (typeof emoji !== 'string') return;
         try {
-            await Gifted.sendMessage(from, {
+            await Guru.sendMessage(from, {
                 react: { key: ms.key, text: emoji }
             });
         } catch (err) {
@@ -106,7 +106,7 @@ const createHelpers = (Gifted, ms, from, botName, senderJid, senderName) => {
     const edit = async (text, message) => {
         if (typeof text !== 'string') return;
         try {
-            await Gifted.sendMessage(from, {
+            await Guru.sendMessage(from, {
                 text: text,
                 edit: message.key
             }, { quoted: _fkontak });
@@ -118,7 +118,7 @@ const createHelpers = (Gifted, ms, from, botName, senderJid, senderName) => {
     const del = async (message) => {
         if (!message?.key) return;
         try {
-            await Gifted.sendMessage(from, {
+            await Guru.sendMessage(from, {
                 delete: message.key
             }, { quoted: ms });
         } catch (err) {
@@ -129,7 +129,7 @@ const createHelpers = (Gifted, ms, from, botName, senderJid, senderName) => {
     return { reply, react, edit, del };
 };
 
-const getGroupInfo = async (Gifted, from, botId, sender) => {
+const getGroupInfo = async (Guru, from, botId, sender) => {
     const isGroup = from.endsWith('@g.us');
     if (!isGroup) {
         return {
@@ -145,7 +145,7 @@ const getGroupInfo = async (Gifted, from, botId, sender) => {
         };
     }
 
-    const groupInfo = await getGroupMetadata(Gifted, from);
+    const groupInfo = await getGroupMetadata(Guru, from);
     if (!groupInfo || !groupInfo.participants) {
         return {
             groupInfo: null,

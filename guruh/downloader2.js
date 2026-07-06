@@ -7,7 +7,7 @@ const {
         getMimeFromUrl,
     } = require("../guru"),
     GIFTED_DLS = require("gifted-dls"),
-    giftedDls = new GIFTED_DLS(),
+    guruDls = new GIFTED_DLS(),
     axios = require("axios"),
     { sendButtons } = require("gifted-btns");
 
@@ -37,7 +37,7 @@ gmd(
         aliases: ["spotifydl", "spotidl", "spoti"],
         description: "Download Spotify tracks by URL or song name",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const {
             q,
             mek,
@@ -48,8 +48,8 @@ gmd(
             newsletterJid,
             gmdBuffer,
             formatAudio,
-            GiftedTechApi,
-            GiftedApiKey,
+            GuruTechApi,
+            GuruApiKey,
         } = conText;
 
         if (!q) {
@@ -68,7 +68,7 @@ gmd(
             const t0 = Date.now();
             let result = await Promise.any(
                 endpoints.map(endpoint => {
-                    const apiUrl = `${GiftedTechApi}/api/download/${endpoint}?apikey=${GiftedApiKey}&url=${encodeURIComponent(trackUrl)}`;
+                    const apiUrl = `${GuruTechApi}/api/download/${endpoint}?apikey=${GuruApiKey}&url=${encodeURIComponent(trackUrl)}`;
                     return axios.get(apiUrl, { timeout: 15000 }).then(res => {
                         if (res.data?.success && res.data?.result?.download_url) {
                             return res.data.result;
@@ -112,7 +112,7 @@ gmd(
             const fileSize = formattedAudio.length;
 
             if (fileSize > MAX_MEDIA_SIZE) {
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     from,
                     {
                         document: formattedAudio,
@@ -122,7 +122,7 @@ gmd(
                     { quoted: quotedMsg },
                 );
             } else {
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     from,
                     {
                         audio: formattedAudio,
@@ -141,7 +141,7 @@ gmd(
                 return;
             }
 
-            const searchUrl = `${GiftedTechApi}/api/search/spotifysearch?apikey=${GiftedApiKey}&query=${encodeURIComponent(q)}`;
+            const searchUrl = `${GuruTechApi}/api/search/spotifysearch?apikey=${GuruApiKey}&query=${encodeURIComponent(q)}`;
             const searchResponse = await axios.get(searchUrl, {
                 timeout: 30000,
             });
@@ -205,7 +205,7 @@ gmd(
             // Fixed: Get thumbnail from the first track
             const thumbnailUrl = tracks[0]?.thumbnail || tracks[0]?.image || tracks[0]?.album?.images?.[0]?.url || '';
 
-            await sendButtons(Gifted, from, {
+            await sendButtons(Guru, from, {
                 title: `${botName} SPOTIFY`,
                 text: `*Search Results:*\n\n${trackList}\n\n*Select a track:*`,
                 footer: botFooter,
@@ -251,9 +251,9 @@ gmd(
                 }
             };
 
-            Gifted.ev.on("messages.upsert", handleResponse);
+            Guru.ev.on("messages.upsert", handleResponse);
             setTimeout(
-                () => Gifted.ev.off("messages.upsert", handleResponse),
+                () => Guru.ev.off("messages.upsert", handleResponse),
                 300000,
             );
         } catch (error) {
@@ -272,7 +272,7 @@ gmd(
         aliases: ["googledrive", "drive", "gdrivedl"],
         description: "Download from Google Drive",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const {
             q,
             mek,
@@ -284,8 +284,8 @@ gmd(
             gmdBuffer,
             formatAudio,
             formatVideo,
-            GiftedTechApi,
-            GiftedApiKey,
+            GuruTechApi,
+            GuruApiKey,
         } = conText;
 
         if (!q) {
@@ -299,7 +299,7 @@ gmd(
         }
 
         try {
-            const apiUrl = `${GiftedTechApi}/api/download/gdrivedl?apikey=${GiftedApiKey}&url=${encodeURIComponent(q)}`;
+            const apiUrl = `${GuruTechApi}/api/download/gdrivedl?apikey=${GuruApiKey}&url=${encodeURIComponent(q)}`;
             const response = await axios.get(apiUrl, { timeout: 60000 });
 
             if (!response.data?.success || !response.data?.result) {
@@ -360,7 +360,7 @@ gmd(
             if (mimeCategory === "audio" && !sendAsDoc) {
                 const formattedAudio = await formatAudio(fileBuffer);
 
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     from,
                     {
                         audio: formattedAudio,
@@ -370,7 +370,7 @@ gmd(
                 );
             } else if (mimeCategory === "video" && !sendAsDoc) {
                 const formattedVideo = await formatVideo(fileBuffer);
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     from,
                     {
                         video: formattedVideo,
@@ -380,7 +380,7 @@ gmd(
                     { quoted: mek },
                 );
             } else if (mimeCategory === "image" && !sendAsDoc) {
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     from,
                     {
                         image: fileBuffer,
@@ -389,7 +389,7 @@ gmd(
                     { quoted: mek },
                 );
             } else {
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     from,
                     {
                         document: fileBuffer,
@@ -425,7 +425,7 @@ gmd(
         aliases: ["mfire", "mediafiredl", "mfiredl"],
         description: "Download from MediaFire",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const {
             q,
             mek,
@@ -436,8 +436,8 @@ gmd(
             newsletterJid,
             gmdBuffer,
             formatAudio,
-            GiftedTechApi,
-            GiftedApiKey,
+            GuruTechApi,
+            GuruApiKey,
         } = conText;
 
         if (!q) {
@@ -451,7 +451,7 @@ gmd(
         }
 
         try {
-            const apiUrl = `${GiftedTechApi}/api/download/mediafire?apikey=${GiftedApiKey}&url=${encodeURIComponent(q)}`;
+            const apiUrl = `${GuruTechApi}/api/download/mediafire?apikey=${GuruApiKey}&url=${encodeURIComponent(q)}`;
             const response = await axios.get(apiUrl, { timeout: 60000 });
 
             if (!response.data?.success || !response.data?.result) {
@@ -494,7 +494,7 @@ gmd(
                 const audioBuffer = await gmdBuffer(downloadUrl);
                 const formattedAudio = await formatAudio(audioBuffer);
 
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     from,
                     {
                         audio: formattedAudio,
@@ -503,7 +503,7 @@ gmd(
                     { quoted: mek },
                 );
             } else if (mimeCategory === "video" && !sendAsDoc) {
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     from,
                     {
                         video: { url: downloadUrl },
@@ -513,7 +513,7 @@ gmd(
                     { quoted: mek },
                 );
             } else if (mimeCategory === "image" && !sendAsDoc) {
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     from,
                     {
                         image: { url: downloadUrl },
@@ -522,7 +522,7 @@ gmd(
                     { quoted: mek },
                 );
             } else {
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     from,
                     {
                         document: { url: downloadUrl },
@@ -551,7 +551,7 @@ gmd(
         aliases: ["app", "apkdl", "appdownload"],
         description: "Download Android APK files",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const {
             q,
             mek,
@@ -560,8 +560,8 @@ gmd(
             botName,
             botFooter,
             newsletterJid,
-            GiftedTechApi,
-            GiftedApiKey,
+            GuruTechApi,
+            GuruApiKey,
         } = conText;
 
         if (!q) {
@@ -574,7 +574,7 @@ gmd(
         try {
          //   await reply(`Searching for *${q}* APK...`);
 
-            const apiUrl = `${GiftedTechApi}/api/download/apkdl?apikey=${GiftedApiKey}&appName=${encodeURIComponent(q)}`;
+            const apiUrl = `${GuruTechApi}/api/download/apkdl?apikey=${GuruApiKey}&appName=${encodeURIComponent(q)}`;
             const response = await axios.get(apiUrl, { timeout: 60000 });
 
             if (!response.data?.success || !response.data?.result) {
@@ -596,7 +596,7 @@ gmd(
                 `*Developer:* ${developer || "Unknown"}\n\n` +
                 `_Downloading APK..._`;
 
-            await Gifted.sendMessage(
+            await Guru.sendMessage(
                 from,
                 {
                     image: { url: appicon },
@@ -605,7 +605,7 @@ gmd(
                 { quoted: mek },
             );
 
-            await Gifted.sendMessage(
+            await Guru.sendMessage(
                 from,
                 {
                     document: { url: download_url },
@@ -633,7 +633,7 @@ gmd(
         aliases: ["getpaste", "getpastebin", "pastedl", "pastebindl", "paste"],
         description: "Fetch content from Pastebin",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const {
             q,
             mek,
@@ -641,8 +641,8 @@ gmd(
             react,
             botName,
             botFooter,
-            GiftedTechApi,
-            GiftedApiKey,
+            GuruTechApi,
+            GuruApiKey,
         } = conText;
 
         if (!q) {
@@ -660,7 +660,7 @@ gmd(
         try {
             await reply("Fetching paste content...");
 
-            const apiUrl = `${GiftedTechApi}/api/download/pastebin?apikey=${GiftedApiKey}&url=${encodeURIComponent(q)}`;
+            const apiUrl = `${GuruTechApi}/api/download/pastebin?apikey=${GuruApiKey}&url=${encodeURIComponent(q)}`;
             const response = await axios.get(apiUrl, { timeout: 30000 });
 
             if (!response.data?.success || !response.data?.result) {
@@ -689,7 +689,7 @@ gmd(
 
             if (fullMessage.length > 65000) {
                 const textBuffer = Buffer.from(content, "utf-8");
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     from,
                     {
                         document: textBuffer,
@@ -700,7 +700,7 @@ gmd(
                     { quoted: mek },
                 );
             } else {
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     from,
                     {
                         text: fullMessage,
@@ -726,7 +726,7 @@ gmd(
         react: "📽",
         description: "Download Video from Youtube",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const {
             q,
             mek,
@@ -741,8 +741,8 @@ gmd(
             gmdJson,
             gmdBuffer,
             formatVideo,
-            GiftedTechApi,
-            GiftedApiKey,
+            GuruTechApi,
+            GuruApiKey,
         } = conText;
 
         if (!q) {
@@ -760,7 +760,7 @@ gmd(
 
         try {
             const searchResponse = await gmdJson(
-                `${GiftedTechApi}/search/yts?apikey=${GiftedApiKey}&query=${encodeURIComponent(q)}`,
+                `${GuruTechApi}/search/yts?apikey=${GuruApiKey}&query=${encodeURIComponent(q)}`,
             );
             const videoInfo = searchResponse.results[0];
             const infoMessage = {
@@ -787,7 +787,7 @@ gmd(
                     },
                 },
             };
-            const sentMessage = await Gifted.sendMessage(from, infoMessage, {
+            const sentMessage = await Guru.sendMessage(from, infoMessage, {
                 quoted: mek,
             });
             const messageId = sentMessage.key.id;
@@ -825,7 +825,7 @@ gmd(
                             );
                     }
 
-                    const downloadResult = await giftedDls.ytmp4(q, quality);
+                    const downloadResult = await guruDls.ytmp4(q, quality);
                     const downloadUrl = downloadResult.result.download_url;
                     const videoBuffer = await gmdBuffer(downloadUrl);
 
@@ -841,7 +841,7 @@ gmd(
                     const sendAsDoc = fileSize > MAX_MEDIA_SIZE;
 
                     if (sendAsDoc) {
-                        await Gifted.sendMessage(
+                        await Guru.sendMessage(
                             from,
                             {
                                 document: videoBuffer,
@@ -852,7 +852,7 @@ gmd(
                         );
                     } else {
                         const formattedVideo = await formatVideo(videoBuffer);
-                        await Gifted.sendMessage(
+                        await Guru.sendMessage(
                             from,
                             {
                                 video: formattedVideo,
@@ -863,7 +863,7 @@ gmd(
                     }
 
                     await react("✅");
-                    Gifted.ev.off("messages.upsert", handleResponse);
+                    Guru.ev.off("messages.upsert", handleResponse);
                 } catch (error) {
                     console.error("Error processing video:", error);
                     await react("❌");
@@ -871,14 +871,14 @@ gmd(
                         "Failed to process video. Please try again.",
                         messageData,
                     );
-                    Gifted.ev.off("messages.upsert", handleResponse);
+                    Guru.ev.off("messages.upsert", handleResponse);
                 }
             };
 
-            Gifted.ev.on("messages.upsert", handleResponse);
+            Guru.ev.on("messages.upsert", handleResponse);
 
             setTimeout(() => {
-                Gifted.ev.off("messages.upsert", handleResponse);
+                Guru.ev.off("messages.upsert", handleResponse);
             }, 300000);
         } catch (error) {
             console.error("YouTube download error:", error);

@@ -60,7 +60,7 @@ gmd({
     category:    "owner",
     description: "View and manage bot identity (name, image, watermark)",
     usage:       ".identity",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { reply, react, isSuperUser } = conText;
     if (!isSuperUser) { await react("❌"); return reply("❌ Owner only."); }
 
@@ -104,7 +104,7 @@ gmd({
     if (picUrl) {
         try {
             const imgBuf = await fetchImageBuffer(picUrl);
-            return Gifted.sendMessage(from, {
+            return Guru.sendMessage(from, {
                 image: imgBuf,
                 caption: text,
             });
@@ -124,7 +124,7 @@ gmd({
     category:    "owner",
     description: "Set bot name and update WhatsApp display name live",
     usage:       ".rebrand ULTRA GURU MD",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { q, reply, react, isSuperUser } = conText;
     if (!isSuperUser) { await react("❌"); return reply("❌ Owner only."); }
     if (!q?.trim()) {
@@ -151,7 +151,7 @@ gmd({
 
     // 2 — update WhatsApp profile name live
     try {
-        await Gifted.updateProfileName(newName);
+        await Guru.updateProfileName(newName);
         results.push("✅ WhatsApp display name updated");
     } catch (e) {
         results.push(`⚠️ WhatsApp name: ${e.message}`);
@@ -175,7 +175,7 @@ gmd({
     category:    "owner",
     description: "Set bot image from URL or by sending/replying to a photo",
     usage:       ".setpic <url>  OR  reply to image with .setpic",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { q, reply, react, isSuperUser, quotedMsg, getMediaBuffer, mek } = conText;
     if (!isSuperUser) { await react("❌"); return reply("❌ Owner only."); }
 
@@ -242,7 +242,7 @@ gmd({
 
     // 2 — update WhatsApp profile picture live
     try {
-        await Gifted.updateProfilePicture(Gifted.user.id, { url: imageUrl });
+        await Guru.updateProfilePicture(Guru.user.id, { url: imageUrl });
         results.push("✅ WhatsApp profile photo updated");
     } catch (e) {
         results.push(`⚠️ WhatsApp photo: ${e.message}`);
@@ -252,7 +252,7 @@ gmd({
 
     // Send preview of the new image with result
     try {
-        await Gifted.sendMessage(from, {
+        await Guru.sendMessage(from, {
             image: imgBuffer || { url: imageUrl },
             caption:
                 `*🖼️ Bot Image Updated!*\n\n` +
@@ -278,7 +278,7 @@ gmd({
     category:    "owner",
     description: "Set the watermark text appended to bot messages",
     usage:       ".setwm Powered by ULTRA GURU MD",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { q, reply, react, isSuperUser } = conText;
     if (!isSuperUser) { await react("❌"); return reply("❌ Owner only."); }
 
@@ -314,7 +314,7 @@ gmd({
     category:    "owner",
     description: "Toggle the watermark on or off",
     usage:       ".wmtoggle",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { reply, react, isSuperUser } = conText;
     if (!isSuperUser) { await react("❌"); return reply("❌ Owner only."); }
 
@@ -338,7 +338,7 @@ gmd({
     category:    "owner",
     description: "Preview how the bot looks with current identity settings",
     usage:       ".previewbot",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { reply, react, isSuperUser } = conText;
     if (!isSuperUser) { await react("❌"); return reply("❌ Owner only."); }
 
@@ -370,7 +370,7 @@ gmd({
     if (picUrl) {
         try {
             const imgBuf = await fetchImageBuffer(picUrl);
-            await Gifted.sendMessage(from, { image: imgBuf, caption: sampleMsg });
+            await Guru.sendMessage(from, { image: imgBuf, caption: sampleMsg });
             await react("✅");
             return reply(
                 `👁️ *Preview sent above!*\n\n` +

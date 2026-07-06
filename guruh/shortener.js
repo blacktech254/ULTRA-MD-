@@ -57,7 +57,7 @@ for (const shortener of shorteners) {
             category: "tools",
             description: `Shorten a URL using ${shortener.name}`,
         },
-        async (from, Gifted, conText) => {
+        async (from, Guru, conText) => {
             const {
                 sender,
                 mek,
@@ -66,8 +66,8 @@ for (const shortener of shorteners) {
                 q,
                 botName,
                 botFooter,
-                GiftedTechApi,
-                GiftedApiKey,
+                GuruTechApi,
+                GuruApiKey,
             } = conText;
 
             if (!q || q.trim() === "") {
@@ -91,10 +91,10 @@ for (const shortener of shorteners) {
 
             try {
                 const res = await axios.get(
-                    `${GiftedTechApi}/api/tools/${shortener.endpoint}`,
+                    `${GuruTechApi}/api/tools/${shortener.endpoint}`,
                     {
                         params: {
-                            apikey: GiftedApiKey,
+                            apikey: GuruApiKey,
                             url: url,
                         },
                         timeout: 30000,
@@ -110,7 +110,7 @@ for (const shortener of shorteners) {
 
                 const shortUrl = res.data.result;
 
-                await sendButtons(Gifted, from, {
+                await sendButtons(Guru, from, {
                     text: `🔗 *${botName} URL SHORTENER*\n\n📎 *Original:* ${url}\n✂️ *Shortened:* ${shortUrl}`,
                     footer: botFooter,
                     buttons: [
@@ -141,7 +141,7 @@ gmd(
         category: "tools",
         description: "Show all available URL shorteners",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply } = conText;
 
         const helpText = `🔗 *URL SHORTENER COMMANDS*

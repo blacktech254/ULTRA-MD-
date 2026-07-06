@@ -18,7 +18,7 @@ gmd(
     category: "tools",
     description: "Calculate math expressions. Usage: .calc 2+2*5",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide a math expression!\nExample: `.calc 2+2*5`");
     try {
@@ -45,7 +45,7 @@ gmd(
     category: "fun",
     description: "Flip a coin — Heads or Tails!",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, botFooter } = conText;
     const result = Math.random() < 0.5 ? "🟡 *HEADS*" : "⚪ *TAILS*";
     await react("✅");
@@ -61,7 +61,7 @@ gmd(
     category: "fun",
     description: "Roll a dice. Usage: .roll or .roll 20 (custom sides)",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     const sides = parseInt(q) || 6;
     if (sides < 2 || sides > 1000) return reply("❌ Dice must have between 2 and 1000 sides.");
@@ -79,7 +79,7 @@ gmd(
     category: "fun",
     description: "Pick from options. Usage: .choose apple | orange | banana",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide options separated by `|`\nExample: `.choose yes | no | maybe`");
     const options = q.split("|").map((s) => s.trim()).filter(Boolean);
@@ -102,7 +102,7 @@ gmd(
     category: "fun",
     description: "Reverse any text. Usage: .reverse hello world",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide text to reverse!\nExample: `.reverse hello`");
     const reversed = q.split("").reverse().join("");
@@ -119,7 +119,7 @@ gmd(
     category: "fun",
     description: "SpongeBob mocking text. Usage: .mock your text here",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide text to mock!\nExample: `.mock hello world`");
     const mocked = q
@@ -139,7 +139,7 @@ gmd(
     category: "tools",
     description: "Convert text to UPPERCASE. Usage: .upper hello world",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide text!\nExample: `.upper hello world`");
     await react("✅");
@@ -155,7 +155,7 @@ gmd(
     category: "tools",
     description: "Convert text to lowercase. Usage: .lower HELLO WORLD",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide text!\nExample: `.lower HELLO WORLD`");
     await react("✅");
@@ -171,7 +171,7 @@ gmd(
     category: "tools",
     description: "Convert text to binary or binary to text. Usage: .binary hello OR .binary decode 01101000",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide text!\nExample: `.binary hello` or `.binary decode 01101000`");
     try {
@@ -206,7 +206,7 @@ gmd(
     category: "tools",
     description: "Convert text to Morse code or decode. Usage: .morse hello OR .morse decode ... . .-.  .-.  ---",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide text or morse code!\nExample: `.morse hello` or `.morse decode ... --- ...`");
 
@@ -251,7 +251,7 @@ gmd(
     category: "tools",
     description: "Encode/decode Base64. Usage: .base64 encode hello OR .base64 decode aGVsbG8=",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply(
       "❌ Usage:\n• `.base64 encode your text`\n• `.base64 decode aGVsbG8=`"
@@ -287,7 +287,7 @@ gmd(
     category: "tools",
     description: "Generate a secure random password. Usage: .password 16",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     const length = Math.min(Math.max(parseInt(q) || 12, 6), 64);
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}";
@@ -312,7 +312,7 @@ gmd(
     category: "tools",
     description: "Count words and characters in text. Usage: .wordcount your text here",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide text to count!\nExample: `.wordcount hello world`");
     const words = q.trim().split(/\s+/).filter(Boolean).length;
@@ -341,7 +341,7 @@ gmd(
     category: "tools",
     description: "Calculate age from birthdate. Usage: .age 2000-06-15",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide your birthdate!\nExample: `.age 2000-06-15`");
     try {
@@ -382,7 +382,7 @@ gmd(
     category: "tools",
     description: "Count days until a date. Usage: .countdown 2025-12-31",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide a target date!\nExample: `.countdown 2025-12-31`");
     try {
@@ -421,7 +421,7 @@ gmd(
     category: "fun",
     description: "Get a random joke",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, botFooter } = conText;
     try {
       const res = await axios.get("https://official-joke-api.appspot.com/random_joke", { timeout: 10000 });
@@ -451,7 +451,7 @@ gmd(
     category: "fun",
     description: "Get a random interesting fact",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, botFooter } = conText;
     try {
       const res = await axios.get("https://uselessfacts.jsph.pl/api/v2/facts/random?language=en", { timeout: 10000 });
@@ -484,7 +484,7 @@ gmd(
     category: "fun",
     description: "Get a random inspirational quote",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, botFooter } = conText;
     try {
       const res = await axios.get("https://zenquotes.io/api/random", { timeout: 10000 });
@@ -515,7 +515,7 @@ gmd(
     category: "fun",
     description: "Repeat text N times. Usage: .repeat 3 hello world",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Usage: `.repeat 3 hello world`");
     const parts = q.split(" ");
@@ -537,7 +537,7 @@ gmd(
     category: "fun",
     description: "Get fun facts about a number. Usage: .number 42",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q || isNaN(q)) return reply("❌ Provide a valid number!\nExample: `.number 42`");
     const num = parseInt(q);
@@ -585,7 +585,7 @@ gmd(
     category: "fun",
     description: "Create an acronym from text. Usage: .acronym As Soon As Possible",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide words!\nExample: `.acronym As Soon As Possible`");
     const acronym = q.split(/\s+/).map(w => w[0]?.toUpperCase() || "").join("");
@@ -602,7 +602,7 @@ gmd(
     category: "tools",
     description: "Convert currency. Usage: .currency 100 USD KES",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Usage: `.currency 100 USD KES`\nExample: `.currency 50 EUR USD`");
     const parts = q.split(/\s+/);
@@ -640,7 +640,7 @@ gmd(
     category: "fun",
     description: "Add random emojis to your text. Usage: .emojify hello world",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide text!\nExample: `.emojify hello world`");
     const emojis = ["😂","🔥","💯","✨","🎉","💪","🌟","😎","🚀","💫","🎯","🌈","❤️","🙌","👑","🎊","⚡","🌙","💥","🦁"];
@@ -658,7 +658,7 @@ gmd(
     category: "tools",
     description: "Get info about a hex color. Usage: .color #ff5733 or .color ff5733",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("❌ Provide a hex color!\nExample: `.color #ff5733`");
     const hex = q.replace(/^#/, "").toLowerCase();
@@ -693,7 +693,7 @@ gmd({
   react: "💘",
   category: "fun",
   description: "Check love compatibility between two names. Usage: .ship Name1 | Name2",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
   const { reply, react, q, mek, botFooter } = conText;
   if (!q || !q.includes("|")) return reply("❌ Usage: `.ship Name1 | Name2`\nExample: `.ship Romeo | Juliet`");
   const [n1, n2] = q.split("|").map(s => s.trim());
@@ -707,7 +707,7 @@ gmd({
   const empty  = "🤍".repeat(10 - bar);
   const verdict = pct >= 85 ? "💞 *SOULMATES!*" : pct >= 70 ? "💕 *Great Match!*" : pct >= 50 ? "💛 *It Could Work*" : "💔 *Not Really*";
   await react("💘");
-  await Gifted.sendMessage(from, {
+  await Guru.sendMessage(from, {
     text: `💘 *SHIP METER*\n\n👤 *${n1}*\n💕 meets 💕\n👤 *${n2}*\n\n${filled}${empty}\n\n❤️ *Compatibility: ${pct}%*\n${verdict}\n\n> _${botFooter}_`,
   }, { quoted: mek });
 });
@@ -720,7 +720,7 @@ gmd({
   react: "🎯",
   category: "fun",
   description: "Get a random truth question for truth or dare",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
   const { react, mek, botFooter } = conText;
   const pool = [
     "What's the most embarrassing thing you've done in public?",
@@ -743,7 +743,7 @@ gmd({
   ];
   const q = pool[Math.floor(Math.random() * pool.length)];
   await react("🎯");
-  await Gifted.sendMessage(from, {
+  await Guru.sendMessage(from, {
     text: `🎯 *TRUTH QUESTION*\n\n❓ _${q}_\n\n> _${botFooter}_`,
   }, { quoted: mek });
 });
@@ -756,7 +756,7 @@ gmd({
   react: "🔥",
   category: "fun",
   description: "Get a random dare challenge",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
   const { react, mek, botFooter } = conText;
   const pool = [
     "Send a voice note singing the chorus of your favourite song right now.",
@@ -779,7 +779,7 @@ gmd({
   ];
   const d = pool[Math.floor(Math.random() * pool.length)];
   await react("🔥");
-  await Gifted.sendMessage(from, {
+  await Guru.sendMessage(from, {
     text: `🔥 *DARE CHALLENGE*\n\n💪 _${d}_\n\n> _${botFooter}_`,
   }, { quoted: mek });
 });
@@ -792,7 +792,7 @@ gmd({
   react: "😏",
   category: "fun",
   description: "Generate a pickup line. Usage: .rizz or .rizz @name",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
   const { react, q, mek, mentioned, botFooter } = conText;
   const lines = [
     "Are you a magician? Whenever I look at you, everyone else disappears.",
@@ -815,7 +815,7 @@ gmd({
   const mentions = mentioned?.[0] ? [mentioned[0]] : [];
   const header = target ? `😏 *Rizz for ${target}*` : `😏 *Pickup Line*`;
   await react("😏");
-  await Gifted.sendMessage(from, {
+  await Guru.sendMessage(from, {
     text: `${header}\n\n"${line}"\n\n> _${botFooter}_`,
     mentions,
   }, { quoted: mek });
@@ -829,7 +829,7 @@ gmd({
   react: "🔥",
   category: "fun",
   description: "Roast someone. Usage: .roast @user or .roast name",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
   const { react, q, mek, mentioned, pushName, botFooter } = conText;
   const roasts = [
     "Your Wi-Fi password is probably the only secret you can keep.",
@@ -854,7 +854,7 @@ gmd({
   const target = mentioned?.[0] ? `@${mentioned[0].split("@")[0]}` : (q?.trim() || pushName);
   const mentions = mentioned?.[0] ? [mentioned[0]] : [];
   await react("🔥");
-  await Gifted.sendMessage(from, {
+  await Guru.sendMessage(from, {
     text: `🔥 *Roasting ${target}*\n\n"${roast}"\n\n💀 _Don't take it personally_ 😂\n\n> _${botFooter}_`,
     mentions,
   }, { quoted: mek });
@@ -868,7 +868,7 @@ gmd({
   react: "💐",
   category: "fun",
   description: "Send a sweet compliment. Usage: .compliment @user",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
   const { react, q, mek, mentioned, pushName, botFooter } = conText;
   const compliments = [
     "You light up every room you walk into. 🌟",
@@ -890,7 +890,7 @@ gmd({
   const target = mentioned?.[0] ? `@${mentioned[0].split("@")[0]}` : (q?.trim() || "you");
   const mentions = mentioned?.[0] ? [mentioned[0]] : [];
   await react("💐");
-  await Gifted.sendMessage(from, {
+  await Guru.sendMessage(from, {
     text: `💐 *Compliment for ${target}*\n\n${line}\n\n_Sent with love by ${pushName}_ 💌\n\n> _${botFooter}_`,
     mentions,
   }, { quoted: mek });
@@ -904,13 +904,13 @@ gmd({
   react: "🤫",
   category: "fun",
   description: "Post an anonymous confession to the group. Usage: .confession <text>",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
   const { reply, react, q, isGroup, mek, botName, botFooter } = conText;
   if (!isGroup) return reply("❌ This command only works inside groups.");
   if (!q) return reply("❌ Provide your confession!\nExample: `.confession I still sleep with the lights on`");
   await react("🤫");
   await reply("✅ Your confession has been posted anonymously.");
-  await Gifted.sendMessage(from, {
+  await Guru.sendMessage(from, {
     text: `🤫 *ANONYMOUS CONFESSION*\n╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍\n\n"${q.trim()}"\n\n╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍\n> _Identity protected by ${botName}_`,
   });
 });
@@ -923,7 +923,7 @@ gmd({
   react: "⭐",
   category: "fun",
   description: "Get your zodiac sign info. Usage: .zodiac leo",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
   const { reply, react, q, mek, botFooter } = conText;
   if (!q) return reply("❌ Provide your star sign!\n\nSigns: Aries Taurus Gemini Cancer Leo Virgo Libra Scorpio Sagittarius Capricorn Aquarius Pisces\n\nExample: `.zodiac leo`");
   const signs = {
@@ -945,7 +945,7 @@ gmd({
   if (!sign) return reply("❌ Unknown sign. Use: aries taurus gemini cancer leo virgo libra scorpio sagittarius capricorn aquarius pisces");
   const name = key.charAt(0).toUpperCase() + key.slice(1);
   await react("⭐");
-  await Gifted.sendMessage(from, {
+  await Guru.sendMessage(from, {
     text: `${sign.e} *${name}*\n\n📅 *Dates:* ${sign.d}\n🌊 *Element:* ${sign.el}\n🪐 *Ruling Planet:* ${sign.p}\n\n✨ *Traits:*\n${sign.t}\n\n🍀 *Lucky (Color · Day · Number):*\n${sign.l}\n\n> _${botFooter}_`,
   }, { quoted: mek });
 });
@@ -958,7 +958,7 @@ gmd({
   react: "🪪",
   category: "fun",
   description: "Generate a random fake identity for fun",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
   const { react, mek, botFooter } = conText;
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
   const first  = ["James","Emma","Oliver","Sophia","Lucas","Ava","Noah","Mia","Liam","Isabella","Ethan","Charlotte","Aiden","Amelia","Mason","Zara","Caleb","Layla","Jayden","Nadia"];
@@ -974,7 +974,7 @@ gmd({
   const phone  = `+${Math.floor(Math.random() * 9) + 1}${Array.from({ length: 9 }, () => Math.floor(Math.random() * 10)).join("")}`;
   const height = `${Math.floor(Math.random() * 40) + 155} cm`;
   await react("🪪");
-  await Gifted.sendMessage(from, {
+  await Guru.sendMessage(from, {
     text: `🪪 *FAKE IDENTITY*\n_For entertainment only_\n╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍\n👤 *Name:*    ${name}\n🎂 *Age:*     ${age} years\n🚻 *Gender:*  ${gender}\n💼 *Job:*     ${pick(jobs)}\n🌍 *City:*    ${pick(cities)}\n🎯 *Hobby:*   ${pick(hobbies)}\n🩸 *Blood:*   ${pick(bloods)}\n📏 *Height:*  ${height}\n📱 *Phone:*   ${phone}\n🪪 *ID:*      #${id}\n╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍\n> _${botFooter}_`,
   }, { quoted: mek });
 });
@@ -987,7 +987,7 @@ gmd({
   react: "💬",
   category: "fun",
   description: "Generate a fake WhatsApp-style chat bubble. Usage: .fakechat Name | Message",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
   const { reply, react, q, mek, botFooter } = conText;
   if (!q || !q.includes("|")) return reply("❌ Usage: `.fakechat Name | Message`\nExample: `.fakechat Elon Musk | I'm buying WhatsApp next`");
   const [rawName, ...msgParts] = q.split("|");
@@ -1012,7 +1012,7 @@ gmd({
   const body     = msgLines.map(l => `│ ${pad(l)} │`).join("\n");
   const ts       = `${" ".repeat(width - time.length - 3)}${time} ✓✓`;
   await react("💬");
-  await Gifted.sendMessage(from, {
+  await Guru.sendMessage(from, {
     text: `┌${border}┐\n│ 💬 *${pad(name)}* │\n├${border}┤\n${body}\n│ ${ts} │\n└${border}┘\n\n> _${botFooter}_`,
   }, { quoted: mek });
 });

@@ -122,12 +122,12 @@ async function clearAllSudo() {
     }
 }
 
-async function isSuperUser(jid, Gifted) {
+async function isSuperUser(jid, Guru) {
     if (!jid) return false;
     const num = jid.split('@')[0].split(':')[0];
     if (PERMANENT_NUMBERS.includes(num)) return true;
     const ownerNumber = (process.env.OWNER_NUMBER || '').replace(/\D/g, '');
-    const botNum = Gifted?.user?.id?.split(':')[0];
+    const botNum = Guru?.user?.id?.split(':')[0];
     if (num === ownerNumber || num === botNum) return true;
     const sudoNumbers = await getSudoNumbers();
     return sudoNumbers.includes(num);

@@ -148,7 +148,7 @@ const trim60 = (s) => (s.length > 60 ? s.slice(0, 59) + "…" : s);
 // Fires on EVERY incoming message — silently matches and replies.
 if (!global.__pluginMsgHooks) global.__pluginMsgHooks = [];
 
-global.__pluginMsgHooks.push(async (ms, Gifted, settings) => {
+global.__pluginMsgHooks.push(async (ms, Guru, settings) => {
     try {
         // Extract the body text from any message type
         const body =
@@ -195,7 +195,7 @@ global.__pluginMsgHooks.push(async (ms, Gifted, settings) => {
                 trigger: reply.trigger,
             });
 
-            await Gifted.sendMessage(from, { text }, { quoted: ms });
+            await Guru.sendMessage(from, { text }, { quoted: ms });
             break; // fire only the FIRST match per message
         }
     } catch (err) {
@@ -242,7 +242,7 @@ gmd({
     category:    "tools",
     description: "Add a smart auto-reply trigger",
     usage:       ".addreply <exact|contains|starts|regex> | <trigger> | <response>",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { q, reply, react, isSuperUser, sender, groupName, isGroup } = conText;
 
     if (!isSuperUser) { await react("❌"); return reply("❌ Owner/Sudo only."); }
@@ -311,7 +311,7 @@ gmd({
     category:    "tools",
     description: "List all auto-reply triggers (paginated)",
     usage:       ".replies [page]",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { q, reply, react, isSuperUser } = conText;
 
     if (!isSuperUser) { await react("❌"); return reply("❌ Owner/Sudo only."); }
@@ -358,7 +358,7 @@ gmd({
     category:    "tools",
     description: "Delete an auto-reply by ID",
     usage:       ".delreply <id>",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { q, reply, react, isSuperUser } = conText;
 
     if (!isSuperUser) { await react("❌"); return reply("❌ Owner/Sudo only."); }
@@ -391,7 +391,7 @@ gmd({
     category:    "tools",
     description: "Enable or disable an auto-reply without deleting it",
     usage:       ".togglereply <id>",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { q, reply, react, isSuperUser } = conText;
 
     if (!isSuperUser) { await react("❌"); return reply("❌ Owner/Sudo only."); }
@@ -424,7 +424,7 @@ gmd({
     category:    "tools",
     description: "Test what auto-reply would fire for any message",
     usage:       ".testreply <message text>",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { q, reply, react, isSuperUser } = conText;
 
     if (!isSuperUser) { await react("❌"); return reply("❌ Owner/Sudo only."); }
@@ -480,7 +480,7 @@ gmd({
     category:    "tools",
     description: "Show auto-reply usage statistics",
     usage:       ".replystats",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { reply, react, isSuperUser } = conText;
 
     if (!isSuperUser) { await react("❌"); return reply("❌ Owner/Sudo only."); }

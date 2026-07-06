@@ -20,11 +20,11 @@ gmd(
         category: "general",
         description: "Show the bot command menu",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { react, mek } = conText;
         await react("📋");
-        const text = await buildThemedMenu(conText, Gifted);
-        await sendMenuMsg(Gifted, from, text, conText);
+        const text = await buildThemedMenu(conText, Guru);
+        await sendMenuMsg(Guru, from, text, conText);
         await react("✅");
 
         // ── Live clock below the menu — ticks every second for 60s ──────────
@@ -43,12 +43,12 @@ gmd(
         };
 
         try {
-            const clockMsg = await Gifted.sendMessage(from, { text: buildClock() }, { quoted: mek });
+            const clockMsg = await Guru.sendMessage(from, { text: buildClock() }, { quoted: mek });
             let ticks = 0;
             const timer = setInterval(async () => {
                 ticks++;
                 try {
-                    await Gifted.sendMessage(from, { text: buildClock(), edit: clockMsg.key });
+                    await Guru.sendMessage(from, { text: buildClock(), edit: clockMsg.key });
                 } catch (_) {}
                 if (ticks >= 60) clearInterval(timer);
             }, 1000);
@@ -68,7 +68,7 @@ gmd(
         category: "general",
         description: "Reply with a category number to browse commands",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const HARDCODED_PIC = "https://res.cloudinary.com/dqxlb29uz/image/upload/v1780267810/bwm_uploads/media-1780267810008.jpg";
         const { body, mek, botName, botPrefix, botFooter, newsletterJid, newsletterUrl, sender } = conText;
 
@@ -100,7 +100,7 @@ ${cmdList}
 > ✨ _${botFooter || "Powered by GURUTECH"}_`;
 
         try {
-            await Gifted.sendMessage(from, {
+            await Guru.sendMessage(from, {
                 text: text.trim(),
                 contextInfo: {
                     mentionedJid: [sender],
@@ -124,7 +124,7 @@ ${cmdList}
                 },
             }, { quoted: mek });
         } catch {
-            await Gifted.sendMessage(from, { text: text.trim() }, { quoted: mek });
+            await Guru.sendMessage(from, { text: text.trim() }, { quoted: mek });
         }
     }
 );
@@ -158,7 +158,7 @@ gmd(
         category: "general",
         description: "Check if the bot is online and responsive",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { mek, react, botName, botPrefix } = conText;
         const start = Date.now();
         await react("🏓");
@@ -175,14 +175,14 @@ gmd(
         };
 
         // Send the first message
-        const sent = await Gifted.sendMessage(from, { text: buildMsg() }, { quoted: mek });
+        const sent = await Guru.sendMessage(from, { text: buildMsg() }, { quoted: mek });
 
         // Edit it every second for 30 ticks so user sees it count live
         let ticks = 0;
         const timer = setInterval(async () => {
             ticks++;
             try {
-                await Gifted.sendMessage(from, {
+                await Guru.sendMessage(from, {
                     text: buildMsg(),
                     edit: sent.key,
                 });
@@ -191,7 +191,7 @@ gmd(
                 clearInterval(timer);
                 // Final edit — remove the "counting live" footer
                 try {
-                    await Gifted.sendMessage(from, {
+                    await Guru.sendMessage(from, {
                         text: buildMsg().replace('_counting live..._ ⏱️', `*${botName || "ULTRA GURU"}*`),
                         edit: sent.key,
                     });
@@ -211,7 +211,7 @@ gmd(
         category: "general",
         description: "Check how long the bot has been running",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { react, botName, timeZone, mek } = conText;
         await react("⏱️");
 
@@ -237,18 +237,18 @@ gmd(
             );
         };
 
-        const sent = await Gifted.sendMessage(from, { text: buildMsg() }, { quoted: mek });
+        const sent = await Guru.sendMessage(from, { text: buildMsg() }, { quoted: mek });
 
         let ticks = 0;
         const timer = setInterval(async () => {
             ticks++;
             try {
-                await Gifted.sendMessage(from, { text: buildMsg(), edit: sent.key });
+                await Guru.sendMessage(from, { text: buildMsg(), edit: sent.key });
             } catch (_) {}
             if (ticks >= 30) {
                 clearInterval(timer);
                 try {
-                    await Gifted.sendMessage(from, {
+                    await Guru.sendMessage(from, {
                         text: buildMsg().replace("_counting live..._ ⏱️", `*${bn}*`),
                         edit: sent.key,
                     });
@@ -269,7 +269,7 @@ gmd(
         category: "general",
         description: "Show information about this bot",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, botName, botPrefix, botVersion,
                 botMode, ownerName } = conText;
         await react("🤖");

@@ -90,7 +90,7 @@ async function getUserTimezone(jid) {
     return (await getSetting('TIME_ZONE').catch(() => null)) || 'Africa/Nairobi';
 }
 
-async function checkAndGreetUser(Gifted, jid, pushName, settings) {
+async function checkAndGreetUser(Guru, jid, pushName, settings) {
     try {
         // Only greet DMs, skip groups, status, newsletters
         if (!jid || jid.endsWith('@g.us') || jid.endsWith('@newsletter') || jid === 'status@broadcast') return;
@@ -133,9 +133,9 @@ async function checkAndGreetUser(Gifted, jid, pushName, settings) {
 
         const botPic = settings?.BOT_PIC || await getSetting('BOT_PIC').catch(() => null);
         if (botPic && botPic.startsWith('http')) {
-            await Gifted.sendMessage(jid, { image: { url: botPic }, caption: msg });
+            await Guru.sendMessage(jid, { image: { url: botPic }, caption: msg });
         } else {
-            await Gifted.sendMessage(jid, { text: msg });
+            await Guru.sendMessage(jid, { text: msg });
         }
     } catch (e) {
         // Silent fail — greetings are non-critical
@@ -217,7 +217,7 @@ function parseTime(timeStr) {
     return { hour: isNaN(h) ? 6 : h, minute: isNaN(m) ? 0 : m };
 }
 
-async function sendGreeting(Gifted, type) {
+async function sendGreeting(Guru, type) {
     try {
         const chats = await getAllGreetingsChats();
         if (!chats.length) {
@@ -240,12 +240,12 @@ async function sendGreeting(Gifted, type) {
         for (const { jid } of chats) {
             try {
                 if (botPic) {
-                    await Gifted.sendMessage(jid, {
+                    await Guru.sendMessage(jid, {
                         image: { url: botPic },
                         caption: fullText,
                     });
                 } else {
-                    await Gifted.sendMessage(jid, { text: fullText });
+                    await Guru.sendMessage(jid, { text: fullText });
                 }
                 sent++;
                 await new Promise(r => setTimeout(r, 1200));
@@ -262,12 +262,12 @@ async function sendGreeting(Gifted, type) {
     }
 }
 
-async function startScheduler(Gifted) {
+async function startScheduler(Guru) {
     await initGreetingsDB();
 
     if (schedulerInterval) clearInterval(schedulerInterval);
 
-    Gifted.ev.on("messages.upsert", async ({ messages, type }) => {
+    Guru.ev.on("messages.upsert", async ({ messages, type }) => {
         if (type !== "notify") return;
         try {
             const enabled = await getSetting("GREETINGS_ENABLED");
@@ -307,13 +307,13 @@ async function startScheduler(Gifted) {
                 if (nowMin >= gmMin && nowMin <= gmMin + 10 && lastGmSent !== `gm_${dateKey}`) {
                     lastGmSent = `gm_${dateKey}`;
                     console.log("⏰ [Greeter] Sending Good Morning...");
-                    await sendGreeting(Gifted, "morning");
+                    await sendGreeting(Guru, "morning");
                 }
 
                 if (nowMin >= gnMin && nowMin <= gnMin + 10 && lastGnSent !== `gn_${dateKey}`) {
                     lastGnSent = `gn_${dateKey}`;
                     console.log("⏰ [Greeter] Sending Good Night...");
-                    await sendGreeting(Gifted, "night");
+                    await sendGreeting(Guru, "night");
                 }
             }
 
@@ -327,7 +327,7 @@ async function startScheduler(Gifted) {
                 if (nowMin >= wMin && nowMin <= wMin + 10 && lastWellnessSent !== `wellness_${dateKey}`) {
                     lastWellnessSent = `wellness_${dateKey}`;
                     console.log("💙 [Wellness] Sending daily check-in...");
-                    await sendWellness(Gifted);
+                    await sendWellness(Guru);
                 }
             }
         } catch (e) {
@@ -338,7 +338,7 @@ async function startScheduler(Gifted) {
     console.log("⏰ Greeting scheduler started (checks every 60s)");
 }
 
-async function sendWellness(Gifted) {
+async function sendWellness(Guru) {
     try {
         const chats = await getAllGreetingsChats();
         if (!chats.length) return 0;
@@ -352,9 +352,9 @@ async function sendWellness(Gifted) {
         for (const { jid } of chats) {
             try {
                 if (botPic && botPic.startsWith("http")) {
-                    await Gifted.sendMessage(jid, { image: { url: botPic }, caption: fullText });
+                    await Guru.sendMessage(jid, { image: { url: botPic }, caption: fullText });
                 } else {
-                    await Gifted.sendMessage(jid, { text: fullText });
+                    await Guru.sendMessage(jid, { text: fullText });
                 }
                 sent++;
                 await new Promise(r => setTimeout(r, 1_200));

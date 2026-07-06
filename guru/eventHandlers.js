@@ -4,22 +4,22 @@ const googleTTS = require("google-tts-api");
 const {
     getAllSettings,
     emojis,
-    GiftedAutoReact,
-    GiftedAutoBio,
-    GiftedAntiDelete,
-    GiftedAnticall,
-    GiftedPresence,
-    GiftedChatBot,
+    GuruAutoReact,
+    GuruAutoBio,
+    GuruAntiDelete,
+    GuruAnticall,
+    GuruPresence,
+    GuruChatBot,
     createContext,
     createContext2,
-    GiftedAntiLink,
-    GiftedAntibad,
-    GiftedAntiBot,
-    GiftedAntiSticker,
+    GuruAntiLink,
+    GuruAntibad,
+    GuruAntiBot,
+    GuruAntiSticker,
     handleGameMessage,
-    GiftedAntiGroupMention,
+    GuruAntiGroupMention,
     getGroupMetadata,
-    GiftedAntiEdit,
+    GuruAntiEdit,
     DEFAULT_SETTINGS,
 } = require(".");
 
@@ -29,7 +29,7 @@ const {
     saveAntiDelete,
 } = require("./database/messageStore");
 
-async function resolveRealJid(Gifted, jid) {
+async function resolveRealJid(Guru, jid) {
     if (!jid) return null;
     if (!jid.endsWith("@lid")) return jid;
     try {
@@ -38,7 +38,7 @@ async function resolveRealJid(Gifted, jid) {
         if (cached) return cached;
     } catch (_) {}
     try {
-        const resolved = await Gifted.getJidFromLid(jid);
+        const resolved = await Guru.getJidFromLid(jid);
         if (resolved && !resolved.endsWith("@lid")) return resolved;
     } catch (_) {}
     try {
@@ -49,8 +49,8 @@ async function resolveRealJid(Gifted, jid) {
     return jid;
 }
 
-function setupAutoReact(Gifted) {
-    Gifted.ev.on("messages.upsert", async (mek) => {
+function setupAutoReact(Guru) {
+    Guru.ev.on("messages.upsert", async (mek) => {
         try {
             const ms = mek.messages[0];
             const s = await getAllSettings();
@@ -80,15 +80,15 @@ function setupAutoReact(Gifted) {
             if (!shouldReact) return;
 
             const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-            await GiftedAutoReact(randomEmoji, ms, Gifted);
+            await GuruAutoReact(randomEmoji, ms, Guru);
         } catch (err) {
             console.error("Error during auto reaction:", err);
         }
     });
 }
 
-function setupAntiDelete(Gifted) {
-    const botJid = `${Gifted.user?.id.split(":")[0]}@s.whatsapp.net`;
+function setupAntiDelete(Guru) {
+    const botJid = `${Guru.user?.id.split(":")[0]}@s.whatsapp.net`;
     const botOwnerJid = botJid;
 
     const getSender = (ms) => {
@@ -141,7 +141,7 @@ function setupAntiDelete(Gifted) {
         );
     };
 
-    Gifted.ev.on("messages.upsert", async ({ messages }) => {
+    Guru.ev.on("messages.upsert", async ({ messages }) => {
         for (const ms of messages) {
             try {
                 if (!ms?.message) continue;
@@ -170,8 +170,8 @@ function setupAntiDelete(Gifted) {
 
                     if (deleter === botJid || deleter === botOwnerJid) continue;
 
-                    await GiftedAntiDelete(
-                        Gifted,
+                    await GuruAntiDelete(
+                        Guru,
                         deletedMsg,
                         key,
                         deleter,
@@ -212,46 +212,46 @@ function setupAntiDelete(Gifted) {
     });
 }
 
-function setupAutoBio(Gifted) {
+function setupAutoBio(Guru) {
     (async () => {
         const s = await getAllSettings();
         if (s.AUTO_BIO === "true") {
-            setTimeout(() => GiftedAutoBio(Gifted), 1000);
-            setInterval(() => GiftedAutoBio(Gifted), 1000 * 60);
+            setTimeout(() => GuruAutoBio(Guru), 1000);
+            setInterval(() => GuruAutoBio(Guru), 1000 * 60);
         }
     })();
 }
 
-function setupAntiCall(Gifted) {
-    Gifted.ev.on("call", async (json) => {
-        await GiftedAnticall(json, Gifted);
+function setupAntiCall(Guru) {
+    Guru.ev.on("call", async (json) => {
+        await GuruAnticall(json, Guru);
     });
 }
 
-function setupPresence(Gifted) {
-    Gifted.ev.on("messages.upsert", async ({ messages }) => {
+function setupPresence(Guru) {
+    Guru.ev.on("messages.upsert", async ({ messages }) => {
         if (messages?.length > 0) {
-            await GiftedPresence(Gifted, messages[0].key.remoteJid);
+            await GuruPresence(Guru, messages[0].key.remoteJid);
         }
     });
 
-    Gifted.ev.on("connection.update", ({ connection }) => {
+    Guru.ev.on("connection.update", ({ connection }) => {
         if (connection === "open") {
-            GiftedPresence(Gifted, "status@broadcast");
+            GuruPresence(Guru, "status@broadcast");
         }
     });
 }
 
-function setupChatBotAndAntiLink(Gifted) {
-    Gifted.ev.on("messages.upsert", async ({ messages, type }) => {
+function setupChatBotAndAntiLink(Guru) {
+    Guru.ev.on("messages.upsert", async ({ messages, type }) => {
         if (type === "append") return;
 
         const firstMsg = messages[0];
         if (firstMsg?.message) {
             const s = await getAllSettings();
             if (s.CHATBOT === "true" || s.CHATBOT === "audio") {
-                GiftedChatBot(
-                    Gifted,
+                GuruChatBot(
+                    Guru,
                     s.CHATBOT,
                     s.CHATBOT_MODE || "inbox",
                     createContext,
@@ -267,25 +267,25 @@ function setupChatBotAndAntiLink(Gifted) {
             if (message.key.fromMe && !from.endsWith("@g.us")) continue;
 
             if (from.endsWith("@g.us")) {
-                await GiftedAntiLink(Gifted, message, getGroupMetadata);
-                await GiftedAntibad(Gifted, message, getGroupMetadata);
-                await GiftedAntiBot(Gifted, message, getGroupMetadata);
-                await GiftedAntiSticker(Gifted, message, getGroupMetadata);
+                await GuruAntiLink(Guru, message, getGroupMetadata);
+                await GuruAntibad(Guru, message, getGroupMetadata);
+                await GuruAntiBot(Guru, message, getGroupMetadata);
+                await GuruAntiSticker(Guru, message, getGroupMetadata);
             }
-            await GiftedAntiGroupMention(Gifted, message, getGroupMetadata);
-            await handleGameMessage(Gifted, message);
+            await GuruAntiGroupMention(Guru, message, getGroupMetadata);
+            await handleGameMessage(Guru, message);
         }
     });
 }
 
-function setupAntiEdit(Gifted) {
-    Gifted.ev.on("messages.update", async (updates) => {
+function setupAntiEdit(Guru) {
+    Guru.ev.on("messages.update", async (updates) => {
         for (const update of updates) {
             try {
                 if (!update?.update?.message) continue;
                 if (update.key?.fromMe) continue;
                 if (update.key?.remoteJid === "status@broadcast") continue;
-                await GiftedAntiEdit(Gifted, update, findAntiDelete);
+                await GuruAntiEdit(Guru, update, findAntiDelete);
             } catch (err) {
                 console.error("Anti-edit handler error:", err.message);
             }
@@ -293,8 +293,8 @@ function setupAntiEdit(Gifted) {
     });
 }
 
-function setupStatusHandlers(Gifted) {
-    Gifted.ev.on("messages.upsert", async (mek) => {
+function setupStatusHandlers(Guru) {
+    Guru.ev.on("messages.upsert", async (mek) => {
         try {
             mek = mek.messages[0];
             if (!mek || !mek.message) return;
@@ -310,7 +310,7 @@ function setupStatusHandlers(Gifted) {
 
             const rawParticipant =
                 mek.participant || mek.key.participantPn || mek.key.participant;
-            const participantJid = await resolveRealJid(Gifted, rawParticipant);
+            const participantJid = await resolveRealJid(Guru, rawParticipant);
 
             const shouldView = s.AUTO_READ_STATUS === "true";
 
@@ -320,7 +320,7 @@ function setupStatusHandlers(Gifted) {
                     : mek.key;
 
             if (shouldView) {
-                await Gifted.readMessages([readKey]);
+                await Guru.readMessages([readKey]);
             }
 
             if (
@@ -338,7 +338,7 @@ function setupStatusHandlers(Gifted) {
                 const randomEmoji =
                     statusEmojis[Math.floor(Math.random() * statusEmojis.length)];
                 const reactKey = { ...mek.key, participant: participantJid };
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     "status@broadcast",
                     { react: { text: randomEmoji, key: reactKey } },
                     { statusJidList: [participantJid] },
@@ -351,7 +351,7 @@ function setupStatusHandlers(Gifted) {
                 !mek.key.fromMe &&
                 participantJid
             ) {
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     participantJid,
                     {
                         text:

@@ -51,20 +51,20 @@ const getMessageCategory = (msg) => {
     return null;
 };
 
-const safeDelete = async (Gifted, jid, msgKey) => {
+const safeDelete = async (Guru, jid, msgKey) => {
     try {
-        await Gifted.sendMessage(jid, { delete: msgKey });
+        await Guru.sendMessage(jid, { delete: msgKey });
         return true;
     } catch (_) {
         return false;
     }
 };
 
-const setupRestrictionManager = (Gifted) => {
+const setupRestrictionManager = (Guru) => {
     if (restrictionListenerActive) return;
     restrictionListenerActive = true;
 
-    Gifted.ev.on("messages.upsert", async ({ messages }) => {
+    Guru.ev.on("messages.upsert", async ({ messages }) => {
         try {
             for (const msg of messages) {
                 if (!msg?.message || msg.key.fromMe) continue;
@@ -75,9 +75,9 @@ const setupRestrictionManager = (Gifted) => {
                 const sender = msg.key.participant || msg.key.remoteJid;
 
                 if (isGroup) {
-                    await handleGroupRestrictions(Gifted, msg, jid, sender);
+                    await handleGroupRestrictions(Guru, msg, jid, sender);
                 } else {
-                    await handleDMRestrictions(Gifted, msg, jid, sender);
+                    await handleDMRestrictions(Guru, msg, jid, sender);
                 }
             }
         } catch (err) {
@@ -86,7 +86,7 @@ const setupRestrictionManager = (Gifted) => {
     });
 };
 
-const handleGroupRestrictions = async (Gifted, msg, jid, sender) => {
+const handleGroupRestrictions = async (Guru, msg, jid, sender) => {
     try {
         const msgCategories = getMessageCategory(msg);
         if (!msgCategories) return;
@@ -95,8 +95,8 @@ const handleGroupRestrictions = async (Gifted, msg, jid, sender) => {
 
         let isAdmin = false;
         try {
-            const meta = await Gifted.groupMetadata(jid);
-            const botId = Gifted.user?.id?.split(":")[0];
+            const meta = await Guru.groupMetadata(jid);
+            const botId = Guru.user?.id?.split(":")[0];
             const botJid = meta.participants.find(
                 (p) => p.id.split("@")[0].split(":")[0] === botId
             );
@@ -119,7 +119,7 @@ const handleGroupRestrictions = async (Gifted, msg, jid, sender) => {
             const isLocked = await getGroupSetting(jid, lockKey);
             if (isLocked !== "true") continue;
 
-            await safeDelete(Gifted, jid, msg.key);
+            await safeDelete(Guru, jid, msg.key);
             const labelMap = {
                 text: "Text messages",
                 link: "Links",
@@ -136,7 +136,7 @@ const handleGroupRestrictions = async (Gifted, msg, jid, sender) => {
                 location: "Location sharing",
             };
             try {
-                await Gifted.sendMessage(
+                await Guru.sendMessage(
                     jid,
                     {
                         text:
@@ -155,9 +155,9 @@ const handleGroupRestrictions = async (Gifted, msg, jid, sender) => {
             const lastTime = slowModeTracker.get(key) || 0;
             const now = Date.now();
             if (now - lastTime < delay) {
-                await safeDelete(Gifted, jid, msg.key);
+                await safeDelete(Guru, jid, msg.key);
                 try {
-                    await Gifted.sendMessage(jid, {
+                    await Guru.sendMessage(jid, {
                         text: `⏳ @${senderNum}, slow mode is active. Please wait ${Math.ceil((delay - (now - lastTime)) / 1000)}s before sending again.`,
                         mentions: [sender],
                     });
@@ -181,9 +181,9 @@ const handleGroupRestrictions = async (Gifted, msg, jid, sender) => {
                 const isDuplicate = recentHistory.some((e) => e.text === msgText);
 
                 if (isDuplicate) {
-                    await safeDelete(Gifted, jid, msg.key);
+                    await safeDelete(Guru, jid, msg.key);
                     try {
-                        await Gifted.sendMessage(jid, {
+                        await Guru.sendMessage(jid, {
                             text: `🚫 @${senderNum}, spam detected and removed.`,
                             mentions: [sender],
                         });
@@ -200,12 +200,12 @@ const handleGroupRestrictions = async (Gifted, msg, jid, sender) => {
     }
 };
 
-const handleDMRestrictions = async (Gifted, msg, jid, sender) => {
+const handleDMRestrictions = async (Guru, msg, jid, sender) => {
     try {
         const dmPermit = await getSetting("DM_PERMIT");
         if (dmPermit !== "true") return;
 
-        const botOwnerId = Gifted.user?.id?.split(":")[0];
+        const botOwnerId = Guru.user?.id?.split(":")[0];
         const senderNum = (sender || "").split("@")[0].split(":")[0];
         if (senderNum === botOwnerId) return;
 
@@ -230,11 +230,11 @@ const handleDMRestrictions = async (Gifted, msg, jid, sender) => {
 
         if (action === "block") {
             try {
-                await Gifted.updateBlockStatus(jid, "block");
+                await Guru.updateBlockStatus(jid, "block");
             } catch (_) {}
         } else {
             try {
-                await Gifted.sendMessage(jid, { text: permitMsg });
+                await Guru.sendMessage(jid, { text: permitMsg });
             } catch (_) {}
         }
     } catch (err) {

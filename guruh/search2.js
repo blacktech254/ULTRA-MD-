@@ -34,8 +34,8 @@ gmd(
     react: "🖼️",
     description: "Search Google Images and send first 10 images",
   },
-  async (from, Gifted, conText) => {
-    const { q, mek, reply, react, botFooter, GiftedTechApi, GiftedApiKey } =
+  async (from, Guru, conText) => {
+    const { q, mek, reply, react, botFooter, GuruTechApi, GuruApiKey } =
       conText;
 
     if (!q) {
@@ -44,7 +44,7 @@ gmd(
     }
 
     try {
-      const apiUrl = `${GiftedTechApi}/api/search/googleimage?apikey=${GiftedApiKey}&query=${encodeURIComponent(q)}`;
+      const apiUrl = `${GuruTechApi}/api/search/googleimage?apikey=${GuruApiKey}&query=${encodeURIComponent(q)}`;
       const res = await axios.get(apiUrl, { timeout: 60000 });
 
       if (
@@ -62,7 +62,7 @@ gmd(
 
       for (let i = 0; i < images.length; i++) {
         try {
-          await Gifted.sendMessage(
+          await Guru.sendMessage(
             from,
             {
               image: { url: images[i] },
@@ -93,8 +93,8 @@ gmd(
     react: "📷",
     description: "Search Unsplash and send first 10 photos",
   },
-  async (from, Gifted, conText) => {
-    const { q, mek, reply, react, botFooter, GiftedTechApi, GiftedApiKey } =
+  async (from, Guru, conText) => {
+    const { q, mek, reply, react, botFooter, GuruTechApi, GuruApiKey } =
       conText;
 
     if (!q) {
@@ -103,7 +103,7 @@ gmd(
     }
 
     try {
-      const apiUrl = `${GiftedTechApi}/api/search/unsplash?apikey=${GiftedApiKey}&query=${encodeURIComponent(q)}`;
+      const apiUrl = `${GuruTechApi}/api/search/unsplash?apikey=${GuruApiKey}&query=${encodeURIComponent(q)}`;
       const res = await axios.get(apiUrl, { timeout: 60000 });
 
       if (
@@ -123,7 +123,7 @@ gmd(
 
       for (let i = 0; i < photos.length; i++) {
         try {
-          await Gifted.sendMessage(
+          await Guru.sendMessage(
             from,
             {
               image: { url: photos[i] },
@@ -160,8 +160,8 @@ gmd(
     react: "🖼️",
     description: "Search HD wallpapers by category",
   },
-  async (from, Gifted, conText) => {
-    const { q, mek, reply, react, botFooter, GiftedTechApi, GiftedApiKey } =
+  async (from, Guru, conText) => {
+    const { q, mek, reply, react, botFooter, GuruTechApi, GuruApiKey } =
       conText;
 
     if (!q) {
@@ -170,7 +170,7 @@ gmd(
     }
 
     try {
-      const apiUrl = `${GiftedTechApi}/api/search/wallpaper?apikey=${GiftedApiKey}&query=${encodeURIComponent(q)}`;
+      const apiUrl = `${GuruTechApi}/api/search/wallpaper?apikey=${GuruApiKey}&query=${encodeURIComponent(q)}`;
       const res = await axios.get(apiUrl, { timeout: 60000 });
 
       if (
@@ -193,7 +193,7 @@ gmd(
           const wp = wallpapers[i];
           const imageUrl = Array.isArray(wp.image) ? wp.image[0] : wp.image;
 
-          await Gifted.sendMessage(
+          await Guru.sendMessage(
             from,
             {
               image: { url: imageUrl },
@@ -224,7 +224,7 @@ gmd(
     react: "🌤️",
     description: "Get weather information for a location",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const {
       q,
       mek,
@@ -232,8 +232,8 @@ gmd(
       react,
       botName,
       botFooter,
-      GiftedTechApi,
-      GiftedApiKey,
+      GuruTechApi,
+      GuruApiKey,
     } = conText;
 
     if (!q) {
@@ -242,7 +242,7 @@ gmd(
     }
 
     try {
-      const apiUrl = `${GiftedTechApi}/api/search/weather?apikey=${GiftedApiKey}&location=${encodeURIComponent(q)}`;
+      const apiUrl = `${GuruTechApi}/api/search/weather?apikey=${GuruApiKey}&location=${encodeURIComponent(q)}`;
       const res = await axios.get(apiUrl, { timeout: 60000 });
 
       if (!res.data?.success || !res.data?.result) {
@@ -298,7 +298,7 @@ gmd(
     react: "📦",
     description: "Search NPM packages",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const {
       q,
       mek,
@@ -306,8 +306,8 @@ gmd(
       react,
       botName,
       botFooter,
-      GiftedTechApi,
-      GiftedApiKey,
+      GuruTechApi,
+      GuruApiKey,
     } = conText;
 
     if (!q) {
@@ -316,7 +316,7 @@ gmd(
     }
 
     try {
-      const apiUrl = `${GiftedTechApi}/api/search/npmsearch?apikey=${GiftedApiKey}&packagename=${encodeURIComponent(q)}`;
+      const apiUrl = `${GuruTechApi}/api/search/npmsearch?apikey=${GuruApiKey}&packagename=${encodeURIComponent(q)}`;
       const res = await axios.get(apiUrl, { timeout: 60000 });
 
       if (!res.data?.success || !res.data?.result) {
@@ -340,7 +340,7 @@ gmd(
 
       if (pkg.downloadLink) {
         const dateNow = Date.now();
-        await sendButtons(Gifted, from, {
+        await sendButtons(Guru, from, {
           title: "",
           text: txt,
           footer: botFooter,
@@ -364,7 +364,7 @@ gmd(
           if (!isFromSameChat) return;
 
           try {
-            await Gifted.sendMessage(
+            await Guru.sendMessage(
               from,
               {
                 document: { url: pkg.downloadLink },
@@ -380,9 +380,9 @@ gmd(
 
         };
 
-        Gifted.ev.on("messages.upsert", handleResponse);
+        Guru.ev.on("messages.upsert", handleResponse);
         setTimeout(
-          () => Gifted.ev.off("messages.upsert", handleResponse),
+          () => Guru.ev.off("messages.upsert", handleResponse),
           300000,
         );
       } else {
@@ -406,8 +406,8 @@ gmd(
     react: "📚",
     description: "Search Wattpad stories",
   },
-  async (from, Gifted, conText) => {
-    const { q, mek, reply, react, botFooter, GiftedTechApi, GiftedApiKey } =
+  async (from, Guru, conText) => {
+    const { q, mek, reply, react, botFooter, GuruTechApi, GuruApiKey } =
       conText;
 
     if (!q) {
@@ -416,7 +416,7 @@ gmd(
     }
 
     try {
-      const apiUrl = `${GiftedTechApi}/api/search/wattpad?apikey=${GiftedApiKey}&query=${encodeURIComponent(q)}`;
+      const apiUrl = `${GuruTechApi}/api/search/wattpad?apikey=${GuruApiKey}&query=${encodeURIComponent(q)}`;
       const res = await axios.get(apiUrl, { timeout: 60000 });
 
       if (
@@ -439,7 +439,7 @@ gmd(
               await generateWAMessageContent(
                 { image: { url: story.thumbnail } },
                 {
-                  upload: Gifted.waUploadToServer,
+                  upload: Guru.waUploadToServer,
                 },
               )
             ).imageMessage,
@@ -484,7 +484,7 @@ gmd(
         { quoted: mek },
       );
 
-      await Gifted.relayMessage(from, message.message, {
+      await Guru.relayMessage(from, message.message, {
         messageId: message.key.id,
       });
       await react("✅");
@@ -504,7 +504,7 @@ gmd(
     react: "🎵",
     description: "Search Spotify for tracks",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const {
       q,
       mek,
@@ -513,8 +513,8 @@ gmd(
       botName,
       botFooter,
       botPrefix,
-      GiftedTechApi,
-      GiftedApiKey,
+      GuruTechApi,
+      GuruApiKey,
     } = conText;
 
     if (!q) {
@@ -523,7 +523,7 @@ gmd(
     }
 
     try {
-      const apiUrl = `${GiftedTechApi}/api/search/spotifysearch?apikey=${GiftedApiKey}&query=${encodeURIComponent(q)}`;
+      const apiUrl = `${GuruTechApi}/api/search/spotifysearch?apikey=${GuruApiKey}&query=${encodeURIComponent(q)}`;
       const res = await axios.get(apiUrl, { timeout: 60000 });
 
       if (
@@ -556,7 +556,7 @@ gmd(
         text: `${i + 1}. ${track.title.substring(0, 30)}`,
       }));
 
-      await sendButtons(Gifted, from, {
+      await sendButtons(Guru, from, {
         title: "",
         text: txt,
         footer: botFooter,
@@ -578,7 +578,7 @@ gmd(
         const selectedTrack = tracks[trackIndex];
 
         if (selectedTrack) {
-          await Gifted.sendMessage(
+          await Guru.sendMessage(
             from,
             { text: `${botPrefix}spotify ${selectedTrack.url}` },
             { quoted: messageData },
@@ -586,9 +586,9 @@ gmd(
         }
       };
 
-      Gifted.ev.on("messages.upsert", handleResponse);
+      Guru.ev.on("messages.upsert", handleResponse);
       setTimeout(
-        () => Gifted.ev.off("messages.upsert", handleResponse),
+        () => Guru.ev.off("messages.upsert", handleResponse),
         300000,
       );
       await react("✅");
@@ -616,7 +616,7 @@ gmd(
         description: "Search for a movie or series on IMDB. Usage: .movie <title>",
         category: "search",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, q, mek, botFooter, botName } = conText;
         const footer = buildFooterS2(botFooter, botName);
 
@@ -691,7 +691,7 @@ gmd(
         description: "Get full IMDB details for a movie/series. Usage: .movieinfo <imdb-id>",
         category: "search",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, q, mek, botFooter, botName } = conText;
         const footer = buildFooterS2(botFooter, botName);
 
@@ -751,7 +751,7 @@ gmd(
             if (poster && poster.startsWith('http')) {
                 try {
                     const imgBuf = await axios.get(poster, { responseType: 'arraybuffer', timeout: 15000 });
-                    await Gifted.sendMessage(from, {
+                    await Guru.sendMessage(from, {
                         image: Buffer.from(imgBuf.data),
                         caption: info,
                     }, { quoted: mek });
@@ -775,7 +775,7 @@ gmd(
         description: "Find a movie or series trailer. Usage: .trailer <title>",
         category: "search",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, q, mek, botFooter, botName } = conText;
         const footer = buildFooterS2(botFooter, botName);
 

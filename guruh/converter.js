@@ -52,7 +52,7 @@ gmd({
     category: "converter",
     react: "🔄️",
     description: "Convert image/video/sticker to sticker.",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { q, mek, reply, react, quoted, packName, packAuthor } = conText;
 
     try {
@@ -73,7 +73,7 @@ gmd({
         let tempFilePath;
         try {
             if (quotedImg || quotedVideo) {
-                tempFilePath = await Gifted.downloadAndSaveMediaMessage(
+                tempFilePath = await Guru.downloadAndSaveMediaMessage(
                     quotedImg || quotedVideo,
                     "temp_media"
                 );
@@ -112,11 +112,11 @@ gmd({
 
                 await fs.unlink(mediaFile).catch(() => {});
                 await react("✅");
-                return Gifted.sendMessage(from, { sticker: stickerBuffer }, { quoted: mek });
+                return Guru.sendMessage(from, { sticker: stickerBuffer }, { quoted: mek });
 
             } else if (quotedSticker) {
                 // Sticker → Sticker (recompress if too big)
-                tempFilePath = await Gifted.downloadAndSaveMediaMessage(quotedSticker, "temp_media");
+                tempFilePath = await Guru.downloadAndSaveMediaMessage(quotedSticker, "temp_media");
                 const stickerData = await fs.readFile(tempFilePath);
                 const stickerFile = gmdRandom(".webp");
                 await fs.writeFile(stickerFile, stickerData);
@@ -133,7 +133,7 @@ gmd({
 
                 await fs.unlink(stickerFile).catch(() => {});
                 await react("✅");
-                return Gifted.sendMessage(from, { sticker: newStickerBuffer }, { quoted: mek });
+                return Guru.sendMessage(from, { sticker: newStickerBuffer }, { quoted: mek });
             }
         } finally {
             if (tempFilePath) await fs.unlink(tempFilePath).catch(() => {});
@@ -152,7 +152,7 @@ gmd({
     category: "converter",
     react: "🔄️",
     description: "Convert Sticker to Image.",
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { mek, reply, sender, botName, react, quoted, botFooter, quotedMsg, newsletterJid } = conText;
 
     try {
@@ -169,10 +169,10 @@ gmd({
         
         let tempFilePath;
         try {
-            tempFilePath = await Gifted.downloadAndSaveMediaMessage(quotedSticker, 'temp_media');
+            tempFilePath = await Guru.downloadAndSaveMediaMessage(quotedSticker, 'temp_media');
             const stickerBuffer = await fs.readFile(tempFilePath);
             const imageBuffer = await stickerToImage(stickerBuffer);  
-        await Gifted.sendMessage(
+        await Guru.sendMessage(
         from,
         {
           image: imageBuffer,
@@ -209,7 +209,7 @@ gmd({
     react: "🔄️",
     description: "Convert video to audio"
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { mek, reply, react, botPic, quoted, quotedMsg, newsletterUrl } = conText;
 
     if (!quotedMsg) {
@@ -226,11 +226,11 @@ gmd({
 
     let tempFilePath;
     try {
-      tempFilePath = await Gifted.downloadAndSaveMediaMessage(quotedVideo, 'temp_media');
+      tempFilePath = await Guru.downloadAndSaveMediaMessage(quotedVideo, 'temp_media');
       const buffer = await fs.readFile(tempFilePath);
       const convertedBuffer = await toAudio(buffer);
       
-      await Gifted.sendMessage(from, {
+      await Guru.sendMessage(from, {
         audio: convertedBuffer,
         mimetype: "audio/mpeg",
         externalAdReply: {
@@ -268,7 +268,7 @@ gmd({
     react: "🎙️",
     description: "Convert audio to WhatsApp voice note"
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { mek, reply, react, botPic, quoted, quotedMsg } = conText;
 
     if (!quotedMsg) {
@@ -285,11 +285,11 @@ gmd({
 
     let tempFilePath;
     try {
-      tempFilePath = await Gifted.downloadAndSaveMediaMessage(quotedAudio, 'temp_media');
+      tempFilePath = await Guru.downloadAndSaveMediaMessage(quotedAudio, 'temp_media');
       const buffer = await fs.readFile(tempFilePath);
       const convertedBuffer = await toPtt(buffer);
       
-      await Gifted.sendMessage(from, {
+      await Guru.sendMessage(from, {
         audio: convertedBuffer,
         mimetype: "audio/ogg; codecs=opus",
         ptt: true,
@@ -314,7 +314,7 @@ gmd({
     react: "🎥",
     description: "Convert audio to video with black screen"
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { mek, reply, react, botPic, quoted, quotedMsg } = conText;
 
     if (!quotedMsg) {
@@ -331,11 +331,11 @@ gmd({
 
     let tempFilePath;
     try {
-      tempFilePath = await Gifted.downloadAndSaveMediaMessage(quotedAudio, 'temp_media');
+      tempFilePath = await Guru.downloadAndSaveMediaMessage(quotedAudio, 'temp_media');
       const buffer = await fs.readFile(tempFilePath);
       const convertedBuffer = await toVideo(buffer);
       
-      await Gifted.sendMessage(from, {
+      await Guru.sendMessage(from, {
         video: convertedBuffer,
         mimetype: "video/mp4",
         caption: 'Converted Video',
@@ -359,7 +359,7 @@ gmd({
     category: "converter",
     react: "🎥",
     description: "Convert a sticker (animated or static) to an MP4 video. Reply to a sticker."
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { mek, reply, react, quotedMsg, botFooter, sender, botName, newsletterJid } = conText;
 
     if (!quotedMsg) {
@@ -375,7 +375,7 @@ gmd({
 
     let tempWebp, tempMp4;
     try {
-        const filePath = await Gifted.downloadAndSaveMediaMessage(quotedSticker, "temp_media");
+        const filePath = await Guru.downloadAndSaveMediaMessage(quotedSticker, "temp_media");
         const stickerBuffer = await fs.readFile(filePath);
         await fs.unlink(filePath).catch(() => {});
 
@@ -389,7 +389,7 @@ gmd({
         );
 
         const videoBuffer = await fs.readFile(tempMp4);
-        await Gifted.sendMessage(from, {
+        await Guru.sendMessage(from, {
             video: videoBuffer,
             mimetype: "video/mp4",
             caption: `🎥 *Sticker → Video*\n\n> _${botFooter}_`,
@@ -418,7 +418,7 @@ gmd({
     category: "converter",
     react: "🔄️",
     description: "Convert a GIF to an animated sticker. Reply to a GIF message."
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { mek, reply, react, quotedMsg, packName, packAuthor } = conText;
 
     if (!quotedMsg) {
@@ -441,7 +441,7 @@ gmd({
 
     let tempFile;
     try {
-        const filePath = await Gifted.downloadAndSaveMediaMessage(mediaMsg, "temp_media");
+        const filePath = await Guru.downloadAndSaveMediaMessage(mediaMsg, "temp_media");
         const mediaBuffer = await fs.readFile(filePath);
         await fs.unlink(filePath).catch(() => {});
 
@@ -460,7 +460,7 @@ gmd({
             background: "transparent"
         });
 
-        await Gifted.sendMessage(from, { sticker: stickerBuffer }, { quoted: mek });
+        await Guru.sendMessage(from, { sticker: stickerBuffer }, { quoted: mek });
         await react("✅");
     } catch (e) {
         console.error("[gif2st] Error:", e.message);
@@ -478,7 +478,7 @@ gmd({
     category: "converter",
     react: "🔄️",
     description: "Convert a video to a GIF. Reply to a video. Use --hq for higher quality."
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { q, mek, reply, react, quotedMsg, botFooter, sender, botName, newsletterJid } = conText;
 
     if (!quotedMsg) {
@@ -498,7 +498,7 @@ gmd({
 
     let tempMp4, tempGif;
     try {
-        const filePath = await Gifted.downloadAndSaveMediaMessage(quotedVideo, "temp_media");
+        const filePath = await Guru.downloadAndSaveMediaMessage(quotedVideo, "temp_media");
         const videoBuffer = await fs.readFile(filePath);
         await fs.unlink(filePath).catch(() => {});
 
@@ -512,7 +512,7 @@ gmd({
         );
 
         const gifBuffer = await fs.readFile(tempGif);
-        await Gifted.sendMessage(from, {
+        await Guru.sendMessage(from, {
             image: gifBuffer,
             mimetype: "image/gif",
             caption: `🎞️ *Video → GIF*${isHQ ? " (HQ)" : ""}\n\n> _${botFooter}_`,
@@ -541,7 +541,7 @@ gmd({
     category: "converter",
     react: "😄",
     description: "Convert an emoji to a sticker. Usage: .emojisticker 😂"
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { q, mek, reply, react, packName, packAuthor } = conText;
 
     const raw = (q || "").trim();
@@ -592,7 +592,7 @@ gmd({
             background: "transparent"
         });
 
-        await Gifted.sendMessage(from, { sticker: stickerBuffer }, { quoted: mek });
+        await Guru.sendMessage(from, { sticker: stickerBuffer }, { quoted: mek });
         await react("✅");
     } catch (e) {
         console.error("[emojisticker] Error:", e.message);
@@ -610,7 +610,7 @@ gmd({
     category: "converter",
     react: "🎬",
     description: "Convert a video sticker to a real MP4 with original audio (if present). Reply to a sticker."
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { mek, reply, react, quotedMsg, botFooter, sender, botName, newsletterJid } = conText;
 
     if (!quotedMsg) {
@@ -626,7 +626,7 @@ gmd({
 
     let tempInput, tempMp4;
     try {
-        const filePath = await Gifted.downloadAndSaveMediaMessage(quotedSticker, "temp_media");
+        const filePath = await Guru.downloadAndSaveMediaMessage(quotedSticker, "temp_media");
         const rawBuffer = await fs.readFile(filePath);
         await fs.unlink(filePath).catch(() => {});
 
@@ -634,7 +634,7 @@ gmd({
 
         if (mediaType === "mp4") {
             // Already an MP4-based video sticker — send directly with original audio intact
-            await Gifted.sendMessage(from, {
+            await Guru.sendMessage(from, {
                 video: rawBuffer,
                 mimetype: "video/mp4",
                 caption: `🎬 *Video Sticker → Real Video*\n🔊 _Audio preserved_\n\n> _${botFooter}_`,
@@ -681,7 +681,7 @@ gmd({
         }
 
         const videoBuffer = await fs.readFile(tempMp4);
-        await Gifted.sendMessage(from, {
+        await Guru.sendMessage(from, {
             video: videoBuffer,
             mimetype: "video/mp4",
             caption: `🎬 *Animated Sticker → Video*\n⚠️ _WebP sticker — audio is not recoverable_\n\n> _${botFooter}_`,
@@ -710,7 +710,7 @@ gmd({
     category: "converter",
     react: "🎵",
     description: "Extract audio from a video sticker (only works on MP4-based stickers that contain audio). Reply to a sticker."
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { mek, reply, react, quotedMsg, botFooter, sender, botName, newsletterJid, botPic, newsletterUrl } = conText;
 
     if (!quotedMsg) {
@@ -726,7 +726,7 @@ gmd({
 
     let tempInput, tempMp3;
     try {
-        const filePath = await Gifted.downloadAndSaveMediaMessage(quotedSticker, "temp_media");
+        const filePath = await Guru.downloadAndSaveMediaMessage(quotedSticker, "temp_media");
         const rawBuffer = await fs.readFile(filePath);
         await fs.unlink(filePath).catch(() => {});
 
@@ -760,7 +760,7 @@ gmd({
         await ffmpegRun(`ffmpeg -i "${tempInput}" -vn -acodec libmp3lame -q:a 2 "${tempMp3}" -y`);
 
         const audioBuffer = await fs.readFile(tempMp3);
-        await Gifted.sendMessage(from, {
+        await Guru.sendMessage(from, {
             audio: audioBuffer,
             mimetype: "audio/mpeg",
             externalAdReply: {
@@ -791,7 +791,7 @@ gmd({
     category: "converter",
     react: "🎬",
     description: "Merge a video with an audio file. Reply to a video, and quote/include an audio message. Usage: reply to video, quote the audio."
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { mek, reply, react, quotedMsg, quoted, botFooter, sender, botName, newsletterJid } = conText;
 
     if (!quotedMsg) {
@@ -824,8 +824,8 @@ gmd({
     try {
         await react("⏳");
 
-        const vidPath = await Gifted.downloadAndSaveMediaMessage(videoMsg, "temp_vid");
-        const audPath = await Gifted.downloadAndSaveMediaMessage(audioMsg, "temp_aud");
+        const vidPath = await Guru.downloadAndSaveMediaMessage(videoMsg, "temp_vid");
+        const audPath = await Guru.downloadAndSaveMediaMessage(audioMsg, "temp_aud");
 
         const vidBuf = await fs.readFile(vidPath);
         const audBuf = await fs.readFile(audPath);
@@ -859,7 +859,7 @@ gmd({
         );
 
         const outBuffer = await fs.readFile(tempOut);
-        await Gifted.sendMessage(from, {
+        await Guru.sendMessage(from, {
             video: outBuffer,
             mimetype: "video/mp4",
             caption: `🎬 *Video + Audio Merged*\n🔊 _Audio replaced successfully_\n\n> _${botFooter}_`,
@@ -889,7 +889,7 @@ gmd({
     category: "converter",
     react: "🎙️",
     description: "Extract audio from a video and send it as a WhatsApp voice note. Reply to a video."
-}, async (from, Gifted, conText) => {
+}, async (from, Guru, conText) => {
     const { mek, reply, react, quotedMsg } = conText;
 
     if (!quotedMsg) {
@@ -905,7 +905,7 @@ gmd({
 
     let tempMp4, tempOgg;
     try {
-        const filePath = await Gifted.downloadAndSaveMediaMessage(quotedVideo, "temp_media");
+        const filePath = await Guru.downloadAndSaveMediaMessage(quotedVideo, "temp_media");
         const vidBuffer = await fs.readFile(filePath);
         await fs.unlink(filePath).catch(() => {});
 
@@ -931,7 +931,7 @@ gmd({
         );
 
         const pttBuffer = await fs.readFile(tempOgg);
-        await Gifted.sendMessage(from, {
+        await Guru.sendMessage(from, {
             audio: pttBuffer,
             mimetype: "audio/ogg; codecs=opus",
             ptt: true,

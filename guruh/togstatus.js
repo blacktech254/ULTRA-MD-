@@ -29,7 +29,7 @@ gmd(
         category: "group",
         description: "Send text / image / video / audio as group status (admin only). Use 'all' to post to every group (owner only).",
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
         const { reply, react, mek, isGroup, isSuperUser, newsletterJid, botName, botFooter, botPrefix } = conText;
 
         if (!isGroup) return reply("❌ This command only works in groups!");
@@ -46,11 +46,11 @@ gmd(
         };
 
         const quickReply = (text) =>
-            Gifted.sendMessage(from, { text, contextInfo }, { quoted: mek });
+            Guru.sendMessage(from, { text, contextInfo }, { quoted: mek });
 
         try {
             // ── ADMIN CHECK ──────────────────────────────────────────────────
-            const groupMeta = await Gifted.groupMetadata(from);
+            const groupMeta = await Guru.groupMetadata(from);
             const senderJid = mek.key.participant || from;
             const senderInfo = groupMeta.participants.find(p => p.id === senderJid);
             const isGroupAdmin = senderInfo?.admin === "admin" || senderInfo?.admin === "superadmin";
@@ -71,7 +71,7 @@ gmd(
             if (groupUrl) {
                 try {
                     const code = groupUrl.split("/").pop().split("?")[0];
-                    const info = await Gifted.groupGetInviteInfo(code);
+                    const info = await Guru.groupGetInviteInfo(code);
                     targetGroupId = info.id;
                     await quickReply(`🎯 Target group: *${info.subject}*`);
                 } catch {
@@ -123,7 +123,7 @@ gmd(
                 await react("⏳");
                 const buf = await baileys.downloadMediaMessage(
                     buildMsgObj(mek, quoted), "buffer", {},
-                    { reuploadRequest: Gifted.updateMediaMessage },
+                    { reuploadRequest: Guru.updateMediaMessage },
                 );
                 sendOpts = { image: buf, caption: caption || "" };
                 mediaType = "image";
@@ -132,7 +132,7 @@ gmd(
                 await react("⏳");
                 const buf = await baileys.downloadMediaMessage(
                     buildMsgObj(mek, quoted), "buffer", {},
-                    { reuploadRequest: Gifted.updateMediaMessage },
+                    { reuploadRequest: Guru.updateMediaMessage },
                 );
                 sendOpts = { video: buf, caption: caption || "", gifPlayback: false };
                 mediaType = "video";
@@ -141,7 +141,7 @@ gmd(
                 await react("⏳");
                 const buf = await baileys.downloadMediaMessage(
                     buildMsgObj(mek, quoted), "buffer", {},
-                    { reuploadRequest: Gifted.updateMediaMessage },
+                    { reuploadRequest: Guru.updateMediaMessage },
                 );
                 const vn = await toVN(buf);
                 const wfBase64 = await generateWaveform(buf);
@@ -162,7 +162,7 @@ gmd(
 
             if (broadcastAll) {
                 try {
-                    const allGroups = await Gifted.groupFetchAllParticipating();
+                    const allGroups = await Guru.groupFetchAllParticipating();
                     targetGroups = Object.keys(allGroups);
                     await quickReply(`📢 *Broadcasting to ${targetGroups.length} groups…*`);
                 } catch (err) {
@@ -180,7 +180,7 @@ gmd(
 
             for (const gid of targetGroups) {
                 try {
-                    await groupStatus(Gifted, gid, sendOpts);
+                    await groupStatus(Guru, gid, sendOpts);
                     sent++;
                     if (targetGroups.length > 1) await delay(800);
                 } catch (_) {

@@ -6,7 +6,7 @@
  * Bugs fixed vs v1:
  *  - Removed duplicates: hidetag, unsplash, define, npm, online (already exist)
  *  - Fixed: groupMetadata -> groupInfo in conText for hidetag (removed duplicate)
- *  - Fixed: removed Gifted.getContact() which doesn't exist; getname now uses onWhatsApp only
+ *  - Fixed: removed Guru.getContact() which doesn't exist; getname now uses onWhatsApp only
  *  - Fixed: removed unused getSetting import
  *  - Fixed: online/offline renamed to setonline/setoffline (online exists for different purpose)
  *  - Fixed: invite/revoke pattern aliases cleaned to avoid alias clash with group.js
@@ -34,14 +34,14 @@ gmd(
     react: "📋",
     category: "utility",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, mek, sender, quoted, botFooter } = conText;
     await react("⏳");
     try {
       let target = sender;
       if (quoted && quoted.sender) target = quoted.sender;
 
-      const status = await Gifted.fetchStatus(target).catch(() => null);
+      const status = await Guru.fetchStatus(target).catch(() => null);
       const num = target.split("@")[0];
 
       if (!status || !status.status) {
@@ -68,14 +68,14 @@ gmd(
     react: "✏️",
     category: "owner",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, isSuperUser, botFooter } = conText;
     if (!isSuperUser) return reply("*Owner Only Command*");
     if (!q) return reply("*Usage:* `.changebio <new bio text>`");
     if (q.length > 139) return reply("❌ Bio must be under 139 characters.");
     await react("⏳");
     try {
-      await Gifted.updateProfileStatus(q);
+      await Guru.updateProfileStatus(q);
       await react("✅");
       await reply(`✅ *Bio Updated*\n\n📝 ${q}\n\n> _${botFooter}_`);
     } catch (e) {
@@ -93,7 +93,7 @@ gmd(
     react: "🪪",
     category: "utility",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, sender, quoted, botFooter } = conText;
     await react("⏳");
     try {
@@ -108,8 +108,8 @@ gmd(
       }
 
       const num = jid.split("@")[0];
-      const [info] = await Gifted.onWhatsApp(num).catch(() => [null]);
-      const statusData = await Gifted.fetchStatus(jid).catch(() => null);
+      const [info] = await Guru.onWhatsApp(num).catch(() => [null]);
+      const statusData = await Guru.fetchStatus(jid).catch(() => null);
 
       await react("✅");
       await reply(
@@ -138,12 +138,12 @@ gmd(
     react: "🟢",
     category: "owner",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, botFooter } = conText;
     if (!isSuperUser) return reply("*Owner Only Command*");
     await react("⏳");
     try {
-      await Gifted.sendPresenceUpdate("available");
+      await Guru.sendPresenceUpdate("available");
       await react("✅");
       await reply(`🟢 *Presence set to Online*\n\n> _${botFooter}_`);
     } catch (e) {
@@ -161,12 +161,12 @@ gmd(
     react: "⚫",
     category: "owner",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, botFooter } = conText;
     if (!isSuperUser) return reply("*Owner Only Command*");
     await react("⏳");
     try {
-      await Gifted.sendPresenceUpdate("unavailable");
+      await Guru.sendPresenceUpdate("unavailable");
       await react("✅");
       await reply(`⚫ *Presence set to Offline*\n\n> _${botFooter}_`);
     } catch (e) {
@@ -184,15 +184,15 @@ gmd(
     react: "⌨️",
     category: "owner",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, isSuperUser, botFooter } = conText;
     if (!isSuperUser) return reply("*Owner Only Command*");
     const seconds = Math.min(parseInt(q) || 3, 30);
     await react("⏳");
     try {
-      await Gifted.sendPresenceUpdate("composing", from);
+      await Guru.sendPresenceUpdate("composing", from);
       await new Promise((r) => setTimeout(r, seconds * 1000));
-      await Gifted.sendPresenceUpdate("paused", from);
+      await Guru.sendPresenceUpdate("paused", from);
       await react("✅");
       await reply(`⌨️ Simulated typing for *${seconds}s*\n\n> _${botFooter}_`);
     } catch (e) {
@@ -210,15 +210,15 @@ gmd(
     react: "🎙️",
     category: "owner",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, isSuperUser, botFooter } = conText;
     if (!isSuperUser) return reply("*Owner Only Command*");
     const seconds = Math.min(parseInt(q) || 3, 30);
     await react("⏳");
     try {
-      await Gifted.sendPresenceUpdate("recording", from);
+      await Guru.sendPresenceUpdate("recording", from);
       await new Promise((r) => setTimeout(r, seconds * 1000));
-      await Gifted.sendPresenceUpdate("paused", from);
+      await Guru.sendPresenceUpdate("paused", from);
       await react("✅");
       await reply(`🎙️ Simulated recording for *${seconds}s*\n\n> _${botFooter}_`);
     } catch (e) {
@@ -240,7 +240,7 @@ gmd(
     react: "📊",
     category: "group",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, mek, botFooter } = conText;
     if (!q) {
       return reply(
@@ -261,7 +261,7 @@ gmd(
 
     await react("⏳");
     try {
-      await Gifted.sendMessage(from, {
+      await Guru.sendMessage(from, {
         poll: {
           name: question,
           values: options,
@@ -285,11 +285,11 @@ gmd(
     category: "group",
     isGroup: true,
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, mek, botFooter } = conText;
     await react("⏳");
     try {
-      const meta = await Gifted.groupMetadata(from);
+      const meta = await Guru.groupMetadata(from);
       const allAdmins = meta.participants.filter((p) => p.admin);
       const admins = allAdmins.map((p) => `+${(p.id || p.jid || p.pn || "").split("@")[0]}`);
       const owner = meta.owner ? `+${meta.owner.split("@")[0]}` : "Unknown";
@@ -309,9 +309,9 @@ gmd(
         `\n> _${botFooter}_`;
 
       try {
-        const pic = await Gifted.profilePictureUrl(from, "image").catch(() => null);
+        const pic = await Guru.profilePictureUrl(from, "image").catch(() => null);
         if (pic) {
-          await Gifted.sendMessage(from, { image: { url: pic }, caption: text }, { quoted: mek });
+          await Guru.sendMessage(from, { image: { url: pic }, caption: text }, { quoted: mek });
           return await react("✅");
         }
       } catch {}
@@ -334,12 +334,12 @@ gmd(
     category: "group",
     isGroup: true,
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isAdmin, isSuperAdmin, isSuperUser, botFooter } = conText;
     if (!isAdmin && !isSuperAdmin && !isSuperUser) return reply("❌ *Admins Only*");
     await react("⏳");
     try {
-      const code = await Gifted.groupInviteCode(from);
+      const code = await Guru.groupInviteCode(from);
       await react("✅");
       await reply(
         `🔗 *Group Invite Link*\n\nhttps://chat.whatsapp.com/${code}\n\n_Share to invite people._\n\n> _${botFooter}_`
@@ -360,13 +360,13 @@ gmd(
     category: "group",
     isGroup: true,
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isAdmin, isSuperAdmin, isSuperUser, botFooter } = conText;
     if (!isAdmin && !isSuperAdmin && !isSuperUser) return reply("❌ *Admins Only*");
     await react("⏳");
     try {
-      await Gifted.groupRevokeInvite(from);
-      const newCode = await Gifted.groupInviteCode(from);
+      await Guru.groupRevokeInvite(from);
+      const newCode = await Guru.groupInviteCode(from);
       await react("✅");
       await reply(
         `🔄 *Invite Link Revoked*\n\nNew link:\nhttps://chat.whatsapp.com/${newCode}\n\n> _${botFooter}_`
@@ -390,7 +390,7 @@ gmd(
     react: "💕",
     category: "fun",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q || !q.includes("&")) {
       return reply("*Usage:* `.lovecalc Name1 & Name2`\n_Example: .lovecalc Guru & Amira_");
@@ -428,7 +428,7 @@ gmd(
     react: "🤔",
     category: "fun",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, botFooter } = conText;
     const questions = [
       ["Be able to fly", "Be able to breathe underwater"],
@@ -463,7 +463,7 @@ gmd(
     react: "🙋",
     category: "fun",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, botFooter } = conText;
     const list = [
       "Never have I ever lied to get out of plans 😅",
@@ -498,17 +498,17 @@ gmd(
     react: "⌨️",
     category: "fun",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, mek, isSuperUser } = conText;
     if (!isSuperUser) return reply("*Owner Only Command*");
     if (!q) return reply("*Usage:* `.faketype <your message>`");
     await react("⏳");
     try {
-      await Gifted.sendPresenceUpdate("composing", from);
+      await Guru.sendPresenceUpdate("composing", from);
       const delay = Math.min(q.length * 60, 5000);
       await new Promise((r) => setTimeout(r, delay));
-      await Gifted.sendPresenceUpdate("paused", from);
-      await Gifted.sendMessage(from, { text: q }, { quoted: mek });
+      await Guru.sendPresenceUpdate("paused", from);
+      await Guru.sendMessage(from, { text: q }, { quoted: mek });
       await react("✅");
     } catch (e) {
       await react("❌");
@@ -525,7 +525,7 @@ gmd(
     react: "💡",
     category: "fun",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, botFooter } = conText;
     await react("⏳");
     try {
@@ -549,7 +549,7 @@ gmd(
     react: "🌟",
     category: "fun",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, botFooter } = conText;
     const list = [
       "You are capable of achieving great things. Believe in yourself! 💪",
@@ -583,7 +583,7 @@ gmd(
     react: "🌐",
     category: "utility",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, botFooter } = conText;
     if (!q) return reply("*Usage:* `.geoip <ip address>`\n_Example: .geoip 8.8.8.8_");
 
@@ -626,7 +626,7 @@ gmd(
     react: "📌",
     category: "utility",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, mek, botFooter } = conText;
     if (!q) return reply("*Usage:* `.pinterest <search query>`\n_Example: .pinterest anime wallpaper_");
 
@@ -638,7 +638,7 @@ gmd(
       );
 
       const buf = Buffer.from(res.data);
-      await Gifted.sendMessage(
+      await Guru.sendMessage(
         from,
         {
           image: buf,
@@ -663,7 +663,7 @@ gmd(
     react: "🐱",
     category: "utility",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, q, mek, botFooter } = conText;
     if (!q) return reply("*Usage:* `.github2 <username>`\n_Example: .github2 torvalds_");
     await react("⏳");
@@ -689,7 +689,7 @@ gmd(
         `\n> _${botFooter}_`;
 
       if (u.avatar_url) {
-        await Gifted.sendMessage(from, { image: { url: u.avatar_url }, caption }, { quoted: mek });
+        await Guru.sendMessage(from, { image: { url: u.avatar_url }, caption }, { quoted: mek });
       } else {
         await reply(caption);
       }

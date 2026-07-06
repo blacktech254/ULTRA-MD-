@@ -182,14 +182,14 @@ async function createLogoCommand(config) {
       react: "🎨",
       description: `Create ${config.description}`,
     },
-    async (from, Gifted, conText) => {
+    async (from, Guru, conText) => {
       const {
         q,
         mek,
         reply,
         react,
-        GiftedTechApi,
-        GiftedApiKey,
+        GuruTechApi,
+        GuruApiKey,
         pushname,
         botCaption,
       } = conText;
@@ -197,14 +197,14 @@ async function createLogoCommand(config) {
       if (!q) {
         await react("❌");
         return reply(
-          `Please provide text for the logo.\n\nUsage: .${config.pattern} <text>\nExample: .${config.pattern} ${pushname || "Gifted Tech"}`,
+          `Please provide text for the logo.\n\nUsage: .${config.pattern} <text>\nExample: .${config.pattern} ${pushname || "Guru Tech"}`,
         );
       }
 
       try {
         await react("⏳");
 
-        const apiUrl = `${GiftedTechApi}/api/ephoto360/${config.endpoint}?apikey=${GiftedApiKey}&text=${encodeURIComponent(q)}`;
+        const apiUrl = `${GuruTechApi}/api/ephoto360/${config.endpoint}?apikey=${GuruApiKey}&text=${encodeURIComponent(q)}`;
         const res = await axios.get(apiUrl, { timeout: 60000 });
 
         if (!res.data || !res.data.success || !res.data.result?.image_url) {
@@ -220,7 +220,7 @@ async function createLogoCommand(config) {
           return reply("Failed to download the generated logo.");
         }
 
-        await Gifted.sendMessage(
+        await Guru.sendMessage(
           from,
           {
             image: imageBuffer,
@@ -249,7 +249,7 @@ gmd(
     react: "📜",
     description: "Show all available logo commands",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { mek, reply, react, botCaption, botName, botPrefix } = conText;
 
     const logoList = logoEndpoints
@@ -257,7 +257,7 @@ gmd(
       .join("\n");
 
     await reply(
-      `🎨 *${botName} LOGO MAKER*\n\n${logoList}\n\n📝 *Usage:* ${botPrefix}commandname <your text>\n📌 *Example:* ${botPrefix}glossysilver Gifted Tech\n\n> ${botCaption}`,
+      `🎨 *${botName} LOGO MAKER*\n\n${logoList}\n\n📝 *Usage:* ${botPrefix}commandname <your text>\n📌 *Example:* ${botPrefix}glossysilver Guru Tech\n\n> ${botCaption}`,
     );
     await react("✅");
   },

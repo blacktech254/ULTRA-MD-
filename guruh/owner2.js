@@ -23,7 +23,7 @@ gmd(
     dontAddCommandList: true,
     description: "Run a shell command. Usage: $ <command>",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, body } = conText;
     if (!body.startsWith("$")) return;
     if (!isSuperUser) return;
@@ -52,7 +52,7 @@ gmd(
     dontAddCommandList: true,
     description: "Evaluate a JavaScript expression. Usage: > <code>",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { mek, reply, react, isSuperUser, body } = conText;
     if (!body.startsWith(">")) return;
     if (!isSuperUser) return reply("❌ Owner only");
@@ -78,7 +78,7 @@ gmd(
           return target[key];
         }
       });
-      const bot = Gifted;
+      const bot = Guru;
       const m = mek;
       const {
         sender, isGroup, groupInfo, groupName, participants,
@@ -125,7 +125,7 @@ gmd(
     category: "owner",
     description: "Restart the bot. Add 'update' to pull latest code first. Usage: .restartbot | .restartbot update",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, args } = conText;
     if (!isSuperUser) return reply("❌ Owner/Sudo only.");
 
@@ -143,7 +143,7 @@ gmd(
         const match = String(rawRepo || "").match(/github\.com\/([^/\s]+\/[^/\s]+)/);
         const repo = match ? match[1].replace(/\.git$/, "").replace(/\/*$/, "") : (rawRepo || "blacktech254/ULTRA-MD-");
 
-        const updated = await runUpdate(repo, Gifted, null);
+        const updated = await runUpdate(repo, Guru, null);
         if (updated) {
           await react("✅");
           await reply("✅ *Update applied! Restarting now...*");
@@ -177,7 +177,7 @@ gmd(
     category: "owner",
     description: "View contents of any bot script file. Usage: .viewscript guruh/owner2.js or .viewscript guru/config.js",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, args } = conText;
     if (!isSuperUser) return reply("❌ Owner only.");
 
@@ -255,7 +255,7 @@ gmd(
     category: "owner",
     description: "Find & replace text in a bot script file. Usage: .editscript <file>|<find>|<replace>",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, args } = conText;
     if (!isSuperUser) return reply("❌ Sudo/Owner only.");
 
@@ -335,7 +335,7 @@ gmd(
     category: "owner",
     description: "Stage, commit and push all bot changes to GitHub. Usage: .pushgit [commit message]",
   },
-  async (from, Gifted, conText) => {
+  async (from, Guru, conText) => {
     const { reply, react, isSuperUser, args } = conText;
     if (!isSuperUser) return reply("❌ Owner only.");
 

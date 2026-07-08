@@ -22,6 +22,19 @@ let isWatchdogReconnect = false;
 
 const withJitter = (ms) => ms + Math.floor(Math.random() * ms * 0.3);
 
+// Keep web server alive after a fatal WhatsApp disconnect instead of killing the process.
+// The user can visit /pair to re-link and get a fresh SESSION_ID.
+const _keepAlive = (reason) => {
+    const replDomain = process.env.REPL_DEV_DOMAIN || process.env.REPLIT_DOMAINS || "your-repl-url";
+    console.log(`\n${"═".repeat(60)}`);
+    console.log(`🔗 BOT DISCONNECTED — ${reason}`);
+    console.log(`   The web server is still running.`);
+    console.log(`   👉 Visit https://${replDomain}/pair to get a new SESSION_ID`);
+    console.log(`   Then update SESSION_ID in Replit Secrets and restart.`);
+    console.log(`${"═".repeat(60)}\n`);
+    global._botDisconnected = true;
+};
+
 const clearWatchdog = () => {
     if (watchdogTimer) {
         clearInterval(watchdogTimer);
@@ -560,28 +573,20 @@ const setupConnectionHandler = (
                         isWatchdogReconnect = false;
                         break;
                     }
-                    console.log("❌ Bad session — deleting session file. Please re-link the bot.");
-                    try {
-                        await fs.remove(sessionDir);
-                    } catch (e) {
-                        console.error("Failed to remove session:", e);
-                    }
-                    process.exit(1);
+                    console.log("❌ Bad session — deleting session file.");
+                    try { await fs.remove(sessionDir); } catch (e) { console.error("Failed to remove session:", e); }
+                    _keepAlive("Bad session detected");
                     break;
 
                 case DisconnectReason.connectionReplaced:
-                    console.log("❌ Connection replaced by another session. Shutting down this instance.");
-                    process.exit(1);
+                    console.log("⚠️ Connection replaced — another device is using this session.");
+                    _keepAlive("Connection replaced");
                     break;
 
                 case DisconnectReason.loggedOut:
-                    console.log("❌ Device logged out — deleting session. Please re-link the bot.");
-                    try {
-                        await fs.remove(sessionDir);
-                    } catch (e) {
-                        console.error("❌ Failed to remove session:", e);
-                    }
-                    process.exit(1);
+                    console.log("❌ Device logged out — deleting session.");
+                    try { await fs.remove(sessionDir); } catch (e) { console.error("Failed to remove session:", e); }
+                    _keepAlive("Logged out");
                     break;
 
                 case DisconnectReason.restartRequired:

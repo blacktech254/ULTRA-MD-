@@ -64,9 +64,32 @@ let botSettings = {};
 function startWebServer() {
     const app = express();
 
+    app.use(express.json());
     app.use(express.static("guru"));
     app.get("/",       (_req, res) => res.sendFile(path.join(__dirname, "guru", "guru.html")));
+    app.get("/pair",   (_req, res) => res.sendFile(path.join(__dirname, "guru", "pair.html")));
     app.get("/health", (_req, res) => res.status(200).json({ status: "alive", uptime: process.uptime() }));
+
+    // ── Pairing API ───────────────────────────────────────────────────────────
+    const pairing = require("./guru/pairing");
+
+    app.post("/api/pair", async (req, res) => {
+        const phone = (req.body?.phone || "").replace(/\D/g, "");
+        if (!phone || phone.length < 7) {
+            return res.json({ ok: false, error: "Invalid phone number." });
+        }
+        pairing.startPairing(phone).catch(() => {});
+        res.json({ ok: true });
+    });
+
+    app.get("/api/pair/status", (_req, res) => {
+        res.json(pairing.getStatus());
+    });
+
+    app.get("/api/pair/cancel", (_req, res) => {
+        pairing.cancelPairing();
+        res.json({ ok: true });
+    });
 
     const server = app.listen(PORT, "0.0.0.0", () =>
         console.log(`✅ Server Running on Port: ${PORT}`)
